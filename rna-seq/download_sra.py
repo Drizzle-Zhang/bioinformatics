@@ -9,27 +9,30 @@ from time import time
 import sys
 
 
-def download(ls_sra, path_out):
+def download(ls_sra, path_out, process):
     with open(ls_sra, 'r') as fi:
-        downlsit = []
+        downlist = []
         for line in fi:
             tmp_line = line.strip().split(',')
             if tmp_line[0] != 'Run':
-                downlsit.append(tmp_line[0])
+                downlist.append(tmp_line[0])
 
     subprocesses = []
-    for one in downlsit:
-        subprocesses.append(subprocess.Popen('fastq-dump --split-3 -O ' + path_out + ' ' + one, shell=True))
-
-    for sub_process in subprocesses:
-        sub_process.wait()
+    for i, one in enumerate(downlist):
+        if i % process == 0:
+            for sub_process in subprocesses:
+                sub_process.wait()
+            subprocesses = []
+        subprocesses.append(
+            subprocess.Popen(
+                'fastq-dump --split-3 -O ' + path_out + ' ' + one, shell=True))
 
     return
 
 
 if __name__ == '__main__':
     start = time()
-    download(sys.argv[1], sys.argv[2])
+    download(sys.argv[1], sys.argv[2], int(sys.argv[3]))
     end = time()
     print(end - start)
     # python36 download_sra.py SraRunInfo.csv ./ > output
