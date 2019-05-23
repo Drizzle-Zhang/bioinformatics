@@ -30,6 +30,7 @@ def download(ls_sra, path_out, path_tmp, process):
                     f"fasterq-dump --split-3 {one} -O {path_out} "
                     f"-t {path_tmp} -e 5",
                     shell=True))
+            print(one)
 
     return
 
