@@ -24,7 +24,13 @@ def download(ls_sra, path_out, path_tmp, process):
             for sub_process in subprocesses:
                 sub_process.wait()
             subprocesses = []
-        if not os.path.exists(os.path.join(path_out, one + ".fastq")):
+        if os.path.exists(os.path.join(path_out, one + ".fastq")):
+            continue
+        elif os.path.exists(os.path.join(path_out, one + "_1.fastq")):
+            continue
+        elif os.path.exists(os.path.join(path_out, one + "_2.fastq")):
+            continue
+        else:
             subprocesses.append(
                 subprocess.Popen(
                     f"fasterq-dump --split-3 {one} -O {path_out} "
