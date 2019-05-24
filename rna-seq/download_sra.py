@@ -13,7 +13,7 @@ from functools import partial
 
 
 def gzip(path_out, file_fq):
-    if file_fq[:-3] == ".gz":
+    if file_fq[-3:] == ".gz":
         return
     else:
         path_fq = os.path.join(path_out, file_fq)
