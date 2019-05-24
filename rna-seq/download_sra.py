@@ -8,6 +8,18 @@ import subprocess
 from time import time
 import sys
 import os
+from multiprocessing import Pool
+from functools import partial
+
+
+def gzip(path_out, file_fq):
+    if file_fq[:-3] == ".gz":
+        return
+    else:
+        path_fq = os.path.join(path_out, file_fq)
+        if os.path.exists(path_fq):
+            os.system(f"gzip {path_fq}")
+        return
 
 
 def download(ls_sra, path_out, path_tmp, process):
@@ -24,11 +36,22 @@ def download(ls_sra, path_out, path_tmp, process):
             for sub_process in subprocesses:
                 sub_process.wait()
             subprocesses = []
+            fastq_files = os.listdir(path_out)
+            pool = Pool(processes=process)
+            func_gzip = partial(gzip, path_out)
+            pool.map(func_gzip, fastq_files)
+            pool.close()
         if os.path.exists(os.path.join(path_out, one + ".fastq")):
             continue
         elif os.path.exists(os.path.join(path_out, one + "_1.fastq")):
             continue
         elif os.path.exists(os.path.join(path_out, one + "_2.fastq")):
+            continue
+        elif os.path.exists(os.path.join(path_out, one + ".fastq.gz")):
+            continue
+        elif os.path.exists(os.path.join(path_out, one + "_2.fastq.gz")):
+            continue
+        elif os.path.exists(os.path.join(path_out, one + "_1.fastq.gz")):
             continue
         else:
             subprocesses.append(
@@ -37,6 +60,14 @@ def download(ls_sra, path_out, path_tmp, process):
                     f"-t {path_tmp} -e 5",
                     shell=True))
             print(one)
+
+    for sub_process in subprocesses:
+        sub_process.wait()
+    fastq_files = os.listdir(path_out)
+    pool = Pool(processes=process)
+    func_gzip = partial(gzip, path_out)
+    pool.map(func_gzip, fastq_files)
+    pool.close()
 
     return
 
