@@ -36,11 +36,12 @@ def download(ls_sra, path_out, path_tmp, process):
             for sub_process in subprocesses:
                 sub_process.wait()
             subprocesses = []
-            fastq_files = os.listdir(path_out)
-            pool = Pool(processes=process)
-            func_gzip = partial(gzip, path_out)
-            pool.map(func_gzip, fastq_files)
-            pool.close()
+            if i % (5 * process) == 0:
+                fastq_files = os.listdir(path_out)
+                pool = Pool(processes=(5 * process))
+                func_gzip = partial(gzip, path_out)
+                pool.map(func_gzip, fastq_files)
+                pool.close()
         if os.path.exists(os.path.join(path_out, one + ".fastq")):
             continue
         elif os.path.exists(os.path.join(path_out, one + "_1.fastq")):

@@ -45,7 +45,8 @@ def download(list_ebi, path_out, path_tmp, process):
         else:
             subprocesses.append(
                 subprocess.Popen(
-                    f"wget -b -O {os.path.join(path_tmp, one_file)} {one}",
+                    f"wget -O {os.path.join(path_tmp, one_file)} {one} "
+                    f"> {os.path.join(path_tmp, one + '.log')}",
                     shell=True))
             print(one_file)
             file_fastq.append(one_file)
