@@ -125,7 +125,7 @@ def get_one_mat(path_folder, out_folder, df_ref, df_meta, cl_name):
         return
     else:
         print(cl_name)
-        cl_file = cl_name.replace(' ', '_')
+        cl_file = cl_name.replace(' ', '_').replace('/', '.')
         path_folder_cl_name = os.path.join(out_folder, cl_file)
         if not os.path.exists(path_folder_cl_name):
             os.mkdir(path_folder_cl_name)
@@ -188,7 +188,7 @@ def count_cell(out_folder, cl_name):
         return
     else:
         print(cl_name)
-        cl_file = cl_name.replace(' ', '_')
+        cl_file = cl_name.replace(' ', '_').replace('/', '.')
         path_folder_cl_name = os.path.join(out_folder, cl_file)
         meta_name = f"{cl_file}_meta.txt"
         path_meta = os.path.join(path_folder_cl_name, meta_name)
@@ -199,6 +199,7 @@ def count_cell(out_folder, cl_name):
 
 
 def generate_mat_by_lab(path_data, path_output):
+
     list_folder = os.listdir(path_data)
     for folder in list_folder:
         path_folder = os.path.join(path_data, folder)
@@ -237,9 +238,9 @@ def generate_mat_by_lab(path_data, path_output):
 
         cl_names = set(np.array(df_ref['CL_name']).tolist())
         if df_meta.shape[0] < 500000:
-            pool = Pool(processes=40)
+            pool = Pool(processes=30)
         else:
-            pool = Pool(processes=5)
+            pool = Pool(processes=3)
         func_get_one_mat = partial(
             get_one_mat, path_folder, out_folder, df_ref, df_meta
         )
@@ -283,14 +284,16 @@ def generate_mat_by_lab(path_data, path_output):
         else:
             continue
 
+        out_folder = os.path.join(path_output, folder)
         cl_names = set(np.array(df_ref['CL_name']).tolist())
         pool = Pool(processes=40)
-        func_count_cell = partial(count_cell, path_folder)
+        func_count_cell = partial(count_cell, out_folder)
         list_cells = pool.map(func_count_cell, cl_names)
         pool.close()
 
         df_cells = pd.DataFrame(list_cells)
         df_cells.index = df_cells['cell_name']
+        df_cells = df_cells['cell_num']
         list_lab_cell.append(df_cells)
 
     df_lab_info = pd.DataFrame(list_lab_info)
