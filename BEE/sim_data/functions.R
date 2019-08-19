@@ -238,11 +238,23 @@ evaluate.batch.effect <- function(object, method = 'batch') {
     var <- svd^2 / sum(svd^2)
     ldaReg <- sum(var * r.squared)
     
+    # calculate Standard Deviation
+    sd1 <- sd(
+        (umap.data[,1] - min(umap.data[,1])) /
+            (max(umap.data[,1]) - min(umap.data[,1]))
+        )
+    sd2 <- sd(
+        (umap.data[,2] - min(umap.data[,2])) /
+            (max(umap.data[,2]) - min(umap.data[,2]))
+        )
+    geom_ave_sd <- sqrt(sd1 * sd2)
+    
+    
     # output
     access.res <- 
         data.frame(pcReg = pcReg, sil = sil, kBET = RR.kBET,
                    mixent = norm.mixent, ARI = ARI, NMI = NMI,
-                   ldaReg = ldaReg)
+                   ldaReg = ldaReg, sd = geom_ave_sd)
     output <- list(access.res = access.res, object.pca = object)
 
     return(output)
