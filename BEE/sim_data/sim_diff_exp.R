@@ -96,7 +96,7 @@ for (i in 1:length(diffexp.list)) {
         group.by = "group", shape.by = 'batch', pt.size = 1.5
     )
     ggsave(
-        plot = ggplot.pca, path = diffexp.path,
+        plot = ggplot.umap, path = diffexp.path,
         filename = paste0('UMAP_plot_diffexp_', de.facLoc[i], '.png'),
         units = 'cm', width = 15, height = 8
     )
