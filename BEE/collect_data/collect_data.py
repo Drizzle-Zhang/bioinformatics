@@ -190,12 +190,12 @@ def count_cell(out_folder, cl_name):
         print(cl_name)
         cl_file = cl_name.replace(' ', '_').replace('/', '.')
         path_folder_cl_name = os.path.join(out_folder, cl_file)
-        meta_name = f"{cl_file}_meta.txt"
-        path_meta = os.path.join(path_folder_cl_name, meta_name)
+        mtx_name = f"{cl_file}_mtx.txt"
+        path_mtx = os.path.join(path_folder_cl_name, mtx_name)
 
-        df_meta = pd.read_csv(path_meta, sep='\t')
+        df_meta = pd.read_csv(path_mtx, sep='\t', index_col=0)
 
-        return {'cell_num': df_meta.shape[0], 'cell_name': cl_name}
+        return {'cell_num': df_meta.shape[1], 'cell_name': cl_name}
 
 
 def generate_mat_by_lab(path_data, path_output):
@@ -222,15 +222,16 @@ def generate_mat_by_lab(path_data, path_output):
         except FileNotFoundError:
             print(folder, 'cell_meta  error')
             continue
-        if df_meta.shape[0] < 8000:
-            continue
+        # if df_meta.shape[0] < 8000:
+        #     continue
 
         list_lab = folder.strip().split('_')
         year = list_lab[2][-4:]
-        if int(year) >= 2017:
-            print(folder)
-        else:
-            continue
+        print(folder)
+        # if int(year) >= 2017:
+        #     print(folder)
+        # else:
+        #     continue
 
         out_folder = os.path.join(path_output, folder)
         if not os.path.exists(out_folder):
@@ -238,9 +239,9 @@ def generate_mat_by_lab(path_data, path_output):
 
         cl_names = set(np.array(df_ref['CL_name']).tolist())
         if df_meta.shape[0] < 500000:
-            pool = Pool(processes=30)
+            pool = Pool(processes=40)
         else:
-            pool = Pool(processes=3)
+            pool = Pool(processes=5)
         func_get_one_mat = partial(
             get_one_mat, path_folder, out_folder, df_ref, df_meta
         )
@@ -271,18 +272,23 @@ def generate_mat_by_lab(path_data, path_output):
         except FileNotFoundError:
             print(folder, 'cell_meta  error')
             continue
-        if df_meta.shape[0] < 8000:
-            continue
+        # if df_meta.shape[0] < 8000:
+        #     continue
 
         list_lab = folder.strip().split('_')
         year = list_lab[2][-4:]
-        if int(year) >= 2017:
-            list_lab_info.append({'folder': folder,
-                                  'lab_lastname': list_lab[2][:-4],
-                                  'year': year,
-                                  'organ': list_lab[0]})
-        else:
-            continue
+        list_lab_info.append({'folder': folder,
+                              'lab_lastname': list_lab[2][:-4],
+                              'year': year,
+                              'organ': list_lab[0]})
+        #
+        # if int(year) >= 2017:
+        #     list_lab_info.append({'folder': folder,
+        #                           'lab_lastname': list_lab[2][:-4],
+        #                           'year': year,
+        #                           'organ': list_lab[0]})
+        # else:
+        #     continue
 
         out_folder = os.path.join(path_output, folder)
         cl_names = set(np.array(df_ref['CL_name']).tolist())
@@ -313,8 +319,8 @@ def generate_mat_by_lab(path_data, path_output):
 if __name__ == '__main__':
     time_start = time()
     generate_mat_by_lab(
-        '/home/disk/scRef/MouseReference_v1',
-        '/home/zy/single_cell/BEE/collect_data')
+        '/lustre/tianlab/scRef/MouseReference_v1',
+        '/lustre/tianlab/zhangyu/BEE/collect_data')
 
     time_end = time()
     print(time_end - time_start)
