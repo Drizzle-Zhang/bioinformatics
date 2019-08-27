@@ -105,16 +105,15 @@ write.table(df.twodims, file = path.write, quote = F, sep = '\t')
 df.twodims <- read.table(path.write, sep = '\t')
 
 # plot
-labels <- c()
-for (i in 1:dim(df.twodims)[1]) {
-    
-}
+df.twodims$Label <- 
+    c(paste0("(", df.twodims$facLoc, ",", df.twodims$de.facLoc, ")"))
 twodims.plot <- 
     ggplot(
         df.twodims, 
-        aes(x = batch.effect.factor, y = cell.distance, 
-            color = Label, shape = Label)) + 
-    geom_point(size = 2)
+        aes(x = batch.effect.factor, y = cell.distance, color = Label)
+        ) + geom_point(size = 2) +
+    labs(title = "Evaluate Batch effect in two dimensions",
+         x = 'Degree of uniform mixing', y = 'Cell distance')
 ggsave(
     plot = twodims.plot, path = path, filename = "twodims_result.png",
     units = 'cm', width = 30, height = 15)
