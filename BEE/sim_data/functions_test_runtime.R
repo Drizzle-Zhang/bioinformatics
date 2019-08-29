@@ -80,7 +80,7 @@ calculate_evaluate_runtime <- function(
         vars.to.regress = 'nCount_RNA', verbose = F)
     batch.factor <- as.factor(object@meta.data$batch)
     batch.init <- as.numeric(batch.factor)
-    print('scale')
+    # print('scale')
     
     # PCA
     time1 <- Sys.time()
@@ -89,18 +89,20 @@ calculate_evaluate_runtime <- function(
         feature = object@assays$RNA@var.features, verbose = F)
     pca.data <- object@reductions$pca@cell.embeddings
     time2 <- Sys.time()
-    time.pca <- time2 - time1
+    time.pca <- difftime(time2, time1, units = 'secs') 
     
     # UMAP
+    time3 <- Sys.time()
     object <- RunUMAP(
         object, reduction = 'pca', dims = 1:num.pc, n.components = 2, 
         verbose = F)
     umap.data <- object@reductions$umap@cell.embeddings
-    time3 <- Sys.time()
-    time.umap <- time3 - time1
-    print('pca&umap')
+    time4 <- Sys.time()
+    time.umap <- difftime(time4, time3, units = 'secs') 
+    # print('pca&umap')
     
     # pcReg
+    time5 <- Sys.time()
     tol <- 0.05
     p.value <- c()
     r.squared <- c()
@@ -119,10 +121,11 @@ calculate_evaluate_runtime <- function(
     sdev <- object@reductions$pca@stdev[use.pc]
     var <- sdev^2 / sum(sdev^2)
     pcReg <- sum((var * r.squared[use.pc])[p.adj.value[use.pc] < tol])
-    time4 <- Sys.time()
-    time.pcReg <- time4 - time3 + time.pca
+    time6 <- Sys.time()
+    time.pcReg <- difftime(time6, time5, units = 'secs') + time.pca
     
     # k-means 
+    time7 <- Sys.time()
     fit.km <- kmeans(umap.data, centers = length(unique(batch.factor)), 
                      iter.max = 200, nstart = 10*length(unique(batch.factor)))
     batch.km <- as.numeric(fit.km$cluster)
@@ -135,27 +138,30 @@ calculate_evaluate_runtime <- function(
         batch.km.new[batch.km == sub.mode] <- batch
     }
     batch.km <- batch.km.new
-    time5 <- Sys.time()
-    time.kmeans <- time5 - time4
+    time8 <- Sys.time()
+    time.kmeans <- difftime(time8, time7, units = 'secs')
     
     # sil
+    time9 <- Sys.time()
     dissimilar.dist <- dist(umap.data)
     sil.out <- silhouette(batch.init, dissimilar.dist)
     sil <- abs(summary(sil.out)$avg.width)
-    time6 <- Sys.time()
-    time.sil <- time6 - time5 + time.umap
+    time10 <- Sys.time()
+    time.sil <- difftime(time10, time9, units = 'secs') + time.umap
     
     # kBET
+    time11 <- Sys.time()
     k0 <- floor(mean(table(batch.init))) #neighbourhood size: mean batch size 
     knn.kBET <- get.knn(umap.data, k = k0, algorithm = 'cover_tree')
     batch.estimate <- 
         kBET(umap.data, batch.init, k0 = k0, knn = knn.kBET, plot = F)
     RR.kBET <- batch.estimate$summary$kBET.observed[1]
-    time7 <- Sys.time()
-    time.kBET <- time7 - time6 + time.umap
-    print('kBET')
+    time12 <- Sys.time()
+    time.kBET <- difftime(time12, time11, units = 'secs') + time.umap
+    # print('kBET')
 
     # Entropy of batch mixing
+    time13 <- Sys.time()
     select.cells <- sample(dimnames(mtx.count)[2][[1]], 100)
     query.data <- umap.data[select.cells,]
     knn.mixent <- get.knnx(
@@ -172,22 +178,27 @@ calculate_evaluate_runtime <- function(
     max.entropy <- sum(p.batch*log(p.batch))
     # normalize mixing entropy
     norm.mixent <- 1 - mix.entropy/max.entropy
-    time8 <- Sys.time()
-    time.mixent <- time8 - time7 + time.umap
+    time14 <- Sys.time()
+    time.mixent <- difftime(time14, time13, units = 'secs') + time.umap
     
     # ARI
+    time15 <- Sys.time()
     ARI <- adjustedRandIndex(batch.init, batch.km)
-    time9 <- Sys.time()
-    time.ARI <- time9 - time8 + time.kmeans + time.umap
+    time16 <- Sys.time()
+    time.ARI <- difftime(time16, time15, units = 'secs') + 
+        time.kmeans + time.umap
     
     # NMI
+    time17 <- Sys.time()
     NMI <- mutinfo(batch.init, batch.km) / 
         sqrt(entropy(batch.init) * entropy(batch.km))
-    time10 <- Sys.time()
-    time.NMI <- time10 - time9 + time.kmeans + time.umap
-    print('ARI')
+    time18 <- Sys.time()
+    time.NMI <- difftime(time18, time17, units = 'secs') + 
+        time.kmeans + time.umap
+    # print('ARI')
     
     # LDA
+    time19 <- Sys.time()
     lda.input <- as.data.frame(pca.data)
     lda.input$batch <- batch.init
     fit.lda <- lda(formula = batch ~ .,data = lda.input, method = 'mve')
@@ -207,9 +218,9 @@ calculate_evaluate_runtime <- function(
     svd <- fit.lda$svd
     var <- svd^2 / sum(svd^2)
     ldaReg <- sum(var * r.squared)
-    time11 <- Sys.time()
-    time.ldaReg <- time11 - time10 + time.pca
-    print('LDA')
+    time20 <- Sys.time()
+    time.ldaReg <- difftime(time20, time19, units = 'secs') + time.pca
+    # print('LDA')
     
     # output
     access.res <- 

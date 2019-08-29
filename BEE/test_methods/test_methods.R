@@ -3,30 +3,45 @@ source('functions_evaluator.R')
 library(ggplot2)
 
 # read data
-path <- '/home/drizzle_zhang/Desktop/single_cell/BEE/real_data/10X_balance'
-file.mtx <- paste(path, 'matrix.txt', sep = '/')
-file.meta <-  paste(path, 'meta.txt', sep = '/')
+root.path <- '/home/drizzle_zhang/Desktop/single_cell/BEE/real_data'
+folder.data <- '10X_balance_subset1'
+pc.num <- 50
+path.in <- paste(root.path, folder.data, sep = '/')
+path <- paste(path.in, 'output5', sep = '/')
+
+dir.create(path)
+file.mtx <- paste(path.in, 'matrix.txt', sep = '/')
+file.meta <- paste(path.in, 'meta.txt', sep = '/')
 file.info <- 
     '/home/drizzle_zhang/Desktop/single_cell/BEE/real_data/lab_info.txt'
 df.mtx <- read.table(file.mtx, sep = '\t', header = T, stringsAsFactors = F)
 row.names(df.mtx) <- df.mtx[, 'Gene']
 df.mtx['Gene'] <- NULL
 df.mtx <- na.omit(df.mtx)
+
 df.meta <- read.table(file.meta, sep = '\t', header = T, stringsAsFactors = F)
+df.meta$column <- names(df.mtx)
+# select data
+# select_folders <- c('MouseArcME_SingleCell_JN2017',
+#                     'MouseCerebralcortex_SingleCell_Loo2018')
+select_folders <- c('MouseEmbryo_SingleCell_PijuanSala2019',
+                    'MouseGastrulation_SingleCell_Ximena2017')
+df.meta <- df.meta[df.meta$folder %in% select_folders,]
+cells <- df.meta$column
+df.mtx <- df.mtx[, cells]
+
 groups <- df.meta$cell
 df.info <- read.delim(file.info, stringsAsFactors = F)
 batches <- c()
 for (batch in df.meta$folder) {
     batches <- c(batches, df.info[df.info$folder == batch, 'author'])
 }
-pc.num <- 50
 
 
 label <- c()
-timeing <- c()
+timing <- c()
 df.result <- data.frame()
 # origin
-time1 <- Sys.time()
 object <- preprocess.data(df.mtx, batches, groups, num.pc = pc.num)
 plot.origin <- DimPlot(
     object, reductions = 'umap', 
@@ -34,20 +49,20 @@ plot.origin <- DimPlot(
 )
 ggsave(plot = plot.origin, filename = 'UMAP_origin.png', path = path,
        units = 'cm', height = 15, width = 25)
-result.origin <- evaluate.two.dims(object)
+# result.origin <- evaluate.two.dims(object)
+result.origin <- evaluate.sil(object)
 df.result <- rbind(df.result, result.origin)
-time2 <- Sys.time()
-timeing <- c(timeing, time2 - time1)
+timing <- c(timing, 0)
 label <- c(label, 'Origin')
 
 # normalized data
 mtx.norm <- as.matrix(object@assays$RNA@data)[object@assays$RNA@var.features,]
 
 # combat
-time3 <- Sys.time()
+time1 <- Sys.time()
 library(sva)
 mtx.combat <- ComBat(dat = mtx.norm, batch = object@meta.data$batch)
-time4 <- Sys.time()
+time2 <- Sys.time()
 object.combat <- CreateSeuratObject(counts = mtx.combat)
 object.combat@assays$RNA <- CreateAssayObject(data = mtx.combat)
 object.combat@commands$NormalizeData.RNA <- object@commands$NormalizeData.RNA
@@ -62,17 +77,18 @@ plot.combat <- DimPlot(
 )
 ggsave(plot = plot.combat, filename = 'UMAP_combat.png', path = path,
        units = 'cm', height = 15, width = 25)
-result.combat <- evaluate.two.dims(object.combat)
+# result.combat <- evaluate.two.dims(object.combat)
+result.combat <- evaluate.sil(object.combat)
 df.result <- rbind(df.result, result.combat)
-timeing <- c(timeing, time4 - time3)
+timing <- c(timing, difftime(time2, time1, units = 'secs'))
 label <- c(label, 'ComBat')
 
 # BEER
-time5 <- Sys.time()
-source('https://raw.githubusercontent.com/jumphone/BEER/master/BEER.R')
+time3 <- Sys.time()
+source('/home/drizzle_zhang/tools/BEER/BEER.R')
 mybeer <- BEER(mtx.norm, object@meta.data$batch, GNUM = 30, PCNUM = pc.num, 
                ROUND = 1, GN = 2000, SEED = 1, COMBAT = TRUE)
-time6 <- Sys.time()
+time4 <- Sys.time()
 object.beer <- CreateSeuratObject(counts = mtx.norm)
 object.beer@reductions$pca <- CreateDimReducObject(
     embeddings = mybeer$seurat@reductions$pca@cell.embeddings,
@@ -89,42 +105,56 @@ plot.beer <- DimPlot(
 )
 ggsave(plot = plot.beer, filename = 'UMAP_beer.png', path = path,
        units = 'cm', height = 15, width = 25)
-result.beer <- evaluate.two.dims(object.beer)
+# result.beer <- evaluate.two.dims(object.beer)
+result.beer <- evaluate.sil(object.beer)
 df.result <- rbind(df.result, result.beer)
-timeing <- c(timeing, time6 - time5)
+timing <- c(timing, difftime(time4, time3, units = 'secs'))
 label <- c(label, 'BEER')
 
 # MNN
-time7 <- Sys.time()
+time5 <- Sys.time()
 library(scran)
 # library(psych)
 # library(batchelor)
 # library(SingleCellExperiment)
 # sce <- SingleCellExperiment(assays = list(logcounts = mtx.norm))
-# out.mnn <- fastMNN(sce, batch = as.factor(object@meta.data$batch), 
+# out.mnn <- fastMNN(sce, batch = as.factor(object@meta.data$batch),
 #                     d = pc.num, k = 20)
 input.mnn <- list()
 cell.names <- dimnames(object@assays$RNA@counts)[[2]]
+input.cells <- c()
 for (lab in unique(object@meta.data$batch)) {
     lab.cells <- cell.names[object@meta.data$batch == lab]
     input.mnn[[lab]] <- mtx.norm[,lab.cells]
+    input.cells <- c(input.cells, lab.cells)
 }
-out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], input.mnn[[3]], 
-                   input.mnn[[4]], input.mnn[[5]], d = pc.num, k = 20)
-time8 <- Sys.time()
+if (length(input.mnn) == 2) {
+    out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], d = pc.num, k = 20)
+}
+if (length(input.mnn) == 3) {
+    out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], input.mnn[[3]],
+                       d = pc.num, k = 20)
+}
+if (length(input.mnn) == 4) {
+    out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], input.mnn[[3]],
+                       input.mnn[[4]], d = pc.num, k = 20)
+}
+if (length(input.mnn) == 5) {
+    out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], input.mnn[[3]],
+                       input.mnn[[4]], input.mnn[[5]], d = pc.num, k = 20)
+}
+if (length(input.mnn) == 6) {
+    out.mnn <- fastMNN(input.mnn[[1]], input.mnn[[2]], input.mnn[[3]],
+                       input.mnn[[4]], input.mnn[[5]], input.mnn[[6]], 
+                       d = pc.num, k = 20)
+}
+
+time6 <- Sys.time()
 
 mtx.mnn <- out.mnn[["corrected"]]
-dimnames(mtx.mnn)[[1]] <- dimnames(mtx.norm)[[2]]
+dimnames(mtx.mnn)[[1]] <- input.cells
 dimnames(mtx.mnn)[[2]] <- paste('MNN', 1:(pc.num), sep = '-')
 
-# object.mnn <- CreateSeuratObject(counts = t(mtx.mnn))
-# object.mnn@assays$RNA <- CreateAssayObject(data = t(mtx.mnn))
-# object.mnn@commands$NormalizeData.RNA <- object@commands$NormalizeData.RNA
-# object.mnn@commands$FindVariableFeatures.RNA <-
-#     object@commands$FindVariableFeatures.RNA
-# object.mnn@assays$RNA@var.features <- dimnames(mtx.mnn)[[2]]
-# object.mnn <-
-#     preprocess.data(object.mnn, batches, groups, num.pc = pc.num)
 object.mnn <- CreateSeuratObject(counts = mtx.norm)
 object.mnn@reductions$pca <- CreateDimReducObject(
     embeddings = mtx.mnn, key = 'PC_', assay = 'RNA'
@@ -132,22 +162,116 @@ object.mnn@reductions$pca <- CreateDimReducObject(
 object.mnn <- RunUMAP(
     object.mnn, reduction = 'pca', dims = 1:pc.num, n.components = 2, 
     verbose = F)
-object.mnn@meta.data <- object@meta.data
+
+if (sum(input.cells == cell.names) == length(cell.names)) {
+    object.mnn@meta.data <- object@meta.data
+} else {
+    print("Error: MNN Cell order not match")
+}
 plot.mnn <- DimPlot(
     object.mnn, reductions = 'umap', 
     group.by = "group", shape.by = 'batch', pt.size = 1.5
 )
 ggsave(plot = plot.mnn, filename = 'UMAP_mnn.png', path = path,
        units = 'cm', height = 15, width = 25)
-result.mnn <- evaluate.two.dims(object.mnn)
+# result.mnn <- evaluate.two.dims(object.mnn)
+result.mnn <- evaluate.sil(object.mnn)
 df.result <- rbind(df.result, result.mnn)
-timeing <- c(timeing, time8 - time7)
+timing <- c(timing, difftime(time6, time5, units = 'secs'))
 label <- c(label, 'MNN')
+
+
+### BBKNN
+time7 <- Sys.time()
+library(reticulate)
+use_python("~/tools/anaconda3/bin/python3")
+source_python('bbknnpy.py')
+pca.input <- object@reductions$pca@cell.embeddings
+umap.bbknn <- bbknn_py(pca.input, batches, pc.num)
+time8 <- Sys.time()
+# use_python("~/tools/anaconda3/bin/python3")
+# 
+# anndata = import("anndata", convert = FALSE)
+# bbknn = import("bbknn", convert = FALSE)
+# sc = import("scanpy.api", convert = FALSE)
+# 
+# pca.input <- object@reductions$pca@cell.embeddings
+# adata <- anndata$AnnData(X = pca.input, obs = batches)
+# sc$tl$pca(adata)
+# adata$obsm$X_pca <- r_to_py(pca.input)
+# sc$pp$bbknn(adata, batch_key = 0)
+# sc$tl$umap(adata)
+# umap.bbknn <- py_to_r(adata$obsm['X_umap'])
+dimnames(umap.bbknn)[[1]] <- dimnames(mtx.norm)[[2]]
+
+object.bbknn <- CreateSeuratObject(counts = mtx.norm)
+object.bbknn@reductions$umap <- CreateDimReducObject(
+    embeddings = umap.bbknn, key = 'UMAP_', assay = 'RNA'
+)
+object.bbknn@meta.data <- object@meta.data
+plot.bbknn <- DimPlot(
+    object.bbknn, reductions = 'umap', 
+    group.by = "group", shape.by = 'batch', pt.size = 1.5
+)
+ggsave(plot = plot.bbknn, filename = 'UMAP_bbknn.png', path = path,
+       units = 'cm', height = 15, width = 25)
+# result.bbknn <- evaluate.two.dims(object.bbknn)
+result.bbknn <- evaluate.sil(object.bbknn)
+df.result <- rbind(df.result, result.bbknn)
+timing <- c(timing, difftime(time8, time7, units = 'secs'))
+label <- c(label, 'BBKNN')
+
+
+### Seurat
+time9 <- Sys.time()
+batch.list <- list()
+cell.names <- dimnames(object@assays$RNA@counts)[[2]]
+for (batch in unique(batches)) {
+    sub.cells <- cell.names[object@meta.data$batch == batch]
+    object.sub <- CreateSeuratObject(counts = mtx.norm[,sub.cells])
+    object.sub@assays$RNA <- CreateAssayObject(data = mtx.norm[,sub.cells])
+    object.sub@commands$NormalizeData.RNA <- object@commands$NormalizeData.RNA
+    object.sub@commands$FindVariableFeatures.RNA <- 
+        object@commands$FindVariableFeatures.RNA
+    object.sub@assays$RNA@var.features <- object@assays$RNA@var.features
+    batch.list[[batch]] <- object.sub
+}
+anchors <- FindIntegrationAnchors(
+    object.list = batch.list, dims = 1:pc.num, k.filter = 50)
+object.integrated <- IntegrateData(anchorset = anchors, dims = 1:pc.num)
+time10 <- Sys.time()
+object.integrated <- ScaleData(
+    object.integrated, assay = 'integrated', 
+    feature = object@assays$RNA@var.features, 
+    verbose = F)
+object.integrated <- RunPCA(object.integrated, npcs = pc.num, verbose = F)
+object.integrated <- RunUMAP(
+    object.integrated, reduction = 'pca', dims = 1:pc.num)
+if (sum(dimnames(object.integrated@assays$integrated@data)[[2]] == 
+        cell.names) == length(cell.names)) {
+    object.integrated@meta.data <- object@meta.data
+} else {
+    print("Error: Seurat Cell order not match")
+}
+plot.integrated <- DimPlot(
+    object.integrated, reductions = 'umap', 
+    group.by = "group", shape.by = 'batch', pt.size = 1.5
+)
+ggsave(plot = plot.integrated, filename = 'UMAP_integrated.png', path = path,
+       units = 'cm', height = 15, width = 25)
+# result.integrated <- evaluate.two.dims(object.integrated)
+result.integrated <- evaluate.sil(object.integrated)
+df.result <- rbind(df.result, result.integrated)
+timing <- c(timing, difftime(time10, time9, units = 'secs'))
+label <- c(label, 'Seurat')
 
 
 # result
 df.result$label <- label
-df.result$timeing <- timeing
+df.result$timing <- timing
+df.result$dataset <- folder.data
+path.write <- paste(path, paste0(folder.data, '.txt'), sep = '/')
+write.table(df.result, file = path.write, quote = F, sep = '\t')
 
 # plot
 df.plot <- data.frame()
@@ -176,7 +300,7 @@ for (i in 1:dim(df.result)[1]) {
         } else {
             df.plot <- rbind(
                 df.plot,
-                data.frame(score = df.result[i, 'timeing'],
+                data.frame(score = df.result[i, 'timing'],
                            method = df.result[i, 'label'],
                            evaluator = 'Timing'))
         }
