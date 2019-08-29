@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="2fb2a420-db45-4bad-8818-3e1649295909" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/BEE.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/collect_data/generate_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/collect_data/collect_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/collect_data/collect_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/.idea/rna-seq.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/.idea/rna-seq.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/cufflinks.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/cufflinks.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/delete_adapter.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/delete_adapter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/download_EMAT.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/download_EMAT.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/download_sra.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/download_sra.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/star_batch.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/star_batch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/tophat_batch.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/tophat_batch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../rna-seq/trim_batch.py" beforeDir="false" afterPath="$PROJECT_DIR$/../rna-seq/trim_batch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Cao.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Cao.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Ernst.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Ernst.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Guo.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Guo.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/MCA.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/MCA.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Macparland.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Macparland.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/PijuanSala.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/PijuanSala.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Suryawanshi.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Suryawanshi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/Wang.py" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/Wang.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../scRef/organize_data/tran_mat.R" beforeDir="false" afterPath="$PROJECT_DIR$/../scRef/organize_data/tran_mat.R" afterDir="false" />
+    </list>
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/collect_data/collect_data.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-2025">
+              <caret line="197" column="67" lean-forward="true" selection-start-line="197" selection-start-column="67" selection-end-line="197" selection-end-column="67" />
+              <folding>
+                <element signature="e#123#144#0" expanded="true" />
+                <element signature="e#381#818#0" />
+                <element signature="e#4699#7133#0" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/collect_data/generate_dataset.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-999">
+              <caret line="40" selection-start-line="36" selection-end-line="40" />
+              <folding>
+                <element signature="e#127#148#0" expanded="true" />
+                <element signature="e#1418#2989#0" />
+                <element signature="e#375#451#0" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/collect_data/generate_dataset.py" />
+        <option value="$PROJECT_DIR$/collect_data/collect_data.py" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectFrameBounds">
+    <option name="x" value="1990" />
+    <option name="y" value="31" />
+    <option name="width" value="1149" />
+    <option name="height" value="1000" />
+  </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectView">
+    <navigator proportions="" version="1">
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="BEE" type="b2602c69:ProjectViewProjectNode" />
+              <item name="BEE" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="BEE" type="b2602c69:ProjectViewProjectNode" />
+              <item name="BEE" type="462c0819:PsiDirectoryNode" />
+              <item name="collect_data" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="2fb2a420-db45-4bad-8818-3e1649295909" name="Default Changelist" comment="" />
+      <created>1566305053561</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1566305053561</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="1990" y="31" width="1149" height="1000" extended-state="0" />
+    <editor active="true" />
+    <layout>
+      <window_info id="Favorites" side_tool="true" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.21155556" />
+      <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Version Control" />
+      <window_info anchor="bottom" id="Python Console" />
+      <window_info anchor="bottom" id="Terminal" />
+      <window_info anchor="bottom" id="Event Log" side_tool="true" weight="0.32988507" />
+      <window_info anchor="bottom" id="Message" order="0" />
+      <window_info anchor="bottom" id="Find" order="1" />
+      <window_info anchor="bottom" id="Run" order="2" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
+      <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
+      <window_info anchor="bottom" id="TODO" order="6" />
+      <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
+      <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
+      <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
+    </layout>
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/collect_data/generate_dataset.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-999">
+          <caret line="40" selection-start-line="36" selection-end-line="40" />
+          <folding>
+            <element signature="e#127#148#0" expanded="true" />
+            <element signature="e#1418#2989#0" />
+            <element signature="e#375#451#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/collect_data/collect_data.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2025">
+          <caret line="197" column="67" lean-forward="true" selection-start-line="197" selection-start-column="67" selection-end-line="197" selection-end-column="67" />
+          <folding>
+            <element signature="e#123#144#0" expanded="true" />
+            <element signature="e#381#818#0" />
+            <element signature="e#4699#7133#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>
