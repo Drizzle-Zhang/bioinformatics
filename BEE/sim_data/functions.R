@@ -108,8 +108,7 @@ prepare_data <- function(mtx.count, batches, groups, num.pc = 30) {
     # VariableFeaturePlot(object = object)
     length(object@assays$RNA@var.features)
     object <- ScaleData(
-        object, feature = object@assays$RNA@var.features, 
-        vars.to.regress = 'nCount_RNA', verbose = F)
+        object, feature = object@assays$RNA@var.features, verbose = F)
     
     # PCA
     object <- RunPCA(
