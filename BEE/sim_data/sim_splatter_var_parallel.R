@@ -1,10 +1,12 @@
+# setwd('/lustre/tianlab/zhangyu/my_git/bioinformatics/BEE/sim_data')
+setwd('')
 library(BiocParallel)
 library(doParallel)
 source('functions.R')
 
 # evaluate multiple methods for different variances
 num.batch <- 3
-num.cell <- 200
+num.cell <- 1000
 num.gene <- 15000
 vector.facLoc <- seq(0, 0.2, 0.002)
 #vector.facLoc <- seq(0.02, 0.08, 0.002)
@@ -16,8 +18,8 @@ de.prob <- 0.1
 de.facLoc <- 0.1
 de.facScale <- 0.4
 seed.splatter <- 1234
-#var.path <- '/home/zy/single_cell/BEE/sim_data/variance'
-var.path <- '/lustre/tianlab/zhangyu/BEE/sim_data/variance_3'
+var.path <- '/home/zy/single_cell/BEE/sim_data/variance'
+# var.path <- '/lustre/tianlab/zhangyu/BEE/sim_data/variance_3'
 #var.path <- '/home/drizzle_zhang/Desktop/single_cell/BEE/sim_data/variance_3'
 
 # main function

@@ -1,3 +1,4 @@
+setwd('/lustre/tianlab/zhangyu/my_git/bioinformatics/BEE/sim_data')
 library(BiocParallel)
 source('functions.R')
 

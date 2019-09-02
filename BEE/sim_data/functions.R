@@ -93,7 +93,8 @@ simulate.count.data <- function(
 }
 
 # evaluate batch effect
-prepare_data <- function(mtx.count, batches, groups, num.pc = 30) {
+prepare_data <- function(mtx.count, batches, groups, 
+                         num.pc = 50, num.umap = 2) {
     
     # creat Seurat object and normlize data
     object <- CreateSeuratObject(mtx.count)
@@ -120,7 +121,7 @@ prepare_data <- function(mtx.count, batches, groups, num.pc = 30) {
     
     # UMAP
     object <- RunUMAP(
-        object, reduction = 'pca', dims = 1:num.pc, n.components = 2, 
+        object, reduction = 'pca', dims = 1:num.pc, n.components = num.umap, 
         verbose = F)
     # DimPlot(
     #     object, reductions = 'umap', group.by = "batch", pt.size = 1)
@@ -256,6 +257,138 @@ evaluate.batch.effect <- function(object, method = 'batch') {
                    ldaReg = ldaReg, sd = geom_ave_sd)
     output <- list(access.res = access.res, object.pca = object)
 
+    return(output)
+    
+}
+
+
+evaluate.use.umap <- function(object, method = 'batch') {
+    
+    # data
+    umap.data <- object@reductions$umap@cell.embeddings
+    umap.2d <- umap.data[, 1:2]
+    
+    # batch and group
+    if (method == 'batch') {
+        batch.factor <- as.factor(object@meta.data$batch)
+        batch.init <- as.numeric(batch.factor)
+    }
+    if (method == 'group') {
+        batch.factor <- as.factor(object@meta.data$group)
+        batch.init <- as.numeric(batch.factor)
+    }
+    
+    # pcReg
+    tol <- 0.05
+    p.value <- c()
+    r.squared <- c()
+    for (i in 1:dim(umap.data)[2]) {
+        fit <- summary(lm(umap.data[, i] ~ batch.factor))
+        r.squared <- c(r.squared, fit$r.squared)
+        p.value <- c(p.value, 
+                     1 - pf(fit$fstatistic[1], 
+                            fit$fstatistic[2], 
+                            fit$fstatistic[3]))
+    }
+    p.adj.value <- p.adjust(p.value)
+    # select number of PC
+    use.pc <- which(p.adj.value < tol)
+    # calculate pcReg
+    sdev <- object@reductions$pca@stdev[use.pc]
+    var <- sdev^2 / sum(sdev^2)
+    pcReg <- sum((var * r.squared[use.pc])[p.adj.value[use.pc] < tol])
+    
+    # k-means 
+    fit.km <- kmeans(umap.2d, centers = length(unique(batch.factor)), 
+                     iter.max = 200, nstart = 10*length(unique(batch.factor)))
+    batch.km <- as.numeric(fit.km$cluster)
+    batch.km.new <- rep(0, length(batch.km))
+    for (batch in unique(batch.init)) {
+        sub.batch.km <- batch.km[batch.init == batch]
+        sub.mode <- 
+            as.numeric(names(table(sub.batch.km)))[
+                table(sub.batch.km) == max(table(sub.batch.km))]
+        batch.km.new[batch.km == sub.mode] <- batch
+    }
+    batch.km <- batch.km.new
+    
+    # sil
+    dissimilar.dist <- dist(umap.2d)
+    sil.out <- silhouette(batch.init, dissimilar.dist)
+    sil <- abs(summary(sil.out)$avg.width)
+    
+    # kBET
+    k0 <- floor(mean(table(batch.init))) #neighbourhood size: mean batch size 
+    knn.kBET <- get.knn(umap.2d, k = k0, algorithm = 'cover_tree')
+    batch.estimate <- 
+        kBET(umap.2d, batch.init, k0 = k0, knn = knn.kBET, plot = F)
+    RR.kBET <- batch.estimate$summary$kBET.observed[1]
+    
+    # Entropy of batch mixing
+    select.cells <- sample(dimnames(object@assays$RNA@counts)[2][[1]], 100)
+    query.data <- umap.2d[select.cells,]
+    knn.mixent <- get.knnx(
+        umap.2d, query = query.data, k = 100, algorithm = 'cover_tree')
+    knn.idx <- knn.mixent$nn.index
+    list.knn <- list()
+    for (i in 1:dim(knn.idx)[1]) {
+        list.knn[[i]] <- batch.init[knn.idx[i,]]
+    }
+    vec.entropy <- lapply(list.knn, entropy)
+    mix.entropy <- mean(unlist(vec.entropy))
+    # entropy of data mixed completely
+    p.batch <- rep(1/length(unique(batch.init)), length(unique(batch.init)))
+    max.entropy <- sum(p.batch*log(p.batch))
+    # normalize mixing entropy
+    norm.mixent <- 1 - mix.entropy/max.entropy
+    
+    # ARI
+    ARI <- adjustedRandIndex(batch.init, batch.km)
+    
+    # NMI
+    NMI <- mutinfo(batch.init, batch.km) / 
+        sqrt(entropy(batch.init) * entropy(batch.km))
+    
+    # LDA
+    lda.input <- as.data.frame(umap.data)
+    lda.input$batch <- batch.init
+    fit.lda <- lda(formula = batch ~ .,data = lda.input, method = 'mve')
+    lda.data <- umap.data %*% fit.lda$scaling
+    p.value <- c()
+    r.squared <- c()
+    for (i in 1:dim(lda.data)[2]) {
+        fit <- summary(lm(lda.data[, i] ~ batch.factor))
+        r.squared <- c(r.squared, fit$r.squared)
+        p.value <- c(p.value, 
+                     1 - pf(fit$fstatistic[1], 
+                            fit$fstatistic[2], 
+                            fit$fstatistic[3]))
+    }
+    p.adj.value <- p.adjust(p.value)
+    # calculate ldaReg
+    svd <- fit.lda$svd
+    var <- svd^2 / sum(svd^2)
+    ldaReg <- sum(var * r.squared)
+    
+    # calculate Standard Deviation
+    sd1 <- sd(
+        (umap.2d[,1] - min(umap.2d[,1])) /
+            (max(umap.2d[,1]) - min(umap.2d[,1]))
+    )
+    sd2 <- sd(
+        (umap.2d[,2] - min(umap.2d[,2])) /
+            (max(umap.2d[,2]) - min(umap.2d[,2]))
+    )
+    geom_ave_sd <- sqrt(sd1 * sd2)
+    
+    
+    # output
+    access.res <- 
+        data.frame(pcReg = pcReg, sil = sil, kBET = RR.kBET,
+                   mixent = norm.mixent, ARI = ARI, NMI = NMI,
+                   ldaReg = ldaReg, sd = geom_ave_sd)
+    output <- list(access.res = access.res, object.pca = object)
+    
     return(output)
     
 }
