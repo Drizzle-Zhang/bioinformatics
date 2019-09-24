@@ -22,6 +22,8 @@ def trans_sep(info_folder, path_data, path_out, df_assign, file):
         print(file, "   not exist in cellassignment file")
         return
     sub_assign = sub_assign.dropna()
+    cells = sub_assign.index
+    df_file = df_file.loc[:, cells]
 
     tissue = info_folder.loc[info_folder['file'] == file, 'tissue'].tolist()[0]
     folder = info_folder.loc[info_folder['file'] == file, 'folder'].tolist()[0]
