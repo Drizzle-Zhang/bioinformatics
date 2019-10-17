@@ -72,7 +72,7 @@ if __name__ == '__main__':
                 'consolidated/narrowPeak/ucsc_compatible/'
     path_broad = '/home/zy/driver_mutation/data/RoadMap/broad_peak_chip_DHS'
     broad_files, broad_links = get_links_roadmap(broad_url)
-    download_data(broad_files, broad_links, path_broad, 10)
+    download_data(broad_files, broad_links, path_broad, 20)
 
     time_end = time.time()
     print(time_end - time_start)
