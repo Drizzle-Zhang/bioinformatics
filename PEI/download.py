@@ -62,11 +62,17 @@ if __name__ == '__main__':
     opener.addheaders = [headers]
     socket.setdefaulttimeout(2000)
 
-    narrow_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
-                 'consolidated/narrowPeak/ucsc_compatible/'
-    path_out = '/home/zy/driver_mutation/data/RoadMap/narrow_peak_chip_DHS'
-    narrow_files, narrow_links = get_links_roadmap(narrow_url)
-    download_data(narrow_files, narrow_links, path_out, 10)
+    # narrow_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
+    #              'consolidated/narrowPeak/ucsc_compatible/'
+    # path_out = '/home/zy/driver_mutation/data/RoadMap/narrow_peak_chip_DHS'
+    # narrow_files, narrow_links = get_links_roadmap(narrow_url)
+    # download_data(narrow_files, narrow_links, path_out, 10)
+
+    broad_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
+                'consolidated/narrowPeak/ucsc_compatible/'
+    path_broad = '/home/zy/driver_mutation/data/RoadMap/broad_peak_chip_DHS'
+    broad_files, broad_links = get_links_roadmap(broad_url)
+    download_data(broad_files, broad_links, path_broad, 10)
 
     time_end = time.time()
     print(time_end - time_start)
