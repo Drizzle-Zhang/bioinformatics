@@ -52,6 +52,24 @@ def download_data(files, links, path_out, num_process):
     return
 
 
+def de_gz():
+    subprocesses = []
+    for i, link in enumerate(links):
+        if i % num_process == 0:
+            for sub_process in subprocesses:
+                sub_process.wait()
+            subprocesses = []
+        subprocesses.append(
+            subprocess.Popen(
+                f"wget -O {os.path.join(path_out, files[i])} {link}",
+                shell=True))
+
+    for sub_process in subprocesses:
+        sub_process.wait()
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time.time()
     # simulated browser
@@ -74,11 +92,18 @@ if __name__ == '__main__':
     # broad_files, broad_links = get_links_roadmap(broad_url)
     # download_data(broad_files, broad_links, path_broad, 20)
 
-    # bigwig_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
-    #              'consolidated/narrowPeak/ucsc_compatible/'
-    # path_bigwig = '/home/zy/driver_mutation/data/RoadMap/bigwig_peak_chip_DHS'
-    # bigwig_files, bigwig_links = get_links_roadmap(bigwig_url)
-    # download_data(bigwig_files, bigwig_links, path_bigwig, 20)
+    signal_p_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
+                   'consolidated/macs2signal/pval/'
+    path_signal_p = '/home/zy/driver_mutation/data/RoadMap/signal_p_chip_DHS'
+    signal_p_files, signal_p_links = get_links_roadmap(signal_p_url, '.bigwig')
+    download_data(signal_p_files, signal_p_links, path_signal_p, 20)
+
+    # signal_fc_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
+    #                 'consolidated/macs2signal/foldChange/'
+    # path_signal_fc = '/home/zy/driver_mutation/data/RoadMap/signal_fc_chip_DHS'
+    # signal_fc_files, signal_fc_links = \
+    #     get_links_roadmap(signal_fc_url, '.bigwig')
+    # download_data(signal_fc_files, signal_fc_links, path_signal_fc, 20)
 
     # rnaseq_url = \
     #     'https://egg2.wustl.edu/roadmap/data/byDataType/rna/expression/'
@@ -86,24 +111,18 @@ if __name__ == '__main__':
     # rnaseq_files, rnaseq_links = get_links_roadmap(rnaseq_url)
     # download_data(rnaseq_files, rnaseq_links, path_rnaseq, 20)
 
-    # bigwig_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
-    #              'consolidated/narrowPeak/ucsc_compatible/'
-    # path_bigwig = '/home/zy/driver_mutation/data/RoadMap/bigwig_peak_chip_DHS'
-    # bigwig_files, bigwig_links = get_links_roadmap(bigwig_url)
-    # download_data(bigwig_files, bigwig_links, path_bigwig, 20)
-
     # methy_wgbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
     #                  'dnamethylation/WGBS/FractionalMethylation_bigwig/'
     # path_methy_wgbs = '/home/zy/driver_mutation/data/RoadMap/methy/WGBS'
     # methy_wgbs_files, methy_wgbs_links = get_links_roadmap(methy_wgbs_url)
     # download_data(methy_wgbs_files, methy_wgbs_links, path_methy_wgbs, 20)
 
-    methy_rrbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
-                     'dnamethylation/RRBS/FractionalMethylation_bigwig/'
-    path_methy_rrbs = '/home/zy/driver_mutation/data/RoadMap/methy/RRBS'
-    methy_rrbs_files, methy_rrbs_links = get_links_roadmap(
-        methy_rrbs_url, '.bigwig')
-    download_data(methy_rrbs_files, methy_rrbs_links, path_methy_rrbs, 20)
+    # methy_rrbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
+    #                  'dnamethylation/RRBS/FractionalMethylation_bigwig/'
+    # path_methy_rrbs = '/home/zy/driver_mutation/data/RoadMap/methy/RRBS'
+    # methy_rrbs_files, methy_rrbs_links = get_links_roadmap(
+    #     methy_rrbs_url, '.bigwig')
+    # download_data(methy_rrbs_files, methy_rrbs_links, path_methy_rrbs, 20)
 
     # methy_mcrf_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
     #                  'dnamethylation/mCRF/FractionalMethylation_bigwig/'
