@@ -98,19 +98,19 @@ if __name__ == '__main__':
     # methy_wgbs_files, methy_wgbs_links = get_links_roadmap(methy_wgbs_url)
     # download_data(methy_wgbs_files, methy_wgbs_links, path_methy_wgbs, 20)
 
-    # methy_rrbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
-    #                  'dnamethylation/RRBS/FractionalMethylation_bigwig/'
-    # path_methy_rrbs = '/home/zy/driver_mutation/data/RoadMap/methy/RRBS'
-    # methy_rrbs_files, methy_rrbs_links = get_links_roadmap(
-    #     methy_rrbs_url, '.bigwig')
-    # download_data(methy_rrbs_files, methy_rrbs_links, path_methy_rrbs, 20)
+    methy_rrbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
+                     'dnamethylation/RRBS/FractionalMethylation_bigwig/'
+    path_methy_rrbs = '/home/zy/driver_mutation/data/RoadMap/methy/RRBS'
+    methy_rrbs_files, methy_rrbs_links = get_links_roadmap(
+        methy_rrbs_url, '.bigwig')
+    download_data(methy_rrbs_files, methy_rrbs_links, path_methy_rrbs, 20)
 
-    methy_mcrf_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
-                     'dnamethylation/mCRF/FractionalMethylation_bigwig/'
-    path_methy_mcrf = '/home/zy/driver_mutation/data/RoadMap/methy/mCRF'
-    methy_mcrf_files, methy_mcrf_links = get_links_roadmap(
-        methy_mcrf_url, '.bigwig')
-    download_data(methy_mcrf_files, methy_mcrf_links, path_methy_mcrf, 20)
+    # methy_mcrf_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
+    #                  'dnamethylation/mCRF/FractionalMethylation_bigwig/'
+    # path_methy_mcrf = '/home/zy/driver_mutation/data/RoadMap/methy/mCRF'
+    # methy_mcrf_files, methy_mcrf_links = get_links_roadmap(
+    #     methy_mcrf_url, '.bigwig')
+    # download_data(methy_mcrf_files, methy_mcrf_links, path_methy_mcrf, 20)
 
     time_end = time.time()
     print(time_end - time_start)
