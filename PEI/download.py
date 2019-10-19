@@ -52,17 +52,19 @@ def download_data(files, links, path_out, num_process):
     return
 
 
-def de_gz():
+def decompress(path, num_process=20):
+    files = os.listdir(path)
     subprocesses = []
-    for i, link in enumerate(links):
+    for i, file in enumerate(files):
         if i % num_process == 0:
             for sub_process in subprocesses:
                 sub_process.wait()
             subprocesses = []
-        subprocesses.append(
-            subprocess.Popen(
-                f"wget -O {os.path.join(path_out, files[i])} {link}",
-                shell=True))
+        if file[-3:] == '.gz':
+            subprocesses.append(
+                subprocess.Popen(
+                    f"gzip -d {os.path.join(path, file)}",
+                    shell=True))
 
     for sub_process in subprocesses:
         sub_process.wait()
@@ -82,34 +84,37 @@ if __name__ == '__main__':
 
     # narrow_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
     #              'consolidated/narrowPeak/ucsc_compatible/'
-    # path_out = '/home/zy/driver_mutation/data/RoadMap/narrow_peak_chip_DHS'
+    # path_narrow = '/home/zy/driver_mutation/data/RoadMap/narrow_peak_chip_DHS'
     # narrow_files, narrow_links = get_links_roadmap(narrow_url)
     # download_data(narrow_files, narrow_links, path_out, 10)
+    # decompress(path_narrow, num_process=20)
 
     # broad_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
     #             'consolidated/narrowPeak/ucsc_compatible/'
     # path_broad = '/home/zy/driver_mutation/data/RoadMap/broad_peak_chip_DHS'
     # broad_files, broad_links = get_links_roadmap(broad_url)
     # download_data(broad_files, broad_links, path_broad, 20)
+    # decompress(path_broad, num_process=40)
 
-    signal_p_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
-                   'consolidated/macs2signal/pval/'
-    path_signal_p = '/home/zy/driver_mutation/data/RoadMap/signal_p_chip_DHS'
-    signal_p_files, signal_p_links = get_links_roadmap(signal_p_url, '.bigwig')
-    download_data(signal_p_files, signal_p_links, path_signal_p, 20)
+    # signal_p_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
+    #                'consolidated/macs2signal/pval/'
+    # path_signal_p = '/home/zy/driver_mutation/data/RoadMap/signal_p_chip_DHS'
+    # signal_p_files, signal_p_links = get_links_roadmap(signal_p_url, '.bigwig')
+    # download_data(signal_p_files, signal_p_links, path_signal_p, 20)
 
-    # signal_fc_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
-    #                 'consolidated/macs2signal/foldChange/'
-    # path_signal_fc = '/home/zy/driver_mutation/data/RoadMap/signal_fc_chip_DHS'
-    # signal_fc_files, signal_fc_links = \
-    #     get_links_roadmap(signal_fc_url, '.bigwig')
-    # download_data(signal_fc_files, signal_fc_links, path_signal_fc, 20)
+    signal_fc_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
+                    'consolidated/macs2signal/foldChange/'
+    path_signal_fc = '/home/zy/driver_mutation/data/RoadMap/signal_fc_chip_DHS'
+    signal_fc_files, signal_fc_links = \
+        get_links_roadmap(signal_fc_url, '.bigwig')
+    download_data(signal_fc_files, signal_fc_links, path_signal_fc, 20)
 
     # rnaseq_url = \
     #     'https://egg2.wustl.edu/roadmap/data/byDataType/rna/expression/'
     # path_rnaseq = '/home/zy/driver_mutation/data/RoadMap/Rnaseq'
     # rnaseq_files, rnaseq_links = get_links_roadmap(rnaseq_url)
     # download_data(rnaseq_files, rnaseq_links, path_rnaseq, 20)
+    # decompress(path_rnaseq, num_process=40)
 
     # methy_wgbs_url = 'https://egg2.wustl.edu/roadmap/data/byDataType/' \
     #                  'dnamethylation/WGBS/FractionalMethylation_bigwig/'
