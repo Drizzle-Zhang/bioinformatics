@@ -30,6 +30,39 @@ def get_links_roadmap(url, suffix):
     return files_filter, links
 
 
+def get_links_geo_supp(url):
+    web_html = urllib.request.urlopen(url)
+    web_html_str = str(web_html.read())
+    html = etree.HTML(web_html_str)
+    pre_links = html.xpath(
+        "//td[@bgcolor='#EEEEEE' or @bgcolor='#EEEEEE']/a/@href")
+    ftp_links = [link for link in pre_links if link[:3] == 'ftp']
+
+    return ftp_links
+
+
+def download_data_geo(links, path_out, num_process):
+    subprocesses = []
+    for i, link in enumerate(links):
+        if i % num_process == 0:
+            for sub_process in subprocesses:
+                sub_process.wait()
+            subprocesses = []
+        subprocesses.append(
+            subprocess.Popen(
+                f"wget -P {path_out} {link}",
+                shell=True))
+        random_sleep = random.randint(5, 15)
+        time.sleep(random_sleep)
+        # if i == 6:
+        #     break
+
+    for sub_process in subprocesses:
+        sub_process.wait()
+
+    return
+
+
 def download_data(files, links, path_out, num_process):
     subprocesses = []
     for i, link in enumerate(links):
@@ -65,6 +98,11 @@ def decompress(path, num_process=20):
                 subprocess.Popen(
                     f"gzip -d {os.path.join(path, file)}",
                     shell=True))
+        elif file[-4:] == '.bz2':
+            subprocesses.append(
+                subprocess.Popen(
+                    f"bzip2 -d {os.path.join(path, file)}",
+                    shell=True))
 
     for sub_process in subprocesses:
         sub_process.wait()
@@ -82,6 +120,7 @@ if __name__ == '__main__':
     opener.addheaders = [headers]
     socket.setdefaulttimeout(2000)
 
+    # RoadMap
     # narrow_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/peaks/' \
     #              'consolidated/narrowPeak/ucsc_compatible/'
     # path_narrow = '/home/zy/driver_mutation/data/RoadMap/narrow_peak_chip_DHS'
@@ -102,12 +141,12 @@ if __name__ == '__main__':
     # signal_p_files, signal_p_links = get_links_roadmap(signal_p_url, '.bigwig')
     # download_data(signal_p_files, signal_p_links, path_signal_p, 20)
 
-    signal_fc_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
-                    'consolidated/macs2signal/foldChange/'
-    path_signal_fc = '/home/zy/driver_mutation/data/RoadMap/signal_fc_chip_DHS'
-    signal_fc_files, signal_fc_links = \
-        get_links_roadmap(signal_fc_url, '.bigwig')
-    download_data(signal_fc_files, signal_fc_links, path_signal_fc, 20)
+    # signal_fc_url = 'https://egg2.wustl.edu/roadmap/data/byFileType/signal/' \
+    #                 'consolidated/macs2signal/foldChange/'
+    # path_signal_fc = '/home/zy/driver_mutation/data/RoadMap/signal_fc_chip_DHS'
+    # signal_fc_files, signal_fc_links = \
+    #     get_links_roadmap(signal_fc_url, '.bigwig')
+    # download_data(signal_fc_files, signal_fc_links, path_signal_fc, 20)
 
     # rnaseq_url = \
     #     'https://egg2.wustl.edu/roadmap/data/byDataType/rna/expression/'
@@ -135,6 +174,15 @@ if __name__ == '__main__':
     # methy_mcrf_files, methy_mcrf_links = get_links_roadmap(
     #     methy_mcrf_url, '.bigwig')
     # download_data(methy_mcrf_files, methy_mcrf_links, path_methy_mcrf, 20)
+
+    # nature genetics promoter capture Hi-C
+    url_jung_ng_2019 = \
+        'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE86189'
+    links_jung_ng_2019 = get_links_geo_supp(url_jung_ng_2019)
+    path_jung_ng_2019 = \
+        '/home/zy/driver_mutation/data/pcHiC/Jung_NG_2019'
+    download_data_geo(links_jung_ng_2019, path_jung_ng_2019, 5)
+    decompress(path_jung_ng_2019, 20)
 
     time_end = time.time()
     print(time_end - time_start)
