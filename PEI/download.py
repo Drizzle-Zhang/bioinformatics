@@ -35,7 +35,7 @@ def get_links_geo_supp(url):
     web_html_str = str(web_html.read())
     html = etree.HTML(web_html_str)
     pre_links = html.xpath(
-        "//td[@bgcolor='#EEEEEE' or @bgcolor='#EEEEEE']/a/@href")
+        "//td[@bgcolor='#DEEBDC' or @bgcolor='#EEEEEE']/a/@href")
     ftp_links = [link for link in pre_links if link[:3] == 'ftp']
 
     return ftp_links
