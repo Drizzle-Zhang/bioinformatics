@@ -12,6 +12,7 @@ import socket
 import subprocess
 import os
 import random
+import re
 
 
 def get_links_roadmap(url, suffix):
@@ -39,6 +40,60 @@ def get_links_geo_supp(url):
     ftp_links = [link for link in pre_links if link[:3] == 'ftp']
 
     return ftp_links
+
+
+def get_links_3div_and_download(url, path_out, num_process):
+    web_html = urllib.request.urlopen(url)
+    web_html_str = str(web_html.read())
+    html = etree.HTML(web_html_str)
+    text = html.xpath("//*/text()")
+    list_text = text[0].split('\\n')
+    file_pattern = re.compile(r":[0-9][0-9] .+\\")
+    ftp_links = []
+    for line in list_text:
+        if file_pattern.search(line):
+            file = file_pattern.search(line).group()[4:-1]
+            if file == 'IMR90_fibroblast,_TNF-\\xa5\\xe1_treated':
+                # file = 'IMR90_fibroblast,_TNF-%A5%E1_treated'
+                continue
+            ftp_links.append(url + file + '/')
+
+    out_links = []
+    for link in ftp_links:
+        web_html = urllib.request.urlopen(link)
+        web_html_str = str(web_html.read())
+        html = etree.HTML(web_html_str)
+        text = html.xpath("//*/text()")
+        list_text = text[0].split('\\n')
+        for line in list_text:
+            if file_pattern.search(line):
+                out_links.append(
+                    link + file_pattern.search(line).group()[4:-1])
+
+    subprocesses = []
+    for i, link in enumerate(out_links):
+        folder = os.path.join(path_out, link.split('/')[-2])
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        if i % num_process == 0:
+            for sub_process in subprocesses:
+                sub_process.wait()
+            subprocesses = []
+        if link[-6:] == '10.zip':
+            subprocesses.append(
+                subprocess.Popen(
+                    "wget -P " + folder.replace('(', '\(').replace(')', '\)') +
+                    " " + link.replace('(', '\(').replace(')', '\)'),
+                    shell=True))
+        random_sleep = random.randint(2, 5)
+        time.sleep(random_sleep)
+        # if i == 6:
+        #     break
+
+    for sub_process in subprocesses:
+        sub_process.wait()
+
+    return
 
 
 def download_data_geo(links, path_out, num_process):
@@ -176,13 +231,17 @@ if __name__ == '__main__':
     # download_data(methy_mcrf_files, methy_mcrf_links, path_methy_mcrf, 20)
 
     # nature genetics promoter capture Hi-C
-    url_jung_ng_2019 = \
-        'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE86189'
-    links_jung_ng_2019 = get_links_geo_supp(url_jung_ng_2019)
-    path_jung_ng_2019 = \
-        '/home/zy/driver_mutation/data/pcHiC/Jung_NG_2019'
-    download_data_geo(links_jung_ng_2019, path_jung_ng_2019, 5)
-    decompress(path_jung_ng_2019, 20)
+    # url_jung_ng_2019 = \
+    #     'https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE86189'
+    # links_jung_ng_2019 = get_links_geo_supp(url_jung_ng_2019)
+    # path_jung_ng_2019 = \
+    #     '/home/zy/driver_mutation/data/pcHiC/Jung_NG_2019'
+    # download_data_geo(links_jung_ng_2019, path_jung_ng_2019, 5)
+    # decompress(path_jung_ng_2019, 20)
+
+    # Segway
+
+    # 3DIV
 
     time_end = time.time()
     print(time_end - time_start)
