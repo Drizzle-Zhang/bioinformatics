@@ -51,7 +51,7 @@ def standardize_bed(path_in, path_out, type_bed):
                                            path_in=path_life))
 
     pool = Pool(processes=40)
-    func_stan = partial(sub_stan, path_in, type_bed)
+    func_stan = partial(sub_stan, type_bed)
     pool.map(func_stan, list_input)
     pool.close()
 
