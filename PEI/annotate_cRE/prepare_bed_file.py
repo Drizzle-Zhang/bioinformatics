@@ -52,8 +52,7 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def merge_bed(path_bed, dict_in):
-    term_name = dict_in['term_name'].replace(
-        ' ', '_').replace('/', '+').replace("'", '--')
+    term_name = dict_in['term_name']
     path_out = dict_in['path']
     cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
     sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
@@ -79,6 +78,10 @@ def unique_bed_files(path_bed, metafile, path_out):
                                'Biosample type', 'Biosample life stage',
                                'Biosample organ', 'Biosample cell']]
     new_meta = new_meta.drop_duplicates()
+    filenames = new_meta['Biosample term name'].apply(
+        lambda x: x.replace(' ', '_').replace('/', '+').replace("'", '--'))
+    filenames.name = 'file_name'
+    new_meta = pd.concat([new_meta, filenames], axis=1, sort=False)
     new_meta.to_csv(os.path.join(path_out, 'metadata.dhs.tsv'), sep='\t',
                     index=None)
     list_input = []
