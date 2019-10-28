@@ -11,8 +11,9 @@ from multiprocessing import Pool
 from functools import partial
 
 
-def sub_stan(path_in, type_bed, dict_in):
+def sub_stan(type_bed, dict_in):
     path_out = dict_in['path_out']
+    path_in = dict_in['path_in']
     file = dict_in['file']
     file_in = os.path.join(path_in, file)
     with open(file_in, 'r') as r_f:
@@ -45,7 +46,9 @@ def standardize_bed(path_in, path_out, type_bed):
                 path_life_out = os.path.join(path_type_out, life_stage)
                 files = os.listdir(path_life)
                 for file in files:
-                    list_input.append(dict(path_out=path_life_out, file=file))
+                    list_input.append(dict(path_out=path_life_out,
+                                           file=file,
+                                           path_in=path_life))
 
     pool = Pool(processes=40)
     func_stan = partial(sub_stan, path_in, type_bed)
