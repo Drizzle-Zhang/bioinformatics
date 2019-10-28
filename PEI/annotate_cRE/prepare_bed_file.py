@@ -52,7 +52,7 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def merge_bed(path_bed, dict_in):
-    term_name = dict_in['term_name'].replace(' ', '_')
+    term_name = dict_in['term_name'].replace(' ', '_').replace('/', '\/')
     path_out = dict_in['path']
     cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
     sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
@@ -202,7 +202,7 @@ if __name__ == '__main__':
 
     # unique DHS
     path_bed_dhs = \
-        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38/bed_narrowpeak'
+        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/hg19/bed_narrowpeak'
     path_dhs_hg19 = '/home/zy/driver_mutation/data/DHS/hg19/'
     unique_bed_files(path_bed_dhs, meta_hg19_dhs, path_dhs_hg19)
 
