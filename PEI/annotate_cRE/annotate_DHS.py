@@ -17,7 +17,7 @@ def sub_stan(type_bed, dict_in):
     file = dict_in['file']
     file_in = os.path.join(path_in, file)
     with open(file_in, 'r') as r_f:
-        with open(os.path.join(path_out, file)) as w_f:
+        with open(os.path.join(path_out, file), 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
@@ -36,10 +36,10 @@ def standardize_bed(path_in, path_out, type_bed):
     list_input = []
     for biotype in types:
         path_type = os.path.join(path_in, biotype)
-        path_type_out = os.path.join(path_out, biotype)
-        if not os.path.exists(path_type_out):
-            os.makedirs(path_type_out)
         if os.path.isdir(path_type):
+            path_type_out = os.path.join(path_out, biotype)
+            if not os.path.exists(path_type_out):
+                os.makedirs(path_type_out)
             life_stages = os.listdir(path_type)
             for life_stage in life_stages:
                 path_life = os.path.join(path_type, life_stage)
