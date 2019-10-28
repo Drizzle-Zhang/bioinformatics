@@ -123,49 +123,57 @@ def unique_bed_files(path_bed, metafile, path_out):
 if __name__ == '__main__':
     time_start = time()
     # get bed file annotating protein-coding genes
-    # gtf_file = \
-    #     '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
-    # protein_file = \
-    #     '/home/zy/driver_mutation/data/gene/genes.protein.gencode.v19.bed'
-    # promoter_file = \
-    #     '/home/zy/driver_mutation/data/gene/' \
-    #     'promoters.up2k.protein.gencode.v19.bed'
-    # with open(protein_file, 'w') as w_gene:
-    #     with open(promoter_file, 'w') as w_pro:
-    #         fmt_gene = "{chrom}\t{start}\t{end}\t{symbol}\t.\t{strand}\n"
-    #         fmt_promoter = "{chrom}\t{start}\t{end}\t{symbol}\t.\t{strand}\n"
-    #         with open(gtf_file, 'r') as r_gtf:
-    #             for line_gene in r_gtf:
-    #                 if line_gene[0] == '#':
-    #                     continue
-    #                 list_line_gene = line_gene.strip().split('\t')
-    #                 if list_line_gene[2] != 'gene':
-    #                     continue
-    #                 list_attr = list_line_gene[8].strip().split('; ')
-    #                 gene_type = list_attr[2][11:-1]
-    #                 if list_attr[2][-15:-1] != "protein_coding":
-    #                     continue
-    #                 gene_name = list_attr[4][11:-1]
-    #                 strand = list_line_gene[6]
-    #                 dict_gene = dict(chrom=list_line_gene[0],
-    #                                  start=list_line_gene[3],
-    #                                  end=list_line_gene[4], symbol=gene_name,
-    #                                  strand=strand)
-    #                 w_gene.write(fmt_gene.format(**dict_gene))
-    #                 if strand == '+':
-    #                     pro_start = str(int(list_line_gene[3]) - 2000)
-    #                     pro_end = list_line_gene[3]
-    #                 elif strand == '-':
-    #                     pro_start = list_line_gene[4]
-    #                     pro_end = str(int(list_line_gene[4]) + 2000)
-    #                 else:
-    #                     print('Error')
-    #                     break
-    #                 dict_promoter = dict(chrom=list_line_gene[0],
-    #                                      start=pro_start,
-    #                                      end=pro_end, symbol=gene_name,
-    #                                      strand=strand)
-    #                 w_pro.write(fmt_promoter.format(**dict_promoter))
+    gtf_file = \
+        '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
+    protein_file = \
+        '/home/zy/driver_mutation/data/gene/genes.protein.gencode.v19.bed'
+    promoter_file = \
+        '/home/zy/driver_mutation/data/gene/' \
+        'promoters.up2k.protein.gencode.v19.bed'
+    with open(protein_file, 'w') as w_gene:
+        with open(promoter_file, 'w') as w_pro:
+            fmt_gene = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            fmt_promoter = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            with open(gtf_file, 'r') as r_gtf:
+                for line_gene in r_gtf:
+                    if line_gene[0] == '#':
+                        continue
+                    list_line_gene = line_gene.strip().split('\t')
+                    if list_line_gene[2] != 'gene':
+                        continue
+                    list_attr = list_line_gene[8].strip().split('; ')
+                    gene_type = list_attr[2][11:-1]
+                    if list_attr[2][-15:-1] != "protein_coding":
+                        continue
+                    gene_name = list_attr[4][11:-1]
+                    ensg_id = list_attr[0][9:-1]
+                    strand = list_line_gene[6]
+                    dict_gene = dict(chrom=list_line_gene[0],
+                                     start=list_line_gene[3],
+                                     end=list_line_gene[4], symbol=gene_name,
+                                     ensg_id=ensg_id,
+                                     strand=strand)
+                    w_gene.write(fmt_gene.format(**dict_gene))
+                    if strand == '+':
+                        pro_start = str(int(list_line_gene[3]) - 2000)
+                        pro_end = list_line_gene[3]
+                    elif strand == '-':
+                        pro_start = list_line_gene[4]
+                        pro_end = str(int(list_line_gene[4]) + 2000)
+                    else:
+                        print('Error')
+                        break
+                    dict_promoter = dict(chrom=list_line_gene[0],
+                                         start=pro_start,
+                                         end=pro_end,
+                                         symbol=f"{gene_name}<-"
+                                                f"{list_line_gene[0]}:"
+                                                f"{pro_start}-{pro_end}",
+                                         ensg_id=ensg_id,
+                                         strand=strand)
+                    w_pro.write(fmt_promoter.format(**dict_promoter))
 
     # build life stage dictionary
     path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
