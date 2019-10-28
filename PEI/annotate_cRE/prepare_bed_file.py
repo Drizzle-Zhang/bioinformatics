@@ -52,7 +52,7 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def merge_bed(path_bed, dict_in):
-    term_name = dict_in['term_name'].replace(' ', '_').replace('/', '\/')
+    term_name = dict_in['term_name'].replace(' ', '_').replace('/', ';')
     path_out = dict_in['path']
     cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
     sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
