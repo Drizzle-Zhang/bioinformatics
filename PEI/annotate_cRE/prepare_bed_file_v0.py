@@ -62,10 +62,7 @@ def merge_bed(path_bed, dict_in):
                        for acce_id in dict_in['accession_ids']])
     os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"sortBed -i {cat_out} > {sort_out}")
-    os.system(f"bedtools merge -i {sort_out} "
-              f"-c 4,5,6,7,8,9,10 "
-              f"-o collapse,collapse,collapse,collapse,collapse,collapse,"
-              f"collapse > {bed_out}")
+    os.system(f"bedtools merge -i {sort_out} -c 7 -o sum > {bed_out}")
 
     return
 
@@ -174,11 +171,31 @@ if __name__ == '__main__':
     dict_cell = build_dict_attr(path_cell)
 
     # DHS
-    # metafile
+    # filter metafile
     path_dhs = \
         '/home/zy/driver_mutation/data/ENCODE/DNase-seq/hg19/bed_narrowpeak'
-    ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
-    df_meta_dhs = hg19_filter(ori_meta_dhs)
+    ori_meta = os.path.join(path_dhs, 'metadata.tsv')
+    # meta_adult = os.path.join(path_dhs, 'metadata_adult.tsv')
+    # meta_embryo = os.path.join(path_dhs, 'metadata_embryo.tsv')
+    # meta_unknown = os.path.join(path_dhs, 'metadata_unknown.tsv')
+    # meta_newborn = os.path.join(path_dhs, 'metadata_newborn.tsv')
+    # meta_child = os.path.join(path_dhs, 'metadata_child.tsv')
+    # df_adult = hg19_filter(meta_adult)
+    # df_adult['Biosample life stage'] = 'adult'
+    # df_embryo = hg19_filter(meta_embryo)
+    # df_embryo['Biosample life stage'] = 'embryonic'
+    # df_unknown = hg19_filter(meta_unknown)
+    # df_unknown['Biosample life stage'] = 'unknown'
+    # df_newborn = hg19_filter(meta_newborn)
+    # df_newborn['Biosample life stage'] = 'newborn'
+    # df_child = hg19_filter(meta_child)
+    # df_child['Biosample life stage'] = 'child'
+    # df_merge = pd.concat(
+    #     [df_adult, df_embryo, df_unknown, df_newborn, df_child])
+    # meta_hg19 = os.path.join(path_dhs, 'metadata.hg19.tsv')
+    # df_merge.to_csv(meta_hg19, sep='\t', index=None)
+
+    df_meta_dhs = hg19_filter(ori_meta)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
@@ -186,26 +203,14 @@ if __name__ == '__main__':
     df_meta_dhs.to_csv(meta_hg19_dhs, sep='\t', index=None)
 
     # unique DHS
+    path_bed_dhs = \
+        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/hg19/bed_narrowpeak'
     path_dhs_hg19 = '/home/zy/driver_mutation/data/DHS/hg19/'
-    unique_bed_files(path_dhs, meta_hg19_dhs, path_dhs_hg19)
+    unique_bed_files(path_bed_dhs, meta_hg19_dhs, path_dhs_hg19)
 
     # H3K27ac
-    path_h3k27ac = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'hg19/bed_narrowpeak'
-    ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    df_meta_h3k27ac = hg19_filter(ori_meta_h3k27ac)
-    df_meta_h3k27ac = \
-        add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
-    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
-    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    meta_hg19_h3k27ac = os.path.join(path_h3k27ac, 'metadata.hg19.tsv')
-    df_meta_h3k27ac.to_csv(meta_hg19_h3k27ac, sep='\t', index=None)
 
     # unique H3K27ac
-    path_h3k27ac_hg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K27ac'
-    unique_bed_files(path_h3k27ac, meta_hg19_h3k27ac, path_h3k27ac_hg19)
 
     time_end = time()
     print(time_end - time_start)
