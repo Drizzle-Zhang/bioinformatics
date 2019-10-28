@@ -44,6 +44,8 @@ def standardize_bed(path_in, path_out, type_bed):
             for life_stage in life_stages:
                 path_life = os.path.join(path_type, life_stage)
                 path_life_out = os.path.join(path_type_out, life_stage)
+                if not os.path.exists(path_life_out):
+                    os.makedirs(path_life_out)
                 files = os.listdir(path_life)
                 for file in files:
                     list_input.append(dict(path_out=path_life_out,
