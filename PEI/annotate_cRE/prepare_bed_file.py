@@ -66,6 +66,8 @@ def merge_bed(path_bed, dict_in):
               f"-c 4,5,6,7,8,9,10 "
               f"-o collapse,collapse,collapse,collapse,collapse,collapse,"
               f"collapse > {bed_out}")
+    os.remove(cat_out)
+    os.remove(sort_out)
 
     return
 
