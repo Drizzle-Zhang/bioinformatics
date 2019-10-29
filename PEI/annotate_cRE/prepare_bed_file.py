@@ -52,8 +52,7 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def merge_bed(path_bed, dict_in):
-    term_name = dict_in['term_name'].replace(
-        ' ', '_').replace('/', '+').replace("'", '--')
+    term_name = dict_in['term_name']
     path_out = dict_in['path']
     cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
     sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
@@ -81,7 +80,7 @@ def unique_bed_files(path_bed, metafile, path_out):
     new_meta = new_meta.drop_duplicates()
     filenames = new_meta['Biosample term name'].apply(
         lambda x: x.replace(' ', '_').replace('/', '+').replace("'", '--'))
-    filenames.name = 'file_name'
+    filenames.name = 'Biosample file name'
     new_meta = pd.concat([new_meta, filenames], axis=1, sort=False)
     new_meta.to_csv(os.path.join(path_out, 'metadata.dhs.tsv'), sep='\t',
                     index=None)
@@ -100,13 +99,13 @@ def unique_bed_files(path_bed, metafile, path_out):
                 os.path.join(path_type, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            terms = set(life_meta['Biosample term name'].tolist())
+            terms = set(life_meta['Biosample file name'].tolist())
             for term in terms:
                 filter_meta = \
                     df_meta.loc[
                      (df_meta['Biosample type'] == biotype) &
                      (df_meta['Biosample life stage'] == life_stage) &
-                     (df_meta['Biosample term name'] == term), :]
+                     (df_meta['Biosample file name'] == term), :]
                 accession_ids = filter_meta['File accession'].tolist()
                 list_input.append(dict(path=path_life_stage,
                                        term_name=term,
