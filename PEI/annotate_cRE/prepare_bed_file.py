@@ -176,10 +176,10 @@ def unique_bed_files_histone(path_in, path_out):
                                    term_name=life_stage.replace(' ', '_'),
                                    accession_ids=
                                    life_meta['File accession'].tolist()))
-            terms = set(life_meta['Biosample file name'].tolist())
+            terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
-                    life_meta.loc[(df_meta['Biosample file name'] == term), :]
+                    life_meta.loc[(df_meta['Biosample term name'] == term), :]
                 accession_ids = filter_meta['File accession'].tolist()
                 list_input.append(dict(path=path_life_stage,
                                        term_name=
