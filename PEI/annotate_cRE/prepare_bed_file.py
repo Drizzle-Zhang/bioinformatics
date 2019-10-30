@@ -139,6 +139,8 @@ def unique_bed_files_histone(path_in, path_out):
     )
     df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
 
+    os.system(f"rm -rf {path_out}")
+
     list_input = [dict(path=path_out,
                        term_name='all_organs',
                        accession_ids=
