@@ -10,13 +10,7 @@ import os
 from multiprocessing import Pool
 from functools import partial
 import pandas as pd
-
-
-def ref_dhs(path_in, path_ref):
-    df_meta = os.path.join(path_in, 'metadata.dhs.tsv')
-    
-
-    return
+import numpy as np
 
 
 def generate_file_list(path_in, path_out):
@@ -72,6 +66,77 @@ def standardize_bed(path_in, path_out, type_bed):
     pool = Pool(processes=40)
     func_stan = partial(sub_stan, type_bed)
     pool.map(func_stan, list_input)
+    pool.close()
+
+    return
+
+
+def merge_bed(path_bed, dict_in):
+    organ_name = dict_in['organ']
+    path_out = dict_in['path']
+    cat_out = os.path.join(path_out, f"{organ_name}.cat.bed")
+    sort_out = os.path.join(path_out, f"{organ_name}.sort.bed")
+    bed_out = os.path.join(path_out, f"{organ_name}.bed")
+    cat_in = ' '.join([os.path.join(path_bed, file_name + '.bed')
+                       for file_name in dict_in['file_names']])
+    os.system(f"cat {cat_in} > {cat_out}")
+    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    # os.system(f"sort -k 1,1 -k2,2n -k3,3n {cat_out} > {sort_out}")
+    os.system(f"bedtools merge -i {sort_out} "
+              f"-c 4,5,6,7,8,9,10 "
+              f"-o collapse,collapse,collapse,collapse,collapse,collapse,"
+              f"collapse > {bed_out}")
+    # os.remove(cat_out)
+    # os.remove(sort_out)
+
+    return
+
+
+def ref_dhs(path_in, path_ref):
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.dhs.tsv'), sep='\t')
+    cancer_state = df_meta['Biosample cell'].apply(
+        lambda x: True if isinstance(x, float) else
+        'cancer cell' not in x.strip().split(',')
+    )
+    organ_state = df_meta['Biosample organ'].apply(
+        lambda x: isinstance(x, str)
+    )
+    df_meta_normal = df_meta.loc[
+                     organ_state & cancer_state &
+                     (df_meta['Biosample life stage'] != 'unknown'), :]
+
+    list_input = []
+    life_stages = set(df_meta_normal['Biosample life stage'].tolist())
+    for life_stage in life_stages:
+        life_meta = df_meta_normal.loc[
+                    df_meta_normal['Biosample life stage'] == life_stage, :]
+        path_life_stage = \
+            os.path.join(path_ref, life_stage.replace(' ', '_'))
+        if not os.path.exists(path_life_stage):
+            os.makedirs(path_life_stage)
+        organs = []
+        for line in life_meta['Biosample organ'].tolist():
+            organs.extend(line.strip().split(','))
+        for organ in organs:
+            filter_meta = \
+                df_meta_normal.loc[
+                 (df_meta_normal['Biosample organ'].apply(
+                     lambda x: organ in x.strip().split(','))) &
+                 (df_meta_normal['Biosample life stage'] == life_stage),
+                 ['Biosample type', 'Biosample life stage',
+                  'Biosample file name']]
+            filter_meta = filter_meta.applymap(lambda x: x.replace(' ', '_'))
+            file_names = [f"{line['Biosample type'].replace(' ', '_')}/"
+                          f"{line['Biosample life stage'].replace(' ', '_')}/"
+                          f"{line['Biosample file name']}"
+                          for line in filter_meta.to_dict('records')]
+            list_input.append(dict(path=path_life_stage,
+                                   organ=organ.replace(' ', '_'),
+                                   file_names=file_names))
+
+    pool = Pool(processes=40)
+    func_merge = partial(merge_bed, path_in)
+    pool.map(func_merge, list_input[:40])
     pool.close()
 
     return

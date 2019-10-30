@@ -60,10 +60,10 @@ def merge_bed(path_bed, dict_in):
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
     os.system(f"cat {cat_in} > {cat_out}")
-    os.system(f"sortBed -i {cat_out} > {sort_out}")
+    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
-              f"-c 4,5,6,7,8,9,10 "
-              f"-o collapse,collapse,collapse,collapse,collapse,collapse,"
+              f"-c 5,6,7,8,9,10 "
+              f"-o collapse,collapse,collapse,collapse,collapse,"
               f"collapse > {bed_out}")
     os.remove(cat_out)
     os.remove(sort_out)
@@ -71,48 +71,124 @@ def merge_bed(path_bed, dict_in):
     return
 
 
-def unique_bed_files(path_bed, metafile, path_out):
-    df_meta = pd.read_csv(metafile, sep='\t')
-    # new meta file
-    new_meta = df_meta.loc[:, ['Biosample term id', 'Biosample term name',
-                               'Biosample type', 'Biosample life stage',
-                               'Biosample organ', 'Biosample cell']]
-    new_meta = new_meta.drop_duplicates()
-    filenames = new_meta['Biosample term name'].apply(
-        lambda x: x.replace(' ', '_').replace('/', '+').replace("'", '--'))
-    filenames.name = 'Biosample file name'
-    new_meta = pd.concat([new_meta, filenames], axis=1, sort=False)
-    new_meta.to_csv(os.path.join(path_out, 'metadata.dhs.tsv'), sep='\t',
-                    index=None)
-    list_input = []
-    types = set(new_meta['Biosample type'].tolist())
-    for biotype in types:
-        type_meta = new_meta.loc[new_meta['Biosample type'] == biotype, :]
-        path_type = os.path.join(path_out, biotype.replace(' ', '_'))
-        if not os.path.exists(path_type):
-            os.makedirs(path_type)
-        life_stages = set(type_meta['Biosample life stage'].tolist())
+def ref_dhs(path_in, path_ref):
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.hg19.tsv'), sep='\t')
+    cancer_state = df_meta['Biosample cell'].apply(
+        lambda x: True if isinstance(x, float) else
+        'cancer cell' not in x.strip().split(',')
+    )
+    organ_state = df_meta['Biosample organ'].apply(
+        lambda x: isinstance(x, str)
+    )
+    df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
+
+    os.system(f"rm -rf {path_ref}")
+
+    list_input = [dict(path=path_ref,
+                       term_name='all_organs',
+                       accession_ids=
+                       df_meta_normal['File accession'].tolist())]
+    organs = []
+    for line in df_meta_normal['Biosample organ'].tolist():
+        organs.extend(line.strip().split(','))
+    organs = set(organs)
+    for organ in organs:
+        organ_meta = df_meta_normal.loc[
+                     df_meta_normal['Biosample organ'].apply(
+                         lambda x: organ in x.strip().split(',')), :]
+        organ_path = \
+            os.path.join(path_ref, organ.replace(' ', '_'))
+        if not os.path.exists(organ_path):
+            os.makedirs(organ_path)
+        list_input.append(dict(path=organ_path,
+                               term_name=organ.replace(' ', '_'),
+                               accession_ids=
+                               organ_meta['File accession'].tolist()))
+        life_stages = []
+        for line in organ_meta['Biosample life stage'].tolist():
+            life_stages.extend(line.strip().split(','))
+        life_stages = set(life_stages)
         for life_stage in life_stages:
-            life_meta = type_meta.loc[
-                        type_meta['Biosample life stage'] == life_stage, :]
+            filter_meta = \
+                organ_meta.loc[
+                 (organ_meta['Biosample life stage'].apply(
+                     lambda x: life_stage in x.strip().split(','))) &
+                 (organ_meta['Biosample organ'].apply(
+                         lambda x: organ in x.strip().split(','))), :]
+            accession_ids = filter_meta['File accession'].tolist()
+            list_input.append(dict(path=organ_path,
+                                   term_name=life_stage.replace(' ', '_'),
+                                   accession_ids=accession_ids))
+
+    pool = Pool(processes=40)
+    func_merge = partial(merge_bed, path_in)
+    pool.map(func_merge, list_input)
+    pool.close()
+
+    return
+
+
+def unique_bed_files_histone(path_in, path_out):
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.hg19.tsv'), sep='\t')
+    cancer_state = df_meta['Biosample cell'].apply(
+        lambda x: True if isinstance(x, float) else
+        'cancer cell' not in x.strip().split(',')
+    )
+    organ_state = df_meta['Biosample organ'].apply(
+        lambda x: isinstance(x, str)
+    )
+    df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
+
+    list_input = [dict(path=path_out,
+                       term_name='all_organs',
+                       accession_ids=
+                       df_meta_normal['File accession'].tolist())]
+    organs = []
+    for line in df_meta_normal['Biosample organ'].tolist():
+        organs.extend(line.strip().split(','))
+    organs = set(organs)
+    for organ in organs:
+        organ_meta = df_meta_normal.loc[
+                     df_meta_normal['Biosample organ'].apply(
+                         lambda x: organ in x.strip().split(',')), :]
+        organ_path = \
+            os.path.join(path_out, organ.replace(' ', '_'))
+        if not os.path.exists(organ_path):
+            os.makedirs(organ_path)
+        list_input.append(dict(path=path_out,
+                               term_name=organ.replace(' ', '_'),
+                               accession_ids=
+                               organ_meta['File accession'].tolist()))
+        life_stages = []
+        for line in organ_meta['Biosample life stage'].tolist():
+            life_stages.extend(line.strip().split(','))
+        life_stages = set(life_stages)
+        for life_stage in life_stages:
+            life_meta = \
+                organ_meta.loc[
+                 organ_meta['Biosample life stage'].apply(
+                     lambda x: life_stage in x.strip().split(',')), :]
             path_life_stage = \
-                os.path.join(path_type, life_stage.replace(' ', '_'))
+                os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
+            list_input.append(dict(path=path_life_stage,
+                                   term_name=life_stage.replace(' ', '_'),
+                                   accession_ids=
+                                   life_meta['File accession'].tolist()))
             terms = set(life_meta['Biosample file name'].tolist())
             for term in terms:
                 filter_meta = \
-                    df_meta.loc[
-                     (df_meta['Biosample type'] == biotype) &
-                     (df_meta['Biosample life stage'] == life_stage) &
-                     (df_meta['Biosample file name'] == term), :]
+                    life_meta.loc[(df_meta['Biosample file name'] == term), :]
                 accession_ids = filter_meta['File accession'].tolist()
                 list_input.append(dict(path=path_life_stage,
-                                       term_name=term,
+                                       term_name=
+                                       term.replace(' ', '_').replace(
+                                           '/', '+').replace("'", '--'),
                                        accession_ids=accession_ids))
 
-    pool = Pool(processes=30)
-    func_merge = partial(merge_bed, path_bed)
+    pool = Pool(processes=40)
+    func_merge = partial(merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -129,6 +205,7 @@ if __name__ == '__main__':
     promoter_file = \
         '/home/zy/driver_mutation/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
+    """
     with open(protein_file, 'w') as w_gene:
         with open(promoter_file, 'w') as w_pro:
             fmt_gene = \
@@ -172,7 +249,7 @@ if __name__ == '__main__':
                                                 f"{pro_start}-{pro_end}",
                                          ensg_id=ensg_id,
                                          strand=strand)
-                    w_pro.write(fmt_promoter.format(**dict_promoter))
+                    w_pro.write(fmt_promoter.format(**dict_promoter))"""
 
     # build life stage dictionary
     path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
@@ -198,9 +275,9 @@ if __name__ == '__main__':
     meta_hg19_dhs = os.path.join(path_dhs, 'metadata.hg19.tsv')
     df_meta_dhs.to_csv(meta_hg19_dhs, sep='\t', index=None)
 
-    # unique DHS
+    # build DHS reference
     path_dhs_hg19 = '/home/zy/driver_mutation/data/DHS/hg19/'
-    unique_bed_files(path_dhs, meta_hg19_dhs, path_dhs_hg19)
+    ref_dhs(path_dhs, path_dhs_hg19)
 
     # H3K27ac
     path_h3k27ac = \
@@ -218,7 +295,7 @@ if __name__ == '__main__':
     # unique H3K27ac
     path_h3k27ac_hg19 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K27ac'
-    unique_bed_files(path_h3k27ac, meta_hg19_h3k27ac, path_h3k27ac_hg19)
+    unique_bed_files_histone(path_h3k27ac, path_h3k27ac_hg19)
 
     time_end = time()
     print(time_end - time_start)
