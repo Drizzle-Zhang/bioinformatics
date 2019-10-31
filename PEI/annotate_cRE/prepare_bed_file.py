@@ -116,16 +116,18 @@ def ref_dhs(path_in, path_ref):
             life_stages.extend(line.strip().split(','))
         life_stages = set(life_stages)
         for life_stage in life_stages:
-            filter_meta = \
+            life_meta = \
                 organ_meta.loc[
-                 (organ_meta['Biosample life stage'].apply(
-                     lambda x: life_stage in x.strip().split(','))) &
-                 (organ_meta['Biosample organ'].apply(
-                         lambda x: organ in x.strip().split(','))), :]
-            accession_ids = filter_meta['File accession'].tolist()
-            list_input.append(dict(path=organ_path,
+                 organ_meta['Biosample life stage'].apply(
+                     lambda x: life_stage in x.strip().split(',')), :]
+            path_life_stage = \
+                os.path.join(organ_path, life_stage.replace(' ', '_'))
+            if not os.path.exists(path_life_stage):
+                os.makedirs(path_life_stage)
+            list_input.append(dict(path=path_life_stage,
                                    term_name=life_stage.replace(' ', '_'),
-                                   accession_ids=accession_ids))
+                                   accession_ids=
+                                   life_meta['File accession'].tolist()))
 
     pool = Pool(processes=40)
     func_merge = partial(merge_bed, path_in)
@@ -191,7 +193,12 @@ def unique_bed_files_histone(path_in, path_out):
                 filter_meta = \
                     life_meta.loc[(df_meta['Biosample term name'] == term), :]
                 accession_ids = filter_meta['File accession'].tolist()
-                list_input.append(dict(path=path_life_stage,
+                path_term = \
+                    os.path.join(organ_path, term.replace(
+                        ' ', '_').replace('/', '+').replace("'", '--'))
+                if not os.path.exists(path_term):
+                    os.makedirs(path_term)
+                list_input.append(dict(path=path_term,
                                        term_name=
                                        term.replace(' ', '_').replace(
                                            '/', '+').replace("'", '--'),

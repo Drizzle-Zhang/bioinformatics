@@ -18,25 +18,38 @@ def generate_file_list(path_in, path_out):
     list_input = []
     for element_1 in folder_1:
         path_1 = os.path.join(path_in, element_1)
-        if os.path.isdir(path_type):
-            path_type_out = os.path.join(path_out, biotype)
-            if not os.path.exists(path_type_out):
-                os.makedirs(path_type_out)
-            life_stages = os.listdir(path_type)
-            for life_stage in life_stages:
-                path_life = os.path.join(path_type, life_stage)
-                path_life_out = os.path.join(path_type_out, life_stage)
-                if not os.path.exists(path_life_out):
-                    os.makedirs(path_life_out)
-                files = os.listdir(path_life)
-                for file in files:
-                    list_input.append(dict(path_out=path_life_out,
-                                           file=file,
-                                           path_in=path_life,
-                                           biotype=biotype,
-                                           life_stage=life_stage,
-                                           label=f'{biotype}|{life_stage}|'
-                                                 f'{file}'))
+        if os.path.isdir(path_1):
+            path_1_out = os.path.join(path_out, element_1)
+            if not os.path.exists(path_1_out):
+                os.makedirs(path_1_out)
+        else:
+            list_input.append(dict(path_out=path_out,
+                                   file=element_1,
+                                   path_in=path_in,
+                                   organ='all',
+                                   life_stage='all'))
+            folder_2 = os.listdir(path_1)
+            for elelment_2 in folder_2:
+                path_2 = os.path.join(path_1, elelment_2)
+                if os.path.isdir(path_2):
+                    path_1_out = os.path.join(path_out, element_1)
+                    if not os.path.exists(path_1_out):
+                        os.makedirs(path_1_out)
+                else:
+                    list_input.append(dict(path_out=path_out,
+                                           file=element_1,
+                                           path_in=path_in,
+                                           organ='all',
+                                           life_stage='all'))
+                    files = os.listdir(path_1_out)
+                    for file in files:
+                        list_input.append(dict(path_out=path_life_out,
+                                               file=file,
+                                               path_in=path_life,
+                                               biotype=biotype,
+                                               life_stage=life_stage,
+                                               label=f'{biotype}|{life_stage}|'
+                                                     f'{file}'))
 
     return list_input
 
