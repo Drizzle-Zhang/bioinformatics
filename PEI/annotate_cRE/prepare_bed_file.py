@@ -83,6 +83,13 @@ def ref_dhs(path_in, path_ref):
     df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
 
     os.system(f"rm -rf {path_ref}")
+    os.mkdir(path_ref)
+    meta_out = df_meta_normal.loc[
+               :, ['Biosample term name', 'Biosample life stage',
+                   'Biosample organ']]
+    meta_out = meta_out.drop_duplicates()
+    meta_out.to_csv(os.path.join(path_ref, 'metadata.tsv'),
+                    sep='\t', index=None)
 
     list_input = [dict(path=path_ref,
                        term_name='all_organs',
@@ -140,6 +147,7 @@ def unique_bed_files_histone(path_in, path_out):
     df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
 
     os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
 
     list_input = [dict(path=path_out,
                        term_name='all_organs',

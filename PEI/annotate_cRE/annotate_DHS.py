@@ -14,10 +14,10 @@ import numpy as np
 
 
 def generate_file_list(path_in, path_out):
-    types = os.listdir(path_in)
+    folder_1 = os.listdir(path_in)
     list_input = []
-    for biotype in types:
-        path_type = os.path.join(path_in, biotype)
+    for element_1 in folder_1:
+        path_1 = os.path.join(path_in, element_1)
         if os.path.isdir(path_type):
             path_type_out = os.path.join(path_out, biotype)
             if not os.path.exists(path_type_out):
