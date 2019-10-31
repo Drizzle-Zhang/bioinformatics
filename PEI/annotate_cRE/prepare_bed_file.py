@@ -167,7 +167,7 @@ def unique_bed_files_histone(path_in, path_out):
             os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        list_input.append(dict(path=path_out,
+        list_input.append(dict(path=organ_path,
                                term_name=organ.replace(' ', '_'),
                                accession_ids=
                                organ_meta['File accession'].tolist()))
