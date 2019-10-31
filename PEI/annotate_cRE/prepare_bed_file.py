@@ -191,10 +191,10 @@ def unique_bed_files_histone(path_in, path_out):
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
-                    life_meta.loc[(df_meta['Biosample term name'] == term), :]
+                    life_meta.loc[(life_meta['Biosample term name'] == term), :]
                 accession_ids = filter_meta['File accession'].tolist()
                 path_term = \
-                    os.path.join(organ_path, term.replace(
+                    os.path.join(path_life_stage, term.replace(
                         ' ', '_').replace('/', '+').replace("'", '--'))
                 if not os.path.exists(path_term):
                     os.makedirs(path_term)
