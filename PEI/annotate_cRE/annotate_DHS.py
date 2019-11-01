@@ -11,6 +11,7 @@ from multiprocessing import Pool
 from functools import partial
 import pandas as pd
 import numpy as np
+from prepare_bed_file import merge_bed
 
 
 def generate_file_list(path_in, path_out):
@@ -18,68 +19,118 @@ def generate_file_list(path_in, path_out):
     list_input = []
     for element_1 in folder_1:
         path_1 = os.path.join(path_in, element_1)
-        if os.path.isdir(path_1):
-            path_1_out = os.path.join(path_out, element_1)
-            if not os.path.exists(path_1_out):
-                os.makedirs(path_1_out)
-        else:
+        if not os.path.isdir(path_1):
             list_input.append(dict(path_out=path_out,
                                    file=element_1,
                                    path_in=path_in,
-                                   organ='all',
-                                   life_stage='all'))
+                                   organ='.',
+                                   life_stage='.',
+                                   term='.'))
+        else:
+            path_1_out = os.path.join(path_out, element_1)
+            if not os.path.exists(path_1_out):
+                os.makedirs(path_1_out)
             folder_2 = os.listdir(path_1)
-            for elelment_2 in folder_2:
-                path_2 = os.path.join(path_1, elelment_2)
-                if os.path.isdir(path_2):
-                    path_1_out = os.path.join(path_out, element_1)
-                    if not os.path.exists(path_1_out):
-                        os.makedirs(path_1_out)
+            for element_2 in folder_2:
+                path_2 = os.path.join(path_1, element_2)
+                if not os.path.isdir(path_2):
+                    list_input.append(dict(path_out=path_1_out,
+                                           file=element_2,
+                                           path_in=path_1,
+                                           organ=element_1,
+                                           life_stage='.',
+                                           term='.'))
                 else:
-                    list_input.append(dict(path_out=path_out,
-                                           file=element_1,
-                                           path_in=path_in,
-                                           organ='all',
-                                           life_stage='all'))
-                    files = os.listdir(path_1_out)
-                    for file in files:
-                        list_input.append(dict(path_out=path_life_out,
-                                               file=file,
-                                               path_in=path_life,
-                                               biotype=biotype,
-                                               life_stage=life_stage,
-                                               label=f'{biotype}|{life_stage}|'
-                                                     f'{file}'))
+                    path_2_out = os.path.join(path_1_out, element_2)
+                    if not os.path.exists(path_2_out):
+                        os.makedirs(path_2_out)
+                    folder_3 = os.listdir(path_2)
+                    for element_3 in folder_3:
+                        path_3 = os.path.join(path_2, element_3)
+                        if not os.path.isdir(path_3):
+                            list_input.append(dict(path_out=path_2_out,
+                                                   file=element_3,
+                                                   path_in=path_2,
+                                                   organ=element_1,
+                                                   life_stage=element_2,
+                                                   term='.'))
+                        else:
+                            path_3_out = os.path.join(path_2_out, element_3)
+                            if not os.path.exists(path_3_out):
+                                os.makedirs(path_3_out)
+                            folder_4 = os.listdir(path_3)
+                            for element_4 in folder_4:
+                                path_4 = os.path.join(path_3, element_4)
+                                if not os.path.isdir(path_4):
+                                    list_input.append(dict(path_out=path_3_out,
+                                                           file=element_4,
+                                                           path_in=path_3,
+                                                           organ=element_1,
+                                                           life_stage=
+                                                           element_2,
+                                                           term=element_3))
 
     return list_input
 
 
-def sub_stan(type_bed, dict_in, col_score=6):
+def sub_stan(type_bed, col_score, dict_in):
     path_out = dict_in['path_out']
     path_in = dict_in['path_in']
     file = dict_in['file']
+    organ = dict_in['organ']
+    life_stage = dict_in['life_stage']
+    term = dict_in['term']
+    file_label = f"{organ}|{life_stage}|{term}"
     file_in = os.path.join(path_in, file)
     with open(file_in, 'r') as r_f:
         with open(os.path.join(path_out, file), 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\n"
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{file_label}\n"
+            fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
+                          "{score}\t{file_label}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
                 start = list_line[1]
                 end = list_line[2]
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
-                score = max(list_line[col_score].strip().split(','))
-                w_f.write(fmt.format(**locals()))
+                if type_bed == 'DHS':
+                    w_f.write(fmt_dhs.format(**locals()))
+                else:
+                    score = max(list_line[col_score].strip().split(','))
+                    w_f.write(fmt_histone.format(**locals()))
 
     return
 
 
 def standardize_bed(path_in, path_out, type_bed):
+    os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=40)
-    func_stan = partial(sub_stan, type_bed)
+    func_stan = partial(sub_stan, type_bed, 8)
     pool.map(func_stan, list_input)
     pool.close()
+
+    return
+
+
+def merge_split_bed(path_in, path_out):
+    os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
+    list_input = generate_file_list(path_in, path_out)
+    df_list = pd.DataFrame(list_input)
+    # merge
+    df_subs = df_list.loc[df_list['life_stage'] != '.',
+                          ['organ', 'life_stage', 'file']]
+    dict_merge = dict(term_name='Reference_DHS.bed', path=path_out,
+                      accession_ids=[line['organ'] + '/' + line['life_stage']
+                                     + '/' + line['file'][:-4]
+                                     for line in df_subs.to_dict('records')])
+    merge_bed(path_in, '5', dict_merge)
+
+    # split
 
     return
 
@@ -168,6 +219,11 @@ if __name__ == '__main__':
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'hg19/H3K27ac_standard'
     standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac')
+
+    # unify DHS labels
+    path_dhs = '/home/zy/driver_mutation/data/DHS/hg19_standard'
+    path_dhs_stan = '/home/zy/driver_mutation/data/DHS/hg19_uniform'
+    standardize_bed(path_dhs, path_dhs_stan, 'DHS')
 
     # annotate DHS
     path_promoter = '/home/zy/driver_mutation/data/gene/' \

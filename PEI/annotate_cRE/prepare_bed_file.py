@@ -51,9 +51,12 @@ def add_attr(df_meta, dict_attr, column_name):
     return df_out
 
 
-def merge_bed(path_bed, dict_in):
+def merge_bed(path_bed, col_collapse, dict_in):
     term_name = dict_in['term_name']
     path_out = dict_in['path']
+    str_collapse = \
+        ','.join([val for val in ['collapse']
+                  for i in range(len(col_collapse.split(',')))])
     cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
     sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
     bed_out = os.path.join(path_out, f"{term_name}.bed")
@@ -62,9 +65,7 @@ def merge_bed(path_bed, dict_in):
     os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
-              f"-c 5,6,7,8,9,10 "
-              f"-o collapse,collapse,collapse,collapse,collapse,"
-              f"collapse > {bed_out}")
+              f"-c {col_collapse} -o {str_collapse} > {bed_out}")
     os.remove(cat_out)
     os.remove(sort_out)
 
@@ -130,7 +131,7 @@ def ref_dhs(path_in, path_ref):
                                    life_meta['File accession'].tolist()))
 
     pool = Pool(processes=40)
-    func_merge = partial(merge_bed, path_in)
+    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -191,7 +192,7 @@ def unique_bed_files_histone(path_in, path_out):
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
-                    life_meta.loc[(life_meta['Biosample term name'] == term), :]
+                    life_meta.loc[life_meta['Biosample term name'] == term, :]
                 accession_ids = filter_meta['File accession'].tolist()
                 path_term = \
                     os.path.join(path_life_stage, term.replace(
@@ -205,7 +206,7 @@ def unique_bed_files_histone(path_in, path_out):
                                        accession_ids=accession_ids))
 
     pool = Pool(processes=40)
-    func_merge = partial(merge_bed, path_in)
+    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
 
