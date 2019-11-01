@@ -10,7 +10,6 @@ import os
 from multiprocessing import Pool
 from functools import partial
 import pandas as pd
-import numpy as np
 from prepare_bed_file import merge_bed
 
 
@@ -115,6 +114,12 @@ def standardize_bed(path_in, path_out, type_bed):
     return
 
 
+def split_ref_bed(ref_file, dict_in):
+    
+
+    return
+
+
 def merge_split_bed(path_in, path_out):
     os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
@@ -131,6 +136,7 @@ def merge_split_bed(path_in, path_out):
     merge_bed(path_in, '5', dict_merge)
 
     # split
+
 
     return
 
