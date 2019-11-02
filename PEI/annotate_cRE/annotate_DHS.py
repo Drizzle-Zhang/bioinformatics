@@ -11,6 +11,7 @@ from multiprocessing import Pool
 from functools import partial
 import pandas as pd
 from prepare_bed_file import merge_bed
+from subprocess import check_output
 
 
 def generate_file_list(path_in, path_out):
@@ -115,7 +116,22 @@ def standardize_bed(path_in, path_out, type_bed):
 
 
 def split_ref_bed(ref_file, dict_in):
-    
+    organ = dict_in['organ']
+    life_stage = dict_in['life_stage']
+    term = dict_in['term']
+    label = f"{organ}|{life_stage}|{term}"
+    with open(ref_file, 'r') as r_ref:
+        with open(os.path.join(dict_in['path_out'], dict_in['file'])) as w_f:
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{label}\n"
+            for line in r_ref:
+                list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                start = list_line[1]
+                end = list_line[2]
+                dhs_id = list_line[3]
+                list_label = list_line[3].strip().split(',')
+                if label in list_label:
+                    w_f.write(fmt_dhs.format(**locals()))
 
     return
 
@@ -135,8 +151,26 @@ def merge_split_bed(path_in, path_out):
                                      for line in df_subs.to_dict('records')])
     merge_bed(path_in, '5', dict_merge)
 
-    # split
+    # add uniform label
+    all_ref = os.path.join(path_out, 'Reference_DHS.bed')
+    with open(all_ref, 'r') as r_f:
+        with open(os.path.join(path_out, 'Reference_DHS.plus.bed'), 'w') \
+                as w_f:
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{file_label}\n"
+            for line in r_f:
+                list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                start = list_line[1]
+                end = list_line[2]
+                label = f"DHS<-{chrom}:{start}-{end}"
+                file_label = list_line[3]
+                w_f.write(fmt_dhs.format(**locals()))
 
+    # split
+    pool = Pool(processes=40)
+    func_stan = partial(split_ref_bed, all_ref)
+    pool.map(func_stan, list_input)
+    pool.close()
 
     return
 
@@ -149,6 +183,8 @@ def annotate_dhs_promoter(path_promoter_in, dict_in):
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
     os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
               f"> {bedtools_out}")
+    col_num = check_output("head -n 1 " + file_in + " | awk '{print NF}'")
+    
     os.system(f"cut -f 1,2,3,4,5,6,10,11 {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     # os.remove(bedtools_out)
