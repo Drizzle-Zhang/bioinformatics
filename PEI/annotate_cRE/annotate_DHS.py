@@ -18,6 +18,8 @@ def generate_file_list(path_in, path_out):
     folder_1 = os.listdir(path_in)
     list_input = []
     for element_1 in folder_1:
+        if element_1[:4] == 'meta':
+            continue
         path_1 = os.path.join(path_in, element_1)
         if not os.path.isdir(path_1):
             list_input.append(dict(path_out=path_out,
@@ -119,9 +121,12 @@ def split_ref_bed(ref_file, dict_in):
     organ = dict_in['organ']
     life_stage = dict_in['life_stage']
     term = dict_in['term']
-    label = f"{organ}|{life_stage}|{term}"
+    label = [val for val in [organ, life_stage, term] if val != '.']
+    len_label = len(label)
+    label = '|'.join(label)
     with open(ref_file, 'r') as r_ref:
-        with open(os.path.join(dict_in['path_out'], dict_in['file'])) as w_f:
+        with open(os.path.join(dict_in['path_out'], dict_in['file']), 'w') \
+                as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{label}\n"
             for line in r_ref:
                 list_line = line.strip().split('\t')
@@ -129,7 +134,8 @@ def split_ref_bed(ref_file, dict_in):
                 start = list_line[1]
                 end = list_line[2]
                 dhs_id = list_line[3]
-                list_label = list_line[3].strip().split(',')
+                list_label = ['|'.join(val.strip().split('|')[:len_label])
+                              for val in list_line[4].strip().split(',')]
                 if label in list_label:
                     w_f.write(fmt_dhs.format(**locals()))
 
@@ -139,22 +145,24 @@ def split_ref_bed(ref_file, dict_in):
 def merge_split_bed(path_in, path_out):
     os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
+              f"{os.path.join(path_out, 'metadata.tsv')}")
 
     list_input = generate_file_list(path_in, path_out)
     df_list = pd.DataFrame(list_input)
     # merge
     df_subs = df_list.loc[df_list['life_stage'] != '.',
                           ['organ', 'life_stage', 'file']]
-    dict_merge = dict(term_name='Reference_DHS.bed', path=path_out,
+    dict_merge = dict(term_name='Reference_DHS', path=path_out,
                       accession_ids=[line['organ'] + '/' + line['life_stage']
                                      + '/' + line['file'][:-4]
                                      for line in df_subs.to_dict('records')])
     merge_bed(path_in, '5', dict_merge)
 
     # add uniform label
-    all_ref = os.path.join(path_out, 'Reference_DHS.bed')
-    with open(all_ref, 'r') as r_f:
-        with open(os.path.join(path_out, 'Reference_DHS.plus.bed'), 'w') \
+    all_ref = os.path.join(path_out, 'Reference_DHS.plus.bed')
+    with open(os.path.join(path_out, 'Reference_DHS.bed'), 'r') as r_f:
+        with open(all_ref, 'w') \
                 as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{file_label}\n"
             for line in r_f:
@@ -168,8 +176,8 @@ def merge_split_bed(path_in, path_out):
 
     # split
     pool = Pool(processes=40)
-    func_stan = partial(split_ref_bed, all_ref)
-    pool.map(func_stan, list_input)
+    func_split = partial(split_ref_bed, all_ref)
+    pool.map(func_split, list_input)
     pool.close()
 
     return
@@ -183,26 +191,35 @@ def annotate_dhs_promoter(path_promoter_in, dict_in):
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
     os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
               f"> {bedtools_out}")
-    col_num = check_output("head -n 1 " + file_in + " | awk '{print NF}'")
-    
-    os.system(f"cut -f 1,2,3,4,5,6,10,11 {bedtools_out} > "
+    col_num = int(check_output("head -n 1 " + file_in + " | awk '{print NF}'",
+                               shell=True).strip())
+    use_col_list = list(range(1, col_num + 1))
+    use_col_list.extend([col_num + 4, col_num + 5])
+    use_col = ','.join([str(num) for num in use_col_list])
+    os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
-    # os.remove(bedtools_out)
+    os.remove(bedtools_out)
 
     return
 
 
 def annotate_dhs_histone(dict_in):
     path_out = dict_in['path_out']
-    path_in_1 = dict_in['path_in_1']
-    path_in_2 = dict_in['path_in_2']
+    path_ref = dict_in['path_ref']
+    path_in = dict_in['path_in']
     file = dict_in['file']
-    file_in_1 = os.path.join(path_in_1, file)
-    file_in_2 = os.path.join(path_in_2, file)
+    file_in_1 = os.path.join(path_ref, file)
+    file_in_2 = os.path.join(path_in, file)
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
     os.system(f"bedtools intersect -a {file_in_1} -b {file_in_2} -loj "
               f"> {bedtools_out}")
-    os.system(f"cut -f 1,2,3,4,5,6,7,8,12,13 {bedtools_out} > "
+    col_num = int(check_output(
+        "head -n 1 " + file_in_1 + " | awk '{print NF}'",
+        shell=True).strip())
+    use_col_list = list(range(1, col_num + 1))
+    use_col_list.extend([col_num + 4, col_num + 5])
+    use_col = ','.join([str(num) for num in use_col_list])
+    os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     # os.remove(bedtools_out)
 
@@ -210,35 +227,41 @@ def annotate_dhs_histone(dict_in):
 
 
 def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in, path_dhs_out):
-    tmp_path_out = path_dhs_out + '_tmp'
-    if not os.path.exists(tmp_path_out):
-        os.mkdir(tmp_path_out)
+    path_out_pro = path_dhs_out + '_pro'
+    os.system(f"rm -rf {path_out_pro}")
+    os.mkdir(path_out_pro)
 
-    list_dhs = generate_file_list(path_dhs_in, tmp_path_out)
+    list_dhs = generate_file_list(path_dhs_in, path_out_pro)
     pool = Pool(processes=40)
     func_pro = partial(annotate_dhs_promoter, path_promoter_in)
     pool.map(func_pro, list_dhs)
     pool.close()
 
-    list_dhs_pro = generate_file_list(tmp_path_out, path_dhs_out)
     list_h3k27ac = generate_file_list(path_h3k27ac_in, path_dhs_out)
-    df_dhs_pro = pd.DataFrame(list_dhs_pro,
-                              columns=['path_out', 'file', 'path_in',
-                                       'biotype', 'life_stage', 'label'])
-    df_dhs_pro.columns = ['path_out', 'file', 'path_in_1',
-                          'biotype', 'life_stage', 'label']
-    df_h3k27ac = pd.DataFrame(list_h3k27ac,
-                              columns=['path_out', 'file', 'path_in',
-                                       'biotype', 'life_stage', 'label'])
-    df_h3k27ac.columns = ['path_out', 'file', 'path_in_2',
-                          'biotype', 'life_stage', 'label']
-    df_merge = pd.merge(df_dhs_pro, df_h3k27ac,
-                        on=['path_out', 'file',
-                            'biotype', 'life_stage', 'label'], how='inner')
-    list_dict = df_merge.to_dict('records')
+    list_h3k27ac_input = []
+    for sub_dict in list_h3k27ac:
+        if (sub_dict['organ'] != '.') & (sub_dict['life_stage'] != '.'):
+            sub_dict['path_ref'] = os.path.join(
+                path_out_pro, f"{sub_dict['organ']}/{sub_dict['life_stage']}/"
+                              f"{sub_dict['life_stage']}.bed")
+            list_h3k27ac_input.append(sub_dict)
+    # df_dhs_pro = pd.DataFrame(list_dhs_pro,
+    #                           columns=['path_out', 'file', 'path_in',
+    #                                    'organ', 'life_stage', 'term'])
+    # df_dhs_pro.columns = ['path_out', 'file', 'path_in_1',
+    #                       'organ', 'life_stage', 'term']
+    # df_h3k27ac = pd.DataFrame(list_h3k27ac,
+    #                           columns=['path_out', 'file', 'path_in',
+    #                                    'organ', 'life_stage', 'term'])
+    # df_h3k27ac.columns = ['path_out', 'file', 'path_in_2',
+    #                       'organ', 'life_stage', 'term']
+    # df_merge = pd.merge(df_dhs_pro, df_h3k27ac,
+    #                     on=['path_out', 'file',
+    #                         'organ', 'life_stage', 'term'], how='inner')
+    # list_dict = df_merge.to_dict('records')
 
     pool = Pool(processes=40)
-    pool.map(annotate_dhs_histone, list_dict)
+    pool.map(annotate_dhs_histone, list_h3k27ac_input)
     pool.close()
 
     return
@@ -263,15 +286,14 @@ if __name__ == '__main__':
     standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac')
 
     # unify DHS labels
-    path_dhs = '/home/zy/driver_mutation/data/DHS/hg19_standard'
-    path_dhs_stan = '/home/zy/driver_mutation/data/DHS/hg19_uniform'
-    standardize_bed(path_dhs, path_dhs_stan, 'DHS')
+    path_dhs_uniform = '/home/zy/driver_mutation/data/DHS/hg19_uniform'
+    merge_split_bed(path_dhs_stan, path_dhs_uniform)
 
     # annotate DHS
     path_promoter = '/home/zy/driver_mutation/data/gene/' \
                     'promoters.up2k.protein.gencode.v19.bed'
     path_anno = '/home/zy/driver_mutation/data/DHS/hg19_annotation'
-    annotate_dhs(path_dhs_stan, path_promoter, path_h3k27ac_stan, path_anno)
+    annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan, path_anno)
 
     time_end = time()
     print(time_end - time_start)
