@@ -208,13 +208,12 @@ def annotate_dhs_histone(dict_in):
     path_ref = dict_in['path_ref']
     path_in = dict_in['path_in']
     file = dict_in['file']
-    file_in_1 = os.path.join(path_ref, file)
-    file_in_2 = os.path.join(path_in, file)
+    file_in = os.path.join(path_in, file)
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {file_in_1} -b {file_in_2} -loj "
+    os.system(f"bedtools intersect -a {path_ref} -b {file_in} -loj "
               f"> {bedtools_out}")
     col_num = int(check_output(
-        "head -n 1 " + file_in_1 + " | awk '{print NF}'",
+        "head -n 1 " + path_ref + " | awk '{print NF}'",
         shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5])
