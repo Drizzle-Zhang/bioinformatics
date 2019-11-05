@@ -101,7 +101,8 @@ def add_attr(df_meta, dict_attr, column_name):
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
-    file_chain = '/lustre/tianlab/zhangyu/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+    file_chain = \
+        '/lustre/tianlab/zhangyu/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
@@ -154,7 +155,7 @@ def hg38tohg19(path_hg38, path_hg19):
         f"cp {file_meta} {os.path.join(path_hg19, 'metadata.simple.tsv')}")
     list_dict = df_meta.to_dict('records')
 
-    pool = Pool(processes=40)
+    pool = Pool(processes=60)
     func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
     pool.map(func_hg38tohg19, list_dict)
     pool.close()
@@ -244,7 +245,7 @@ def ref_dhs(path_in, path_ref):
                                    accession_ids=
                                    life_meta['File accession'].tolist()))
 
-    pool = Pool(processes=20)
+    pool = Pool(processes=50)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
@@ -322,7 +323,7 @@ def unique_bed_files_histone(path_in, path_out):
                                            '/', '+').replace("'", '--'),
                                        accession_ids=accession_ids))
 
-    pool = Pool(processes=20)
+    pool = Pool(processes=50)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
