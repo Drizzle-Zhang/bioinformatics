@@ -173,8 +173,8 @@ def merge_bed(path_bed, col_collapse, dict_in):
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
     os.system(f"cat {cat_in} > {cat_out}")
-    # os.system(f"bedtools sort -i {cat_out} > {sort_out}")
-    os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
+    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
               f"-c {col_collapse} -o {str_collapse} > {bed_out}")
     os.remove(cat_out)
@@ -242,7 +242,7 @@ def ref_dhs(path_in, path_ref):
                                    accession_ids=
                                    life_meta['File accession'].tolist()))
 
-    pool = Pool(processes=40)
+    pool = Pool(processes=20)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
@@ -319,7 +319,7 @@ def unique_bed_files_histone(path_in, path_out):
                                            '/', '+').replace("'", '--'),
                                        accession_ids=accession_ids))
 
-    pool = Pool(processes=40)
+    pool = Pool(processes=20)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
