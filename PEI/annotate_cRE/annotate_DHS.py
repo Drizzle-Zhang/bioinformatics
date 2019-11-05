@@ -107,6 +107,8 @@ def sub_stan(type_bed, col_score, dict_in):
 def standardize_bed(path_in, path_out, type_bed):
     os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
+              f"{os.path.join(path_out, 'metadata.tsv')}")
 
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=40)

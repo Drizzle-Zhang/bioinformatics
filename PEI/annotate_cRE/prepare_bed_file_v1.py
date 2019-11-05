@@ -13,65 +13,18 @@ from multiprocessing import Pool
 from functools import partial
 
 
-def generate_gene_file(gtf_file, protein_file, promoter_file):
-    with open(protein_file, 'w') as w_gene:
-        with open(promoter_file, 'w') as w_pro:
-            fmt_gene = \
-                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
-            fmt_promoter = \
-                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
-            with open(gtf_file, 'r') as r_gtf:
-                for line_gene in r_gtf:
-                    if line_gene[0] == '#':
-                        continue
-                    list_line_gene = line_gene.strip().split('\t')
-                    if list_line_gene[2] != 'gene':
-                        continue
-                    list_attr = list_line_gene[8].strip().split('; ')
-                    gene_type = list_attr[2][11:-1]
-                    if list_attr[2][-15:-1] != "protein_coding":
-                        continue
-                    gene_name = list_attr[4][11:-1]
-                    ensg_id = list_attr[0][9:-1]
-                    strand = list_line_gene[6]
-                    dict_gene = dict(chrom=list_line_gene[0],
-                                     start=list_line_gene[3],
-                                     end=list_line_gene[4], symbol=gene_name,
-                                     ensg_id=ensg_id,
-                                     strand=strand)
-                    w_gene.write(fmt_gene.format(**dict_gene))
-                    if strand == '+':
-                        pro_start = str(int(list_line_gene[3]) - 2000)
-                        pro_end = list_line_gene[3]
-                    elif strand == '-':
-                        pro_start = list_line_gene[4]
-                        pro_end = str(int(list_line_gene[4]) + 2000)
-                    else:
-                        print('Error')
-                        break
-                    dict_promoter = dict(chrom=list_line_gene[0],
-                                         start=pro_start,
-                                         end=pro_end,
-                                         symbol=f"{gene_name}<-"
-                                                f"{list_line_gene[0]}:"
-                                                f"{pro_start}-{pro_end}",
-                                         ensg_id=ensg_id,
-                                         strand=strand)
-                    w_pro.write(fmt_promoter.format(**dict_promoter))
-
-    return
-
-
-def release_filter(meta_in):
+def hg19_filter(meta_in):
     df_meta = pd.read_csv(meta_in, sep='\t')
-    df_meta_released = df_meta.loc[
-        df_meta['File Status'] == 'released',
+    df_meta_hg19 = df_meta.loc[
+        df_meta['Assembly'] == 'hg19',
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
-         'Biosample genetic modifications methods', 'Assembly']]
-    df_meta_released.index = df_meta_released['File accession']
+         'Biosample genetic modifications methods']]
+    df_meta_hg19 = df_meta_hg19.loc[
+        df_meta['File Status'] == 'released', :]
+    df_meta_hg19.index = df_meta_hg19['File accession']
 
-    return df_meta_released
+    return df_meta_hg19
 
 
 def build_dict_attr(path_meta):
@@ -98,69 +51,6 @@ def add_attr(df_meta, dict_attr, column_name):
     return df_out
 
 
-def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
-    file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
-    file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
-    file_chain = '/home/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
-    file_ummap = os.path.join(
-        path_hg19, dict_in['File accession'] + '.bed.unmap')
-    if dict_in['Assembly'] == 'hg19':
-        os.system(f"cp {file_hg38} {file_hg19}")
-    if dict_in['Assembly'] == 'GRCh38':
-        file_prefix = file_hg38 + '.prefix'
-        file_suffix = file_hg38 + '.suffix'
-        file_hg19_prefix = file_hg19 + '.prefix'
-        os.system(f"cut -f 1,2,3,4 {file_hg38} > {file_prefix}")
-        os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38} > {file_suffix}")
-        os.system(
-            f"liftOver {file_prefix} {file_chain} "
-            f"{file_hg19_prefix} {file_ummap}")
-        dict_peak_score = defaultdict(list)
-        with open(file_suffix, 'r') as r_f:
-            for line in r_f:
-                list_line = line.strip().split('\t')
-                dict_peak_score[list_line[0]].append(list_line[1:])
-        with open(file_hg19, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
-                  "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
-            with open(file_hg19_prefix, 'r') as r_hg19:
-                for line in r_hg19:
-                    list_line = line.strip().split('\t')
-                    list_suffix = dict_peak_score[list_line[3]][0]
-                    dict_hg19 = dict(
-                        chrom=list_line[0], start=list_line[1],
-                        end=list_line[2], peak_id=list_line[3],
-                        score=list_suffix[0], strand=list_suffix[1],
-                        fold_change=list_suffix[2], p_value=list_suffix[3],
-                        q_value=list_suffix[4], peak_location=list_suffix[5]
-                    )
-                    w_f.write(fmt.format(**dict_hg19))
-        os.remove(file_ummap)
-        os.remove(file_prefix)
-        os.remove(file_suffix)
-        os.remove(file_hg19_prefix)
-
-    return
-
-
-def hg38tohg19(path_hg38, path_hg19):
-    os.system(f"rm -rf {path_hg19}")
-    os.mkdir(path_hg19)
-
-    file_meta = os.path.join(path_hg38, 'metadata.simple.tsv')
-    df_meta = pd.read_csv(file_meta, sep='\t')
-    os.system(
-        f"cp {file_meta} {os.path.join(path_hg19, 'metadata.simple.tsv')}")
-    list_dict = df_meta.to_dict('records')
-
-    pool = Pool(processes=40)
-    func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
-    pool.map(func_hg38tohg19, list_dict)
-    pool.close()
-
-    return
-
-
 def merge_bed(path_bed, col_collapse, dict_in):
     term_name = dict_in['term_name']
     path_out = dict_in['path']
@@ -182,9 +72,39 @@ def merge_bed(path_bed, col_collapse, dict_in):
     return
 
 
-def ref_dhs(path_in, path_ref):
+def merge_by_experiment(path_in, path_out):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+    df_exp = df_meta.loc[
+             :, ['Experiment accession', 'Biosample term id',
+                 'Biosample term name', 'Biosample type',
+                 'Biosample treatments',
+                 'Biosample genetic modifications methods',
+                 'Biosample life stage', 'Biosample organ', 'Biosample cell']]
+    df_exp = df_exp.drop_duplicates()
+    experiments = set(df_meta['Experiment accession'].tolist())
+    assert df_exp.shape[0] == len(experiments)
+    df_exp.to_csv(
+        os.path.join(path_in, 'metadata.tsv'), sep='\t', index=None
+    )
+
+    list_merge = []
+    for experiment in experiments:
+        sub_exp = df_meta.loc[df_meta['Experiment accession'] == experiment, :]
+        list_merge.append(
+            {'term_name': experiment, 'path': path_out,
+             'accession_ids': sub_exp['File accession'].tolist()})
+
+    pool = Pool(processes=40)
+    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
+    pool.map(func_merge, list_merge)
+    pool.close()
+
+    return
+
+
+def ref_dhs(path_in, path_ref):
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.hg19.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
@@ -250,8 +170,7 @@ def ref_dhs(path_in, path_ref):
 
 
 def unique_bed_files_histone(path_in, path_out):
-    df_meta = pd.read_csv(
-        os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.hg19.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
@@ -328,14 +247,58 @@ def unique_bed_files_histone(path_in, path_out):
 if __name__ == '__main__':
     time_start = time()
     # get bed file annotating protein-coding genes
-    gtf_file_hg19 = \
+    gtf_file = \
         '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
-    protein_file_hg19 = \
+    protein_file = \
         '/home/zy/driver_mutation/data/gene/genes.protein.gencode.v19.bed'
-    promoter_file_hg19 = \
+    promoter_file = \
         '/home/zy/driver_mutation/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    """
+    with open(protein_file, 'w') as w_gene:
+        with open(promoter_file, 'w') as w_pro:
+            fmt_gene = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            fmt_promoter = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            with open(gtf_file, 'r') as r_gtf:
+                for line_gene in r_gtf:
+                    if line_gene[0] == '#':
+                        continue
+                    list_line_gene = line_gene.strip().split('\t')
+                    if list_line_gene[2] != 'gene':
+                        continue
+                    list_attr = list_line_gene[8].strip().split('; ')
+                    gene_type = list_attr[2][11:-1]
+                    if list_attr[2][-15:-1] != "protein_coding":
+                        continue
+                    gene_name = list_attr[4][11:-1]
+                    ensg_id = list_attr[0][9:-1]
+                    strand = list_line_gene[6]
+                    dict_gene = dict(chrom=list_line_gene[0],
+                                     start=list_line_gene[3],
+                                     end=list_line_gene[4], symbol=gene_name,
+                                     ensg_id=ensg_id,
+                                     strand=strand)
+                    w_gene.write(fmt_gene.format(**dict_gene))
+                    if strand == '+':
+                        pro_start = str(int(list_line_gene[3]) - 2000)
+                        pro_end = list_line_gene[3]
+                    elif strand == '-':
+                        pro_start = list_line_gene[4]
+                        pro_end = str(int(list_line_gene[4]) + 2000)
+                    else:
+                        print('Error')
+                        break
+                    dict_promoter = dict(chrom=list_line_gene[0],
+                                         start=pro_start,
+                                         end=pro_end,
+                                         symbol=f"{gene_name}<-"
+                                                f"{list_line_gene[0]}:"
+                                                f"{pro_start}-{pro_end}",
+                                         ensg_id=ensg_id,
+                                         strand=strand)
+                    w_pro.write(fmt_promoter.format(**dict_promoter))"""
 
     # build life stage dictionary
     path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
@@ -350,74 +313,38 @@ if __name__ == '__main__':
     dict_cell = build_dict_attr(path_cell)
 
     # DHS
-    """
     # metafile
     path_dhs = \
-        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/all'
+        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/hg19/bed_narrowpeak'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
-    df_meta_dhs = release_filter(ori_meta_dhs)
+    df_meta_dhs = hg19_filter(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
-    meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
-    df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19)
+    meta_hg19_dhs = os.path.join(path_dhs, 'metadata.hg19.tsv')
+    df_meta_dhs.to_csv(meta_hg19_dhs, sep='\t', index=None)
 
     # build DHS reference
-    path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)"""
+    path_dhs_hg19 = '/home/zy/driver_mutation/data/DHS/hg19/'
+    ref_dhs(path_dhs, path_dhs_hg19)
 
     # H3K27ac
     path_h3k27ac = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K27ac'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'hg19/bed_narrowpeak'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    df_meta_h3k27ac = release_filter(ori_meta_h3k27ac)
+    df_meta_h3k27ac = hg19_filter(ori_meta_h3k27ac)
     df_meta_h3k27ac = \
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
-    df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K27ac'
-    hg38tohg19(path_h3k27ac, path_hg38tohg19)
+    meta_hg19_h3k27ac = os.path.join(path_h3k27ac, 'metadata.hg19.tsv')
+    df_meta_h3k27ac.to_csv(meta_hg19_h3k27ac, sep='\t', index=None)
 
     # unique H3K27ac
-    path_h3k27ac_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K27ac_merge'
-    unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
-    """
-    # H3K4me3
-    path_h3k4me3 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
-    ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    df_meta_h3k4me3 = release_filter(ori_meta_h3k4me3)
-    df_meta_h3k4me3 = \
-        add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
-    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
-    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
-    df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19)
-
-    # unique H3K27ac
-    path_h3k4me3_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K4me3_merge'
-    unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19)"""
+    path_h3k27ac_hg19 = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K27ac'
+    unique_bed_files_histone(path_h3k27ac, path_h3k27ac_hg19)
 
     time_end = time()
     print(time_end - time_start)
