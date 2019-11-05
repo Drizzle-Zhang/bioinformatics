@@ -229,9 +229,42 @@ def annotate_dhs_histone(dict_in):
     return
 
 
-def match_dhs_file(path_ref, list_histone):
-    meta_dhs = pd.read_csv(os.path.join(path_ref, 'metadata.tsv'), sep='\t')
+def match_dhs_file(list_ref, list_histone):
+    meta_dhs = pd.DataFrame(list_ref,
+                            columns=['path_out', 'file', 'path_in',
+                                     'organ', 'life_stage', 'term']
+                            )
+    len_term = len(set(meta_dhs['term'].tolist()))
+    df_all = meta_dhs.loc[meta_dhs['organ'] == '.', :]
+    list_out = []
+    for dict_line in list_histone:
+        organ = dict_line['organ']
+        life_stage = dict_line['life_stage']
+        term = dict_line['term']
+        df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
+        if df_organ.shape[0] == 0:
+            dict_line['path_ref'] = os.path.join(
+                df_all['path_in'], df_all['file']
+            )
+        else:
+            df_life = df_organ.loc[meta_dhs['life_stage'] == life_stage, :]
+            if df_life.shape[0] == 0:
+                dict_line['path_ref'] = os.path.join(
+                    df_all.loc[,'path_in'], df_all['file']
+                )
+            else:
 
+        if (organ == '.') | (len_organ == 1):
+            df_organ = meta_dhs.loc[meta_dhs['organ'] == '.', :]
+            dict_line['path_ref'] = os.path.join(
+                df_organ['path_in'], df_organ['file']
+            )
+        else:
+            df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
+
+        df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
+        df_life = df_organ.loc[meta_dhs['life_stage'] == life_stage, :]
+        df_term = df_life.loc[meta_dhs['term'] == term, :]
 
     return
 
@@ -268,7 +301,6 @@ def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
                           'organ', 'life_stage', 'term']
     df_merge = pd.merge(df_h3k4me3, df_h3k27ac,
                         on=['organ', 'life_stage', 'term'], how='inner')
-
 
     list_h3k27ac_input = []
     for sub_dict in list_h3k27ac:

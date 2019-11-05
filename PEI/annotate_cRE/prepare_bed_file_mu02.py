@@ -179,8 +179,8 @@ def merge_bed(path_bed, col_collapse, dict_in):
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
               f"-c {col_collapse} -o {str_collapse} > {bed_out}")
-    os.remove(cat_out)
-    os.remove(sort_out)
+    # os.remove(cat_out)
+    # os.remove(sort_out)
 
     return
 
@@ -383,7 +383,6 @@ if __name__ == '__main__':
     path_dhs_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19/'
     ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)
-    """
 
     # H3K27ac
     path_h3k27ac = \
@@ -409,6 +408,7 @@ if __name__ == '__main__':
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
+    """
 
     # H3K4me3
     path_h3k4me3 = \
@@ -427,7 +427,7 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19)
+    # hg38tohg19(path_h3k4me3, path_hg38tohg19)
 
     # unique H3K27ac
     path_h3k4me3_hg38tohg19 = \
