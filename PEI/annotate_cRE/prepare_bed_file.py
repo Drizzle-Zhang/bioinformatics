@@ -173,7 +173,8 @@ def merge_bed(path_bed, col_collapse, dict_in):
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
     os.system(f"cat {cat_in} > {cat_out}")
-    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    # os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
               f"-c {col_collapse} -o {str_collapse} > {bed_out}")
     os.remove(cat_out)
