@@ -102,7 +102,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
     file_chain = \
-        '/lustre/tianlab/zhangyu/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+        '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
