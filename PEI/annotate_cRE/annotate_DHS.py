@@ -286,6 +286,14 @@ if __name__ == '__main__':
         'hg19/H3K27ac_standard'
     standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac')
 
+    # H3K4me3
+    path_h3k4me3 = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K4me3'
+    path_h3k4me3_stan = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'hg19/H3K4me3_standard'
+    standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3')
+
     # unify DHS labels
     path_dhs_uniform = '/home/zy/driver_mutation/data/DHS/hg19_uniform'
     merge_split_bed(path_dhs_stan, path_dhs_uniform)

@@ -351,7 +351,6 @@ if __name__ == '__main__':
     dict_cell = build_dict_attr(path_cell)
 
     # DHS
-    """
     # metafile
     path_dhs = \
         '/home/zy/driver_mutation/data/ENCODE/DNase-seq/all'
@@ -370,7 +369,7 @@ if __name__ == '__main__':
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)"""
+    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)
     """
     # H3K27ac
     path_h3k27ac = \
@@ -396,6 +395,7 @@ if __name__ == '__main__':
         'GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
     """
+    """
     # H3K4me3
     path_h3k4me3 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
@@ -419,6 +419,7 @@ if __name__ == '__main__':
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19)
+    """
 
     time_end = time()
     print(time_end - time_start)
