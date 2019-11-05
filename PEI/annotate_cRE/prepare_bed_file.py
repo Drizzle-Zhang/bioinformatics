@@ -264,10 +264,11 @@ def unique_bed_files_histone(path_in, path_out):
     os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
-    list_input = [dict(path=path_out,
-                       term_name='all_organs',
-                       accession_ids=
-                       df_meta_normal['File accession'].tolist())]
+    list_input = []
+    # list_input = [dict(path=path_out,
+    #                    term_name='all_organs',
+    #                    accession_ids=
+    #                    df_meta_normal['File accession'].tolist())]
     organs = []
     for line in df_meta_normal['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
@@ -280,10 +281,10 @@ def unique_bed_files_histone(path_in, path_out):
             os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        list_input.append(dict(path=organ_path,
-                               term_name=organ.replace(' ', '_'),
-                               accession_ids=
-                               organ_meta['File accession'].tolist()))
+        # list_input.append(dict(path=organ_path,
+        #                        term_name=organ.replace(' ', '_'),
+        #                        accession_ids=
+        #                        organ_meta['File accession'].tolist()))
         life_stages = []
         for line in organ_meta['Biosample life stage'].tolist():
             life_stages.extend(line.strip().split(','))
@@ -297,10 +298,10 @@ def unique_bed_files_histone(path_in, path_out):
                 os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            list_input.append(dict(path=path_life_stage,
-                                   term_name=life_stage.replace(' ', '_'),
-                                   accession_ids=
-                                   life_meta['File accession'].tolist()))
+            # list_input.append(dict(path=path_life_stage,
+            #                        term_name=life_stage.replace(' ', '_'),
+            #                        accession_ids=
+            #                        life_meta['File accession'].tolist()))
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
