@@ -269,11 +269,11 @@ def unique_bed_files_histone(path_in, path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
-    list_input = []
-    # list_input = [dict(path=path_out,
-    #                    term_name='all_organs',
-    #                    accession_ids=
-    #                    df_meta_normal['File accession'].tolist())]
+    # list_input = []
+    list_input = [dict(path=path_out,
+                       term_name='all_organs',
+                       accession_ids=
+                       df_meta_normal['File accession'].tolist())]
     organs = []
     for line in df_meta_normal['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
@@ -286,10 +286,10 @@ def unique_bed_files_histone(path_in, path_out):
             os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        # list_input.append(dict(path=organ_path,
-        #                        term_name=organ.replace(' ', '_'),
-        #                        accession_ids=
-        #                        organ_meta['File accession'].tolist()))
+        list_input.append(dict(path=organ_path,
+                               term_name=organ.replace(' ', '_'),
+                               accession_ids=
+                               organ_meta['File accession'].tolist()))
         life_stages = []
         for line in organ_meta['Biosample life stage'].tolist():
             life_stages.extend(line.strip().split(','))
@@ -303,10 +303,10 @@ def unique_bed_files_histone(path_in, path_out):
                 os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            # list_input.append(dict(path=path_life_stage,
-            #                        term_name=life_stage.replace(' ', '_'),
-            #                        accession_ids=
-            #                        life_meta['File accession'].tolist()))
+            list_input.append(dict(path=path_life_stage,
+                                   term_name=life_stage.replace(' ', '_'),
+                                   accession_ids=
+                                   life_meta['File accession'].tolist()))
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
@@ -360,6 +360,7 @@ if __name__ == '__main__':
                 'metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
+    """
     # DHS
     # metafile
     path_dhs = \
@@ -382,6 +383,7 @@ if __name__ == '__main__':
     path_dhs_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19/'
     ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)
+    """
 
     # H3K27ac
     path_h3k27ac = \
@@ -407,8 +409,7 @@ if __name__ == '__main__':
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
-    """
-    """
+
     # H3K4me3
     path_h3k4me3 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
