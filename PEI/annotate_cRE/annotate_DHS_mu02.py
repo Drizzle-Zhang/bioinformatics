@@ -114,7 +114,7 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
 
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=num_process)
-    func_stan = partial(sub_stan, type_bed, 8)
+    func_stan = partial(sub_stan, type_bed, 7)
     pool.map(func_stan, list_input)
     pool.close()
 
@@ -217,28 +217,19 @@ def annotate_dhs_histone(dict_in):
     path_ref = dict_in['path_ref']
     path_in = dict_in['path_in']
     file = dict_in['file']
-    evidence_score = dict_in['evidence_score']
     file_in = os.path.join(path_in, file)
-    path_ref_plus = path_ref + '.plus'
-    with open(path_ref, 'r') as r_ref:
-        with open(path_ref_plus, 'w') as w_ref:
-            for line in r_ref:
-                list_line = line.strip().split('\t')
-                list_line.append(evidence_score)
-                w_ref.write('\t'.join(list_line) + '\n')
     col_num = int(check_output(
-        "head -n 1 " + path_ref_plus + " | awk '{print NF}'",
+        "head -n 1 " + path_ref + " | awk '{print NF}'",
         shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5, col_num + 7])
     use_col = ','.join([str(num) for num in use_col_list])
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {path_ref_plus} -b {file_in} -loj "
+    os.system(f"bedtools intersect -a {path_ref} -b {file_in} -loj "
               f"> {bedtools_out}")
     os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     os.remove(bedtools_out)
-    os.remove(path_ref_plus)
 
     return
 
@@ -256,7 +247,6 @@ def match_dhs_file(list_ref, list_histone):
             dict_line['path_ref'] = os.path.join(
                 df_all['path_in'].tolist()[0], df_all['file'].tolist()[0]
             )
-            dict_line[f'evidence_score'] = '1'
             list_out.append(dict_line)
         else:
             df_life = df_organ.loc[df_organ['life_stage'] == life_stage, :]
@@ -266,7 +256,6 @@ def match_dhs_file(list_ref, list_histone):
                     df_all_life['path_in'].tolist()[0],
                     df_all_life['file'].tolist()[0]
                 )
-                dict_line['evidence_score'] = '2'
                 list_out.append(dict_line)
             else:
                 df_term = df_life.loc[df_life['term'] == term, :]
@@ -276,14 +265,12 @@ def match_dhs_file(list_ref, list_histone):
                         df_all_term['path_in'].tolist()[0],
                         df_all_term['file'].tolist()[0]
                     )
-                    dict_line['evidence_score'] = '3'
                     list_out.append(dict_line)
                 else:
                     dict_line['path_ref'] = os.path.join(
                         df_term['path_in'].tolist()[0],
                         df_term['file'].tolist()[0]
                     )
-                    dict_line['evidence_score'] = '4'
                     list_out.append(dict_line)
 
     return list_out
@@ -313,11 +300,68 @@ def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
     pool.map(annotate_dhs_histone, list_h3k4me3_input)
     pool.close()
 
+    if os.path.exists(path_dhs_out):
+        os.system(f"rm -rf {path_dhs_out}")
+    os.mkdir(path_dhs_out)
     list_dhs_tmp = generate_file_list(path_out_tmp, path_dhs_out)
     list_h3k27ac = generate_file_list(path_h3k27ac_in, path_dhs_out)
     list_h3k27ac_input = match_dhs_file(list_dhs_tmp, list_h3k27ac)
     pool = Pool(processes=num_process)
     pool.map(annotate_dhs_histone, list_h3k27ac_input)
+    pool.close()
+
+    return
+
+
+def sub_anno_cre(dict_in):
+    path_out = dict_in['path_out']
+    path_in = dict_in['path_in']
+    file = dict_in['file']
+    file_in = os.path.join(path_in, file)
+    file_out = os.path.join(path_out, file)
+    file_out_tmp = file_out + '.tmp'
+    file_out_origin = file_out + '.origin'
+    with open(file_in, 'r') as r_f:
+        with open(file_out_tmp, 'w') as w_f:
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{score}\t.\t" \
+                      "{cre}\n"
+            with open(file_out_origin, 'w') as w_ori:
+                for line in r_f:
+                    list_line = line.strip().split('\t')
+                    chrom = list_line[0]
+                    start = list_line[1]
+                    end = list_line[2]
+                    dhs_id = list_line[3]
+                    promoter = list_line[7]
+                    h3k4me3 = list_line[9]
+                    h3k27ac = list_line[12]
+                    if (promoter != '.') & (h3k4me3 != '.'):
+                        cre = 'Promoter'
+                        score = list_line[10]
+                    elif h3k27ac != '.':
+                        cre = 'Enhancer'
+                        score = list_line[13]
+                    else:
+                        cre = 'Other'
+                        score = '.'
+                    list_line.insert(6, cre)
+                    list_line[4] = score
+                    w_ori.write('\t'.join(list_line) + '\n')
+                    w_f.write(fmt_dhs.format(**locals()))
+
+    os.system(f"uniq {file_out_tmp} > {file_out}")
+
+    return
+
+
+def annotate_cre(path_in, path_out, num_process):
+    if os.path.exists(path_out):
+        os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
+    list_dhs_anno = generate_file_list(path_in, path_out)
+    pool = Pool(processes=num_process)
+    pool.map(sub_anno_cre, list_dhs_anno)
     pool.close()
 
     return
@@ -343,7 +387,7 @@ if __name__ == '__main__':
     path_h3k27ac_stan = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_standard'
-    # standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # H3K4me3
@@ -353,7 +397,7 @@ if __name__ == '__main__':
     path_h3k4me3_stan = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
-    # standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # unify DHS labels
@@ -370,6 +414,12 @@ if __name__ == '__main__':
     annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
                  path_h3k4me3_stan, path_anno, num_cpu)
     print('Annotation of DHS completed!')
+
+    # annotate cRE
+    path_cre = '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/' \
+               'GRCh38tohg19_cRE'
+    annotate_cre(path_anno, path_cre, num_cpu)
+    print('Annotation completed!')
 
     time_end = time()
     print(time_end - time_start)

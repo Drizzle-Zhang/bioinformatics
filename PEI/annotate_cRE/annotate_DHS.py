@@ -108,8 +108,9 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
-              f"{os.path.join(path_out, 'metadata.tsv')}")
+    if os.path.exists(os.path.join(path_in, 'metadata.tsv')):
+        os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
+                  f"{os.path.join(path_out, 'metadata.tsv')}")
 
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=num_process)
@@ -124,21 +125,18 @@ def split_ref_bed(ref_file, dict_in):
     organ = dict_in['organ']
     life_stage = dict_in['life_stage']
     term = dict_in['term']
-    label = [val for val in [organ, life_stage, term] if val != '.']
-    len_label = len(label)
-    label = '|'.join(label)
+    label = '|'.join([organ, life_stage, term])
     with open(ref_file, 'r') as r_ref:
         with open(os.path.join(dict_in['path_out'], dict_in['file']), 'w') \
                 as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{label}\n"
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t.\t.\t{label}\n"
             for line in r_ref:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
                 start = list_line[1]
                 end = list_line[2]
                 dhs_id = list_line[3]
-                list_label = ['|'.join(val.strip().split('|')[:len_label])
-                              for val in list_line[4].strip().split(',')]
+                list_label = list_line[6].strip().split(',')
                 if label in list_label:
                     w_f.write(fmt_dhs.format(**locals()))
 
@@ -155,20 +153,25 @@ def merge_split_bed(path_in, path_out, num_process):
     list_input = generate_file_list(path_in, path_out)
     df_list = pd.DataFrame(list_input)
     # merge
-    df_subs = df_list.loc[df_list['life_stage'] != '.',
+    df_subs = df_list.loc[df_list['organ'] != '.',
                           ['organ', 'life_stage', 'file']]
+    list_input = (df_list.loc[df_list['organ'] != '.', :]).to_dict('records')
+    accession_ids = []
+    for line in df_subs.to_dict('records'):
+        if line['life_stage'] == '.':
+            accession_ids.append(line['organ'] + '/' + line['file'][:-4])
+        else:
+            accession_ids.append(line['organ'] + '/' + line['life_stage']
+                                 + '/' + line['file'][:-4])
     dict_merge = dict(term_name='Reference_DHS', path=path_out,
-                      accession_ids=[line['organ'] + '/' + line['life_stage']
-                                     + '/' + line['file'][:-4]
-                                     for line in df_subs.to_dict('records')])
-    merge_bed(path_in, '5', dict_merge)
+                      accession_ids=accession_ids)
+    merge_bed(path_in, '7', dict_merge)
 
     # add uniform label
     all_ref = os.path.join(path_out, 'Reference_DHS.plus.bed')
     with open(os.path.join(path_out, 'Reference_DHS.bed'), 'r') as r_f:
-        with open(all_ref, 'w') \
-                as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{file_label}\n"
+        with open(all_ref, 'w') as w_f:
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -184,6 +187,8 @@ def merge_split_bed(path_in, path_out, num_process):
     pool.map(func_split, list_input)
     pool.close()
 
+    os.system(f"mv {all_ref} {os.path.join(path_out, 'Reference_DHS.bed')}")
+
     return
 
 
@@ -193,13 +198,13 @@ def annotate_dhs_promoter(path_promoter_in, dict_in):
     file = dict_in['file']
     file_in = os.path.join(path_in, file)
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
-              f"> {bedtools_out}")
     col_num = int(check_output("head -n 1 " + file_in + " | awk '{print NF}'",
                                shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5])
     use_col = ','.join([str(num) for num in use_col_list])
+    os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
+              f"> {bedtools_out}")
     os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     os.remove(bedtools_out)
@@ -221,19 +226,19 @@ def annotate_dhs_histone(dict_in):
                 list_line = line.strip().split('\t')
                 list_line.append(evidence_score)
                 w_ref.write('\t'.join(list_line) + '\n')
-    bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {path_ref_plus} -b {file_in} -loj "
-              f"> {bedtools_out}")
     col_num = int(check_output(
         "head -n 1 " + path_ref_plus + " | awk '{print NF}'",
         shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5, col_num + 7])
     use_col = ','.join([str(num) for num in use_col_list])
+    bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
+    os.system(f"bedtools intersect -a {path_ref_plus} -b {file_in} -loj "
+              f"> {bedtools_out}")
     os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
-    os.remove(bedtools_out)
-    os.remove(path_ref_plus)
+    # os.remove(bedtools_out)
+    # os.remove(path_ref_plus)
 
     return
 
