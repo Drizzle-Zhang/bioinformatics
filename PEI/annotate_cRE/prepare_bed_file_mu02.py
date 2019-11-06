@@ -174,7 +174,27 @@ def merge_bed(path_bed, col_collapse, dict_in):
     bed_out = os.path.join(path_out, f"{term_name}.bed")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
-    os.system(f"cat {cat_in} > {cat_out}")
+    code = os.system(f"cat {cat_in} > {cat_out}")
+    if code == 32512:
+        cat_list = [os.path.join(path_bed, acce_id + '.bed')
+                    for acce_id in dict_in['accession_ids']]
+        cat_list = cat_list[:400]
+        for i in range(len(cat_list)//300 + 1):
+            cat_tmp = os.path.join(
+                path_out, f"{term_name}.cat.bed.tmp{str(i)}")
+            if i != len(cat_list)//300:
+                cat_in = ' '.join(cat_list[i*300:(i+1)*300])
+            else:
+                cat_in = ' '.join(cat_list[i * 300:])
+            if i == 0:
+                os.system(f"cat {cat_in} > {cat_tmp}")
+                cat_tmp_0 = cat_tmp
+            else:
+                os.system(f"cat {cat_tmp_0} {cat_in} > {cat_tmp}")
+                os.remove(cat_tmp_0)
+                cat_tmp_0 = cat_tmp
+        os.system(f"mv {cat_tmp} {cat_out}")
+
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "

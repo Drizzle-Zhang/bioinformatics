@@ -230,10 +230,7 @@ def annotate_dhs_histone(dict_in):
 
 
 def match_dhs_file(list_ref, list_histone):
-    meta_dhs = pd.DataFrame(list_ref,
-                            columns=['path_out', 'file', 'path_in',
-                                     'organ', 'life_stage', 'term']
-                            )
+    meta_dhs = pd.DataFrame(list_ref)
     len_term = len(set(meta_dhs['term'].tolist()))
     df_all = meta_dhs.loc[meta_dhs['organ'] == '.', :]
     list_out = []
@@ -244,29 +241,39 @@ def match_dhs_file(list_ref, list_histone):
         df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
         if df_organ.shape[0] == 0:
             dict_line['path_ref'] = os.path.join(
-                df_all['path_in'], df_all['file']
+                df_all['path_in'].tolist()[0], df_all['file'].tolist()[0]
             )
+            dict_line[f'evidence_score'] = 1
+            list_out.append(dict_line)
         else:
-            df_life = df_organ.loc[meta_dhs['life_stage'] == life_stage, :]
+            df_life = df_organ.loc[df_organ['life_stage'] == life_stage, :]
             if df_life.shape[0] == 0:
+                df_all_life = df_organ.loc[df_organ['life_stage'] == '.', :]
                 dict_line['path_ref'] = os.path.join(
-                    df_all.loc[,'path_in'], df_all['file']
+                    df_all_life['path_in'].tolist()[0],
+                    df_all_life['file'].tolist()[0]
                 )
+                dict_line['evidence_score'] = 2
+                list_out.append(dict_line)
             else:
+                df_term = df_life.loc[df_life['term'] == term, :]
+                if df_term.shape[0] == 0:
+                    df_all_term = df_life.loc[df_life['term'] == '.', :]
+                    dict_line['path_ref'] = os.path.join(
+                        df_all_term['path_in'].tolist()[0],
+                        df_all_term['file'].tolist()[0]
+                    )
+                    dict_line['evidence_score'] = 3
+                    list_out.append(dict_line)
+                else:
+                    dict_line['path_ref'] = os.path.join(
+                        df_term['path_in'].tolist()[0],
+                        df_term['file'].tolist()[0]
+                    )
+                    dict_line['evidence_score'] = 4
+                    list_out.append(dict_line)
 
-        if (organ == '.') | (len_organ == 1):
-            df_organ = meta_dhs.loc[meta_dhs['organ'] == '.', :]
-            dict_line['path_ref'] = os.path.join(
-                df_organ['path_in'], df_organ['file']
-            )
-        else:
-            df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
-
-        df_organ = meta_dhs.loc[meta_dhs['organ'] == organ, :]
-        df_life = df_organ.loc[meta_dhs['life_stage'] == life_stage, :]
-        df_term = df_life.loc[meta_dhs['term'] == term, :]
-
-    return
+    return list_out
 
 
 def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
@@ -286,7 +293,17 @@ def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
     if os.path.exists(path_out_tmp):
         os.system(f"rm -rf {path_out_tmp}")
     os.mkdir(path_out_tmp)
+    list_dhs_pro = generate_file_list(path_out_pro, path_out_tmp)
+    meta_dhs = pd.DataFrame(list_dhs_pro,
+                            columns=['path_out', 'file', 'path_in',
+                                     'organ', 'life_stage', 'term']
+                            )
+
     list_h3k4me3 = generate_file_list(path_h3k4me3_in, path_out_tmp)
+    list_h3k27ac_input = match_dhs_file(list_dhs_pro, list_h3k4me3)
+    pool = Pool(processes=40)
+    pool.map(annotate_dhs_histone, list_h3k27ac_input)
+    pool.close()
 
     list_h3k27ac = generate_file_list(path_h3k27ac_in, path_dhs_out)
     df_h3k4me3 = pd.DataFrame(list_h3k4me3,
@@ -302,7 +319,6 @@ def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
     df_merge = pd.merge(df_h3k4me3, df_h3k27ac,
                         on=['organ', 'life_stage', 'term'], how='inner')
 
-    list_h3k27ac_input = []
     for sub_dict in list_h3k27ac:
         if (sub_dict['organ'] != '.') & (sub_dict['life_stage'] != '.'):
             sub_dict['path_ref'] = os.path.join(
