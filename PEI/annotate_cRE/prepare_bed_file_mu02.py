@@ -199,8 +199,8 @@ def merge_bed(path_bed, col_collapse, dict_in):
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
               f"-c {col_collapse} -o {str_collapse} > {bed_out}")
-    # os.remove(cat_out)
-    # os.remove(sort_out)
+    os.remove(cat_out)
+    os.remove(sort_out)
 
     return
 
@@ -380,7 +380,6 @@ if __name__ == '__main__':
                 'metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
-    """
     # DHS
     # metafile
     path_dhs = \
@@ -428,7 +427,6 @@ if __name__ == '__main__':
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
-    """
 
     # H3K4me3
     path_h3k4me3 = \

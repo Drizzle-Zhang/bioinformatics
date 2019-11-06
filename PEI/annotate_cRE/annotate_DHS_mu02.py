@@ -125,9 +125,7 @@ def split_ref_bed(ref_file, dict_in):
     organ = dict_in['organ']
     life_stage = dict_in['life_stage']
     term = dict_in['term']
-    label = [val for val in [organ, life_stage, term] if val != '.']
-    len_label = len(label)
-    label = '|'.join(label)
+    label = '|'.join([organ, life_stage, term])
     with open(ref_file, 'r') as r_ref:
         with open(os.path.join(dict_in['path_out'], dict_in['file']), 'w') \
                 as w_f:
@@ -138,8 +136,7 @@ def split_ref_bed(ref_file, dict_in):
                 start = list_line[1]
                 end = list_line[2]
                 dhs_id = list_line[3]
-                list_label = ['|'.join(val.strip().split('|')[:len_label])
-                              for val in list_line[4].strip().split(',')]
+                list_label = list_line[6].strip().split(',')
                 if label in list_label:
                     w_f.write(fmt_dhs.format(**locals()))
 
@@ -156,12 +153,17 @@ def merge_split_bed(path_in, path_out, num_process):
     list_input = generate_file_list(path_in, path_out)
     df_list = pd.DataFrame(list_input)
     # merge
-    df_subs = df_list.loc[df_list['life_stage'] != '.',
+    df_subs = df_list.loc[df_list['organ'] != '.',
                           ['organ', 'life_stage', 'file']]
+    accession_ids = []
+    for line in df_subs.to_dict('records'):
+        if line['life_stage'] == '.':
+            accession_ids.append(line['organ'] + '/' + line['file'][:-4])
+        else:
+            accession_ids.append(line['organ'] + '/' + line['life_stage']
+                                 + '/' + line['file'][:-4])
     dict_merge = dict(term_name='Reference_DHS', path=path_out,
-                      accession_ids=[line['organ'] + '/' + line['life_stage']
-                                     + '/' + line['file'][:-4]
-                                     for line in df_subs.to_dict('records')])
+                      accession_ids=accession_ids)
     merge_bed(path_in, '7', dict_merge)
 
     # add uniform label
@@ -326,42 +328,42 @@ if __name__ == '__main__':
 
     # standardization
     # DHS
-    path_dhs = '/lustre/tianlab/zhangyu//driver_mutation/data/DHS/GRCh38tohg19'
-    path_dhs_stan = '/lustre/tianlab/zhangyu//driver_mutation/data/' \
+    path_dhs = '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19'
+    path_dhs_stan = '/lustre/tianlab/zhangyu/driver_mutation/data/' \
                     'DHS/GRCh38tohg19_standard'
     # standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # H3K27ac
     path_h3k27ac = \
-        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     path_h3k27ac_stan = \
-        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_standard'
     # standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # H3K4me3
     path_h3k4me3 = \
-        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
     path_h3k4me3_stan = \
-        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
     # standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # unify DHS labels
-    path_dhs_uniform = '/lustre/tianlab/zhangyu//driver_mutation/data/' \
+    path_dhs_uniform = '/lustre/tianlab/zhangyu/driver_mutation/data/' \
                        'DHS/GRCh38tohg19_uniform'
     merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
     print('Uniform of DHS completed!')
 
     # annotate DHS
-    path_promoter = '/lustre/tianlab/zhangyu//driver_mutation/data/gene/' \
+    path_promoter = '/lustre/tianlab/zhangyu/driver_mutation/data/gene/' \
                     'promoters.up2k.protein.gencode.v19.bed'
-    path_anno = '/lustre/tianlab/zhangyu//driver_mutation/data/DHS/' \
+    path_anno = '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/' \
                 'GRCh38tohg19_annotation'
     annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
                  path_h3k4me3_stan, path_anno, num_cpu)
