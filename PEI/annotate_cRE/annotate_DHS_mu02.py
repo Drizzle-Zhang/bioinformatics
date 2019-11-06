@@ -325,36 +325,46 @@ if __name__ == '__main__':
 
     # standardization
     # DHS
-    path_dhs = '/home/zy/driver_mutation/data/DHS/hg19'
-    path_dhs_stan = '/home/zy/driver_mutation/data/DHS/hg19_standard'
+    path_dhs = '/lustre/tianlab/zhangyu//driver_mutation/data/DHS/GRCh38tohg19'
+    path_dhs_stan = '/lustre/tianlab/zhangyu//driver_mutation/data/' \
+                    'DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
+    print('Standardization of DHS completed!')
 
     # H3K27ac
     path_h3k27ac = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K27ac'
+        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     path_h3k27ac_stan = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'hg19/H3K27ac_standard'
+        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_standard'
     standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    print('Standardization of H3K27ac completed!')
 
     # H3K4me3
     path_h3k4me3 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/hg19/H3K4me3'
+        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
     path_h3k4me3_stan = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-        'hg19/H3K4me3_standard'
+        '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
     standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    print('Standardization of H3K4me3 completed!')
 
     # unify DHS labels
-    path_dhs_uniform = '/home/zy/driver_mutation/data/DHS/hg19_uniform'
+    path_dhs_uniform = '/lustre/tianlab/zhangyu//driver_mutation/data/' \
+                       'DHS/GRCh38tohg19_uniform'
     merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
+    print('Uniform of DHS completed!')
 
     # annotate DHS
-    path_promoter = '/home/zy/driver_mutation/data/gene/' \
+    path_promoter = '/lustre/tianlab/zhangyu//driver_mutation/data/gene/' \
                     'promoters.up2k.protein.gencode.v19.bed'
-    path_anno = '/home/zy/driver_mutation/data/DHS/hg19_annotation'
+    path_anno = '/lustre/tianlab/zhangyu//driver_mutation/data/DHS/' \
+                'GRCh38tohg19_annotation'
     annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
                  path_h3k4me3_stan, path_anno, num_cpu)
+    print('Annotation of DHS completed!')
 
     time_end = time()
     print(time_end - time_start)
