@@ -288,6 +288,12 @@ def unique_bed_files_histone(path_in, path_out):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    meta_out = df_meta_normal.loc[
+               :, ['Biosample term name', 'Biosample life stage',
+                   'Biosample organ']]
+    meta_out = meta_out.drop_duplicates()
+    meta_out.to_csv(os.path.join(path_out, 'metadata.tsv'),
+                    sep='\t', index=None)
 
     # list_input = []
     list_input = [dict(path=path_out,
@@ -445,7 +451,7 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
-    # hg38tohg19(path_h3k4me3, path_hg38tohg19)
+    hg38tohg19(path_h3k4me3, path_hg38tohg19)
 
     # unique H3K27ac
     path_h3k4me3_hg38tohg19 = \

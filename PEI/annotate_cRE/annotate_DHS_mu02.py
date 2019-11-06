@@ -155,6 +155,7 @@ def merge_split_bed(path_in, path_out, num_process):
     # merge
     df_subs = df_list.loc[df_list['organ'] != '.',
                           ['organ', 'life_stage', 'file']]
+    list_input = (df_list.loc[df_list['organ'] != '.', :]).to_dict('records')
     accession_ids = []
     for line in df_subs.to_dict('records'):
         if line['life_stage'] == '.':
@@ -169,8 +170,7 @@ def merge_split_bed(path_in, path_out, num_process):
     # add uniform label
     all_ref = os.path.join(path_out, 'Reference_DHS.plus.bed')
     with open(os.path.join(path_out, 'Reference_DHS.bed'), 'r') as r_f:
-        with open(all_ref, 'w') \
-                as w_f:
+        with open(all_ref, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
@@ -187,6 +187,8 @@ def merge_split_bed(path_in, path_out, num_process):
     pool.map(func_split, list_input)
     pool.close()
 
+    os.system(f"mv {all_ref} {os.path.join(path_out, 'Reference_DHS.bed')}")
+
     return
 
 
@@ -196,13 +198,13 @@ def annotate_dhs_promoter(path_promoter_in, dict_in):
     file = dict_in['file']
     file_in = os.path.join(path_in, file)
     bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
-              f"> {bedtools_out}")
     col_num = int(check_output("head -n 1 " + file_in + " | awk '{print NF}'",
                                shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5])
     use_col = ','.join([str(num) for num in use_col_list])
+    os.system(f"bedtools intersect -a {file_in} -b {path_promoter_in} -loj "
+              f"> {bedtools_out}")
     os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     os.remove(bedtools_out)
@@ -224,15 +226,15 @@ def annotate_dhs_histone(dict_in):
                 list_line = line.strip().split('\t')
                 list_line.append(evidence_score)
                 w_ref.write('\t'.join(list_line) + '\n')
-    bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
-    os.system(f"bedtools intersect -a {path_ref_plus} -b {file_in} -loj "
-              f"> {bedtools_out}")
     col_num = int(check_output(
         "head -n 1 " + path_ref_plus + " | awk '{print NF}'",
         shell=True).strip())
     use_col_list = list(range(1, col_num + 1))
     use_col_list.extend([col_num + 4, col_num + 5, col_num + 7])
     use_col = ','.join([str(num) for num in use_col_list])
+    bedtools_out = os.path.join(path_out, f"{file}.bedtools.out")
+    os.system(f"bedtools intersect -a {path_ref_plus} -b {file_in} -loj "
+              f"> {bedtools_out}")
     os.system(f"cut -f {use_col} {bedtools_out} > "
               f"{os.path.join(path_out, file)}")
     os.remove(bedtools_out)
@@ -357,7 +359,7 @@ if __name__ == '__main__':
     # unify DHS labels
     path_dhs_uniform = '/lustre/tianlab/zhangyu/driver_mutation/data/' \
                        'DHS/GRCh38tohg19_uniform'
-    merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
+    # merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
     print('Uniform of DHS completed!')
 
     # annotate DHS
