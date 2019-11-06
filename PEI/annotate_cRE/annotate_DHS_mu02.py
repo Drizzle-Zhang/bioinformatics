@@ -108,8 +108,9 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
-              f"{os.path.join(path_out, 'metadata.tsv')}")
+    if os.path.exists(os.path.join(path_in, 'metadata.tsv')):
+        os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
+                  f"{os.path.join(path_out, 'metadata.tsv')}")
 
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=num_process)
@@ -130,7 +131,7 @@ def split_ref_bed(ref_file, dict_in):
     with open(ref_file, 'r') as r_ref:
         with open(os.path.join(dict_in['path_out'], dict_in['file']), 'w') \
                 as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{label}\n"
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t.\t.\t{label}\n"
             for line in r_ref:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -161,14 +162,14 @@ def merge_split_bed(path_in, path_out, num_process):
                       accession_ids=[line['organ'] + '/' + line['life_stage']
                                      + '/' + line['file'][:-4]
                                      for line in df_subs.to_dict('records')])
-    merge_bed(path_in, '5', dict_merge)
+    merge_bed(path_in, '7', dict_merge)
 
     # add uniform label
     all_ref = os.path.join(path_out, 'Reference_DHS.plus.bed')
     with open(os.path.join(path_out, 'Reference_DHS.bed'), 'r') as r_f:
         with open(all_ref, 'w') \
                 as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{file_label}\n"
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -320,7 +321,7 @@ def annotate_dhs(path_dhs_in, path_promoter_in, path_h3k27ac_in,
 
 if __name__ == '__main__':
     time_start = time()
-    num_cpu = 60
+    num_cpu = 80
     # build DHS reference by organ
 
     # standardization
@@ -328,7 +329,7 @@ if __name__ == '__main__':
     path_dhs = '/lustre/tianlab/zhangyu//driver_mutation/data/DHS/GRCh38tohg19'
     path_dhs_stan = '/lustre/tianlab/zhangyu//driver_mutation/data/' \
                     'DHS/GRCh38tohg19_standard'
-    standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
+    # standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # H3K27ac
@@ -338,7 +339,7 @@ if __name__ == '__main__':
     path_h3k27ac_stan = \
         '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_standard'
-    standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    # standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # H3K4me3
@@ -348,7 +349,7 @@ if __name__ == '__main__':
     path_h3k4me3_stan = \
         '/lustre/tianlab/zhangyu//driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
-    standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    # standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # unify DHS labels
