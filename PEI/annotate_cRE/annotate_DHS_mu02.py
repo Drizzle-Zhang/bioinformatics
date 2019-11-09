@@ -10,7 +10,7 @@ import os
 from multiprocessing import Pool
 from functools import partial
 import pandas as pd
-from prepare_bed_file import merge_bed
+from prepare_bed_file_mu02 import merge_bed
 from subprocess import check_output
 
 
