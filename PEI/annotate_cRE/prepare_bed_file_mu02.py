@@ -65,9 +65,8 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         file_hg19_prefix = file_hg19 + '.prefix'
         os.system(f"cut -f 1,2,3,4 {file_hg38} > {file_prefix}")
         os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38} > {file_suffix}")
-        os.system(
-            f"liftOver {file_prefix} {file_chain} "
-            f"{file_hg19_prefix} {file_ummap}")
+        os.system(f"liftOver {file_prefix} {file_chain} "
+                  f"{file_hg19_prefix} {file_ummap}")
         dict_peak_score = defaultdict(list)
         with open(file_suffix, 'r') as r_f:
             for line in r_f:
@@ -235,10 +234,7 @@ def ref_dhs(path_in, path_ref):
     meta_out.to_csv(os.path.join(path_ref, 'metadata.tsv'),
                     sep='\t', index=None)
 
-    list_input = [dict(path=path_ref,
-                       term_name='all_organs',
-                       accession_ids=
-                       df_meta_normal['File accession'].tolist())]
+    list_input = []
     organs = []
     for line in df_meta_normal['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
@@ -251,10 +247,6 @@ def ref_dhs(path_in, path_ref):
             os.path.join(path_ref, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        list_input.append(dict(path=organ_path,
-                               term_name=organ.replace(' ', '_'),
-                               accession_ids=
-                               organ_meta['File accession'].tolist()))
         life_stages = []
         for line in organ_meta['Biosample life stage'].tolist():
             life_stages.extend(line.strip().split(','))
@@ -273,7 +265,7 @@ def ref_dhs(path_in, path_ref):
                                    accession_ids=
                                    life_meta['File accession'].tolist()))
 
-    pool = Pool(processes=50)
+    pool = Pool(processes=60)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
@@ -303,11 +295,7 @@ def unique_bed_files_histone(path_in, path_out):
     meta_out.to_csv(os.path.join(path_out, 'metadata.tsv'),
                     sep='\t', index=None)
 
-    # list_input = []
-    list_input = [dict(path=path_out,
-                       term_name='all_organs',
-                       accession_ids=
-                       df_meta_normal['File accession'].tolist())]
+    list_input = []
     organs = []
     for line in df_meta_normal['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
@@ -320,10 +308,6 @@ def unique_bed_files_histone(path_in, path_out):
             os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        list_input.append(dict(path=organ_path,
-                               term_name=organ.replace(' ', '_'),
-                               accession_ids=
-                               organ_meta['File accession'].tolist()))
         life_stages = []
         for line in organ_meta['Biosample life stage'].tolist():
             life_stages.extend(line.strip().split(','))
@@ -337,10 +321,6 @@ def unique_bed_files_histone(path_in, path_out):
                 os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            list_input.append(dict(path=path_life_stage,
-                                   term_name=life_stage.replace(' ', '_'),
-                                   accession_ids=
-                                   life_meta['File accession'].tolist()))
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
@@ -357,7 +337,7 @@ def unique_bed_files_histone(path_in, path_out):
                                            '/', '+').replace("'", '--'),
                                        accession_ids=accession_ids))
 
-    pool = Pool(processes=50)
+    pool = Pool(processes=60)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
