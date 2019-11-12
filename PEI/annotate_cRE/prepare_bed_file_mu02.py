@@ -117,7 +117,7 @@ def hg38tohg19(path_hg38, path_hg19):
     new_meta.to_csv(
         os.path.join(path_hg19, 'metadata.simple.tsv'), sep='\t', index=None
     )
-    list_dict = df_meta.to_dict('records')
+    list_dict = new_meta.to_dict('records')
 
     pool = Pool(processes=60)
     func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
@@ -266,7 +266,7 @@ def ref_dhs(path_in, path_ref):
                                    life_meta['File accession'].tolist()))
 
     pool = Pool(processes=60)
-    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
+    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10', 0.1)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -338,7 +338,7 @@ def unique_bed_files_histone(path_in, path_out):
                                        accession_ids=accession_ids))
 
     pool = Pool(processes=60)
-    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
+    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10', 0.1)
     pool.map(func_merge, list_input)
     pool.close()
 
