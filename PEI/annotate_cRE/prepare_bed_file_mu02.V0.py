@@ -7,11 +7,59 @@
 
 from time import time
 import pandas as pd
-import numpy as np
 import os
 from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
+
+
+def generate_gene_file(gtf_file, protein_file, promoter_file):
+    with open(protein_file, 'w') as w_gene:
+        with open(promoter_file, 'w') as w_pro:
+            fmt_gene = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            fmt_promoter = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            with open(gtf_file, 'r') as r_gtf:
+                for line_gene in r_gtf:
+                    if line_gene[0] == '#':
+                        continue
+                    list_line_gene = line_gene.strip().split('\t')
+                    if list_line_gene[2] != 'gene':
+                        continue
+                    list_attr = list_line_gene[8].strip().split('; ')
+                    gene_type = list_attr[2][11:-1]
+                    if gene_type != "protein_coding":
+                        continue
+                    gene_name = list_attr[4][11:-1]
+                    ensg_id = list_attr[0][9:-1]
+                    strand = list_line_gene[6]
+                    dict_gene = dict(chrom=list_line_gene[0],
+                                     start=list_line_gene[3],
+                                     end=list_line_gene[4], symbol=gene_name,
+                                     ensg_id=ensg_id,
+                                     strand=strand)
+                    w_gene.write(fmt_gene.format(**dict_gene))
+                    if strand == '+':
+                        pro_start = str(int(list_line_gene[3]) - 2000)
+                        pro_end = list_line_gene[3]
+                    elif strand == '-':
+                        pro_start = list_line_gene[4]
+                        pro_end = str(int(list_line_gene[4]) + 2000)
+                    else:
+                        print('Error')
+                        break
+                    dict_promoter = dict(chrom=list_line_gene[0],
+                                         start=pro_start,
+                                         end=pro_end,
+                                         symbol=f"{gene_name}<-"
+                                                f"{list_line_gene[0]}:"
+                                                f"{pro_start}-{pro_end}",
+                                         ensg_id=ensg_id,
+                                         strand=strand)
+                    w_pro.write(fmt_promoter.format(**dict_promoter))
+
+    return
 
 
 def release_filter(meta_in):
@@ -101,23 +149,10 @@ def hg38tohg19(path_hg38, path_hg19):
         os.system(f"rm -rf {path_hg19}")
     os.mkdir(path_hg19)
 
-    df_meta = pd.read_csv(
-        os.path.join(path_hg38, 'metadata.simple.tsv'), sep='\t'
-    )
-    list_meta = []
-    experiments = set(df_meta['Experiment accession'].tolist())
-    for exp in experiments:
-        df_exp = df_meta.loc[df_meta['Experiment accession'] == exp, :]
-        hg19 = df_exp.loc[df_exp['Assembly'] == 'hg19', :]
-        hg38 = df_exp.loc[df_exp['Assembly'] == 'GRCh38', :]
-        if hg19.shape[0] == hg38.shape[0]:
-            list_meta.append(hg19)
-        else:
-            list_meta.append(hg38)
-    new_meta = pd.concat(list_meta, sort=False)
-    new_meta.to_csv(
-        os.path.join(path_hg19, 'metadata.simple.tsv'), sep='\t', index=None
-    )
+    file_meta = os.path.join(path_hg38, 'metadata.simple.tsv')
+    df_meta = pd.read_csv(file_meta, sep='\t')
+    os.system(
+        f"cp {file_meta} {os.path.join(path_hg19, 'metadata.simple.tsv')}")
     list_dict = df_meta.to_dict('records')
 
     pool = Pool(processes=60)
@@ -128,15 +163,15 @@ def hg38tohg19(path_hg38, path_hg19):
     return
 
 
-def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
+def merge_bed(path_bed, col_collapse, dict_in):
     term_name = dict_in['term_name']
     path_out = dict_in['path']
     str_collapse = \
         ','.join([val for val in ['collapse']
                   for i in range(len(col_collapse.split(',')))])
-    cat_out = os.path.join(path_out, f"{term_name}.bed.cat")
-    sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
-    merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
+    cat_out = os.path.join(path_out, f"{term_name}.cat.bed")
+    sort_out = os.path.join(path_out, f"{term_name}.sort.bed")
+    bed_out = os.path.join(path_out, f"{term_name}.bed")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
     code = os.system(f"cat {cat_in} > {cat_out}")
@@ -163,50 +198,7 @@ def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
-              f"-c {col_collapse} -o {str_collapse} > {merge_out}")
-
-    # split merge file
-    split_out = os.path.join(path_out, f"{term_name}.bed")
-    with open(merge_out, 'r') as r_f:
-        with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{fold_change}\t{p_value}\n"
-            for line in r_f:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                array_start = np.array(
-                    [int(num) for num in list_line[3].strip().split(',')])
-                array_end = np.array(
-                    [int(num) for num in list_line[4].strip().split(',')])
-                array_fold_change = np.array(
-                    [float(num) for num in list_line[7].strip().split(',')])
-                array_p_value = np.array(
-                    [float(num) for num in list_line[8].strip().split(',')])
-                array_length = array_end - array_start
-                while array_length.shape[0] > 0:
-                    idx = np.argmax(array_length)
-                    start_idx = array_start[idx]
-                    end_idx = array_end[idx]
-                    flank = array_length[idx] * flank_percent
-                    select_bool = (array_start > start_idx - flank) & \
-                                  (array_end < end_idx + flank)
-                    select_start = array_start[select_bool]
-                    select_end = array_end[select_bool]
-                    select_fold_change = array_fold_change[select_bool]
-                    select_p_value = array_p_value[select_bool]
-                    # reset arrays
-                    array_start = array_start[~select_bool]
-                    array_end = array_end[~select_bool]
-                    array_fold_change = array_fold_change[~select_bool]
-                    array_p_value = array_p_value[~select_bool]
-                    array_length = array_end - array_start
-                    # write new rows
-                    start = str(np.min(select_start))
-                    end = str(np.max(select_end))
-                    fold_change = \
-                        ','.join(map(str, select_fold_change.tolist()))
-                    p_value = ','.join(map(str, select_p_value.tolist()))
-                    w_f.write(fmt.format(**locals()))
-
+              f"-c {col_collapse} -o {str_collapse} > {bed_out}")
     os.remove(cat_out)
     os.remove(sort_out)
 
@@ -461,7 +453,7 @@ if __name__ == '__main__':
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19)
 
-    # unique H3K4me3
+    # unique H3K27ac
     path_h3k4me3_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
