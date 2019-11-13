@@ -95,7 +95,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     return
 
 
-def hg38tohg19(path_hg38, path_hg19):
+def hg38tohg19(path_hg38, path_hg19, num_process):
     if os.path.exists(path_hg19):
         os.system(f"rm -rf {path_hg19}")
     os.mkdir(path_hg19)
@@ -119,7 +119,7 @@ def hg38tohg19(path_hg38, path_hg19):
     )
     list_dict = new_meta.to_dict('records')
 
-    pool = Pool(processes=60)
+    pool = Pool(processes=num_process)
     func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
     pool.map(func_hg38tohg19, list_dict)
     pool.close()
@@ -138,27 +138,7 @@ def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
     merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
-    code = os.system(f"cat {cat_in} > {cat_out}")
-    if code == 32512:
-        cat_list = [os.path.join(path_bed, acce_id + '.bed')
-                    for acce_id in dict_in['accession_ids']]
-        cat_list = cat_list[:400]
-        for i in range(len(cat_list)//300 + 1):
-            cat_tmp = os.path.join(
-                path_out, f"{term_name}.cat.bed.tmp{str(i)}")
-            if i != len(cat_list)//300:
-                cat_in = ' '.join(cat_list[i*300:(i+1)*300])
-            else:
-                cat_in = ' '.join(cat_list[i * 300:])
-            if i == 0:
-                os.system(f"cat {cat_in} > {cat_tmp}")
-                cat_tmp_0 = cat_tmp
-            else:
-                os.system(f"cat {cat_tmp_0} {cat_in} > {cat_tmp}")
-                os.remove(cat_tmp_0)
-                cat_tmp_0 = cat_tmp
-        os.system(f"mv {cat_tmp} {cat_out}")
-
+    os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
@@ -174,12 +154,8 @@ def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
                 chrom = list_line[0]
                 array_start = np.array(
                     [int(num) for num in list_line[3].strip().split(',')])
-                try:
-                    array_end = np.array(
-                        [int(num) for num in list_line[4].strip().split(',')])
-                except ValueError:
-                    print(merge_out)
-                    print(line)
+                array_end = np.array(
+                    [int(num) for num in list_line[4].strip().split(',')])
                 array_fold_change = np.array(
                     [float(num) for num in list_line[7].strip().split(',')])
                 array_p_value = np.array(
@@ -216,7 +192,7 @@ def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
     return
 
 
-def ref_dhs(path_in, path_ref):
+def ref_dhs(path_in, path_ref, col_merge, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
@@ -264,20 +240,21 @@ def ref_dhs(path_in, path_ref):
                 os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            list_input.append(dict(path=path_life_stage,
-                                   term_name=life_stage.replace(' ', '_'),
-                                   accession_ids=
-                                   life_meta['File accession'].tolist()))
+            list_input.append(
+                dict(path=path_life_stage,
+                     term_name=life_stage.replace(' ', '_'),
+                     accession_ids=life_meta['File accession'].tolist()))
 
-    pool = Pool(processes=60)
-    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10', 0.1)
+    pool = Pool(processes=num_process)
+    func_merge = partial(merge_bed, path_in, col_merge, flank_percent)
     pool.map(func_merge, list_input)
     pool.close()
 
     return
 
 
-def unique_bed_files_histone(path_in, path_out):
+def unique_bed_files_histone(path_in, path_out,
+                             col_merge, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
@@ -335,14 +312,14 @@ def unique_bed_files_histone(path_in, path_out):
                         ' ', '_').replace('/', '+').replace("'", '--'))
                 if not os.path.exists(path_term):
                     os.makedirs(path_term)
-                list_input.append(dict(path=path_term,
-                                       term_name=
-                                       term.replace(' ', '_').replace(
-                                           '/', '+').replace("'", '--'),
-                                       accession_ids=accession_ids))
+                list_input.append(
+                    dict(path=path_term,
+                         term_name=term.replace(' ', '_').replace(
+                             '/', '+').replace("'", '--'),
+                         accession_ids=accession_ids))
 
-    pool = Pool(processes=60)
-    func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10', 0.1)
+    pool = Pool(processes=num_process)
+    func_merge = partial(merge_bed, path_in, col_merge, flank_percent)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -351,6 +328,10 @@ def unique_bed_files_histone(path_in, path_out):
 
 if __name__ == '__main__':
     time_start = time()
+    # parameters
+    num_cpu = 80
+    col_select = '2,3,5,6,7,8,9'
+    para_flank = 0.1
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
@@ -399,7 +380,8 @@ if __name__ == '__main__':
     # build DHS reference
     path_dhs_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19/'
-    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)
+    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19, col_select, para_flank,
+            num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -418,13 +400,14 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac'
-    hg38tohg19(path_h3k27ac, path_hg38tohg19)
+    hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
 
     # unique H3K27ac
     path_h3k27ac_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
-    unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
+    unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19,
+                             col_select, para_flank, num_cpu)
 
     # H3K4me3
     path_h3k4me3 = \
@@ -443,13 +426,14 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19)
+    hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
 
     # unique H3K4me3
     path_h3k4me3_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
-    unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19)
+    unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19,
+                             col_select, para_flank, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
