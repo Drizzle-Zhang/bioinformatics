@@ -174,8 +174,12 @@ def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
                 chrom = list_line[0]
                 array_start = np.array(
                     [int(num) for num in list_line[3].strip().split(',')])
-                array_end = np.array(
-                    [int(num) for num in list_line[4].strip().split(',')])
+                try:
+                    array_end = np.array(
+                        [int(num) for num in list_line[4].strip().split(',')])
+                except ValueError:
+                    print(merge_out)
+                    print(line)
                 array_fold_change = np.array(
                     [float(num) for num in list_line[7].strip().split(',')])
                 array_p_value = np.array(
@@ -390,7 +394,7 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19)
+    # hg38tohg19(path_dhs, path_hg38tohg19)
 
     # build DHS reference
     path_dhs_hg38tohg19 = \
