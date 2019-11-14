@@ -14,6 +14,55 @@ from multiprocessing import Pool
 from functools import partial
 
 
+def generate_gene_file(gtf_file, protein_file, promoter_file):
+    with open(protein_file, 'w') as w_gene:
+        with open(promoter_file, 'w') as w_pro:
+            fmt_gene = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            fmt_promoter = \
+                "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
+            with open(gtf_file, 'r') as r_gtf:
+                for line_gene in r_gtf:
+                    if line_gene[0] == '#':
+                        continue
+                    list_line_gene = line_gene.strip().split('\t')
+                    if list_line_gene[2] != 'gene':
+                        continue
+                    list_attr = list_line_gene[8].strip().split('; ')
+                    gene_type = list_attr[2][11:-1]
+                    if gene_type != "protein_coding":
+                        continue
+                    gene_name = list_attr[4][11:-1]
+                    ensg_id = list_attr[0][9:-1]
+                    strand = list_line_gene[6]
+                    dict_gene = dict(chrom=list_line_gene[0],
+                                     start=list_line_gene[3],
+                                     end=list_line_gene[4], symbol=gene_name,
+                                     ensg_id=ensg_id,
+                                     strand=strand)
+                    w_gene.write(fmt_gene.format(**dict_gene))
+                    if strand == '+':
+                        pro_start = str(int(list_line_gene[3]) - 2000)
+                        pro_end = list_line_gene[3]
+                    elif strand == '-':
+                        pro_start = list_line_gene[4]
+                        pro_end = str(int(list_line_gene[4]) + 2000)
+                    else:
+                        print('Error')
+                        break
+                    dict_promoter = dict(chrom=list_line_gene[0],
+                                         start=pro_start,
+                                         end=pro_end,
+                                         symbol=f"{gene_name}<-"
+                                                f"{list_line_gene[0]}:"
+                                                f"{pro_start}-{pro_end}",
+                                         ensg_id=ensg_id,
+                                         strand=strand)
+                    w_pro.write(fmt_promoter.format(**dict_promoter))
+
+    return
+
+
 def release_filter(meta_in):
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
@@ -48,6 +97,21 @@ def add_attr(df_meta, dict_attr, column_name):
     df_out = pd.concat([df_meta, df_attr], axis=1, sort=False)
 
     return df_out
+
+
+def del_organ(df_meta, set_ref):
+    df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
+    organs = df_meta['Biosample organ'].tolist()
+    new_organs = []
+    for organ in organs:
+        list_organ = \
+            [val for val in organ.strip().split(',') if val in set_ref]
+        new_organs.append(','.join(list_organ))
+
+    df_meta = df_meta.drop('Biosample organ', 1)
+    df_meta['Biosample organ'] = new_organs
+
+    return df_meta
 
 
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
@@ -127,7 +191,8 @@ def hg38tohg19(path_hg38, path_hg19, num_process):
     return
 
 
-def merge_bed(path_bed, col_collapse, flank_percent, dict_in):
+def merge_bed(path_bed, col_collapse, dict_in):
+    flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
     path_out = dict_in['path']
     str_collapse = \
@@ -199,10 +264,7 @@ def ref_dhs(path_in, path_ref, col_merge, flank_percent, num_process):
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
     )
-    organ_state = df_meta['Biosample organ'].apply(
-        lambda x: isinstance(x, str)
-    )
-    df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
+    df_meta_normal = df_meta.loc[cancer_state, :]
 
     if os.path.exists(path_ref):
         os.system(f"rm -rf {path_ref}")
@@ -243,10 +305,11 @@ def ref_dhs(path_in, path_ref, col_merge, flank_percent, num_process):
             list_input.append(
                 dict(path=path_life_stage,
                      term_name=life_stage.replace(' ', '_'),
-                     accession_ids=life_meta['File accession'].tolist()))
+                     accession_ids=life_meta['File accession'].tolist(),
+                     flank_percent=flank_percent))
 
     pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in, col_merge, flank_percent)
+    func_merge = partial(merge_bed, path_in, col_merge)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -261,14 +324,13 @@ def unique_bed_files_histone(path_in, path_out,
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
     )
-    organ_state = df_meta['Biosample organ'].apply(
-        lambda x: isinstance(x, str)
-    )
-    df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
+    df_meta_normal = df_meta.loc[cancer_state, :]
 
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    df_meta_normal.to_csv(os.path.join(path_out, 'metadata.simple.tsv'),
+                          sep='\t', index=None)
     meta_out = df_meta_normal.loc[
                :, ['Biosample term name', 'Biosample life stage',
                    'Biosample organ']]
@@ -316,10 +378,11 @@ def unique_bed_files_histone(path_in, path_out,
                     dict(path=path_term,
                          term_name=term.replace(' ', '_').replace(
                              '/', '+').replace("'", '--'),
-                         accession_ids=accession_ids))
+                         accession_ids=accession_ids,
+                         flank_percent=flank_percent))
 
     pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in, col_merge, flank_percent)
+    func_merge = partial(merge_bed, path_in, col_merge)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -359,6 +422,12 @@ if __name__ == '__main__':
                 'metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
+    # read reference organ
+    ref_organ = '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
+                'metadata/organ_ref.txt'
+    with open(ref_organ, 'r') as r_ref:
+        set_organs = set([organ.strip() for organ in r_ref])
+
     # DHS
     # metafile
     path_dhs = \
@@ -368,6 +437,7 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
+    df_meta_dhs = del_organ(df_meta_dhs, set_organs)
     meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
 
@@ -375,7 +445,7 @@ if __name__ == '__main__':
     path_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'DNase-seq/GRCh38tohg19'
-    # hg38tohg19(path_dhs, path_hg38tohg19)
+    hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
 
     # build DHS reference
     path_dhs_hg38tohg19 = \
@@ -393,6 +463,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
+    df_meta_h3k27ac = del_organ(df_meta_h3k27ac, set_organs)
     meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
 
@@ -419,6 +490,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
+    df_meta_h3k4me3 = del_organ(df_meta_h3k4me3, set_organs)
     meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
 
