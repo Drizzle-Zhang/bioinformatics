@@ -232,8 +232,8 @@ def merge_bed(path_bed, dict_in):
                     start_idx = array_start[idx]
                     end_idx = array_end[idx]
                     flank = array_length[idx] * flank_percent
-                    select_bool = (array_start > start_idx - flank) & \
-                                  (array_end < end_idx + flank)
+                    select_bool = (array_start >= start_idx - flank) & \
+                                  (array_end <= end_idx + flank)
                     select_start = array_start[select_bool]
                     select_end = array_end[select_bool]
                     select_fold_change = array_fold_change[select_bool]
@@ -261,11 +261,16 @@ def merge_bed(path_bed, dict_in):
 def ref_dhs(path_in, path_ref, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-    cancer_state = df_meta['Biosample cell'].apply(
+    cancer_state1 = df_meta['Biosample cell'].apply(
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
     )
-    df_meta_normal = df_meta.loc[cancer_state, :]
+    cancer_state2 = df_meta['Biosample cell'].apply(
+        lambda x: True if isinstance(x, float) else
+        'neuroblastoma cell' not in x.strip().split(',')
+    )
+
+    df_meta_normal = df_meta.loc[cancer_state1 & cancer_state2, :]
 
     if os.path.exists(path_ref):
         os.system(f"rm -rf {path_ref}")
@@ -320,11 +325,16 @@ def ref_dhs(path_in, path_ref, flank_percent, num_process):
 def unique_bed_files_histone(path_in, path_out, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-    cancer_state = df_meta['Biosample cell'].apply(
+    cancer_state1 = df_meta['Biosample cell'].apply(
         lambda x: True if isinstance(x, float) else
         'cancer cell' not in x.strip().split(',')
     )
-    df_meta_normal = df_meta.loc[cancer_state, :]
+    cancer_state2 = df_meta['Biosample cell'].apply(
+        lambda x: True if isinstance(x, float) else
+        'neuroblastoma cell' not in x.strip().split(',')
+    )
+
+    df_meta_normal = df_meta.loc[cancer_state1 & cancer_state2, :]
 
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
