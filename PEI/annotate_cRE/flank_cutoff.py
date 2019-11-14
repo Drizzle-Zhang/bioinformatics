@@ -85,7 +85,7 @@ if __name__ == '__main__':
                'DNase-seq/GRCh38tohg19/'
     path_dhs_flank = '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
                      'DNase-seq/GRCh38tohg19/flank'
-    # generate_flank_plot_file(path_dhs, path_dhs_flank, list_test, num_cpu)
+    generate_flank_plot_file(path_dhs, path_dhs_flank, list_test, num_cpu)
 
     list_test = [['stomach', 'adult', 'stomach'],
                  ['layer of hippocampus', 'adult', 'brain'],
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     path_h3k4me3_flank = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3/flank'
-    generate_flank_plot_file(path_dhs, path_dhs_flank, list_test, num_cpu)
+    generate_flank_plot_file(path_dhs, path_h3k4me3_flank, list_test, num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     path_h3k27ac_flank = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac/flank'
-    generate_flank_plot_file(path_dhs, path_dhs_flank, list_test, num_cpu)
+    generate_flank_plot_file(path_dhs, path_h3k27ac_flank, list_test, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
