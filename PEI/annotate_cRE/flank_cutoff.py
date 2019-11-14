@@ -45,6 +45,7 @@ def generate_flank_plot_file(path_in, path_flank, list_select, num_process):
                          lambda x: line[2] in x.strip().split(','))), :]
         path_out = os.path.join(
             path_flank, '_'.join([val.replace(' ', '-') for val in line]))
+        os.mkdir(path_out)
         accession_ids = sub_meta['File accession'].tolist()
         for flank in array_flank:
             term_name = f'flank_{str(flank)}'
@@ -55,7 +56,7 @@ def generate_flank_plot_file(path_in, path_flank, list_select, num_process):
                      flank_percent=flank))
 
     pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in, '5')
+    func_merge = partial(merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
 

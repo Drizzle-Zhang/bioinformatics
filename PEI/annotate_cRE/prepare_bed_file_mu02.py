@@ -191,10 +191,11 @@ def hg38tohg19(path_hg38, path_hg19, num_process):
     return
 
 
-def merge_bed(path_bed, col_collapse, dict_in):
+def merge_bed(path_bed, dict_in):
     flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
     path_out = dict_in['path']
+    col_collapse = '2,3,5,6,7,8,9'
     str_collapse = \
         ','.join([val for val in ['collapse']
                   for i in range(len(col_collapse.split(',')))])
@@ -257,7 +258,7 @@ def merge_bed(path_bed, col_collapse, dict_in):
     return
 
 
-def ref_dhs(path_in, path_ref, col_merge, flank_percent, num_process):
+def ref_dhs(path_in, path_ref, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
@@ -309,15 +310,14 @@ def ref_dhs(path_in, path_ref, col_merge, flank_percent, num_process):
                      flank_percent=flank_percent))
 
     pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in, col_merge)
+    func_merge = partial(merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
 
     return
 
 
-def unique_bed_files_histone(path_in, path_out,
-                             col_merge, flank_percent, num_process):
+def unique_bed_files_histone(path_in, path_out, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
     cancer_state = df_meta['Biosample cell'].apply(
@@ -382,7 +382,7 @@ def unique_bed_files_histone(path_in, path_out,
                          flank_percent=flank_percent))
 
     pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in, col_merge)
+    func_merge = partial(merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
 
@@ -393,7 +393,6 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 80
-    col_select = '2,3,5,6,7,8,9'
     para_flank = 0.1
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
@@ -450,8 +449,7 @@ if __name__ == '__main__':
     # build DHS reference
     path_dhs_hg38tohg19 = \
         '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19/'
-    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19, col_select, para_flank,
-            num_cpu)
+    ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19, para_flank, num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -478,7 +476,7 @@ if __name__ == '__main__':
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19,
-                             col_select, para_flank, num_cpu)
+                             para_flank, num_cpu)
 
     # H3K4me3
     path_h3k4me3 = \
@@ -505,7 +503,7 @@ if __name__ == '__main__':
         '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19,
-                             col_select, para_flank, num_cpu)
+                             para_flank, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
