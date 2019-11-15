@@ -2,7 +2,7 @@
 # _*_ coding: utf-8 _*_
 
 # @author: Drizzle_Zhang
-# @file: prepare_bed_file.py
+# @file: prepare_bed_file.V2.py
 # @time: 10/23/19 10:24 PM
 
 from time import time

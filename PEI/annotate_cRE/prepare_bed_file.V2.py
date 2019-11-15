@@ -29,7 +29,7 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
                         continue
                     list_attr = list_line_gene[8].strip().split('; ')
                     gene_type = list_attr[2][11:-1]
-                    if gene_type != "protein_coding":
+                    if list_attr[2][-15:-1] != "protein_coding":
                         continue
                     gene_name = list_attr[4][11:-1]
                     ensg_id = list_attr[0][9:-1]
@@ -101,8 +101,7 @@ def add_attr(df_meta, dict_attr, column_name):
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
-    file_chain = \
-        '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+    file_chain = '/home/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
@@ -145,8 +144,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
 
 
 def hg38tohg19(path_hg38, path_hg19):
-    if os.path.exists(path_hg19):
-        os.system(f"rm -rf {path_hg19}")
+    os.system(f"rm -rf {path_hg19}")
     os.mkdir(path_hg19)
 
     file_meta = os.path.join(path_hg38, 'metadata.simple.tsv')
@@ -155,7 +153,7 @@ def hg38tohg19(path_hg38, path_hg19):
         f"cp {file_meta} {os.path.join(path_hg19, 'metadata.simple.tsv')}")
     list_dict = df_meta.to_dict('records')
 
-    pool = Pool(processes=60)
+    pool = Pool(processes=40)
     func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
     pool.map(func_hg38tohg19, list_dict)
     pool.close()
@@ -174,27 +172,7 @@ def merge_bed(path_bed, col_collapse, dict_in):
     bed_out = os.path.join(path_out, f"{term_name}.bed")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
                        for acce_id in dict_in['accession_ids']])
-    code = os.system(f"cat {cat_in} > {cat_out}")
-    if code == 32512:
-        cat_list = [os.path.join(path_bed, acce_id + '.bed')
-                    for acce_id in dict_in['accession_ids']]
-        cat_list = cat_list[:400]
-        for i in range(len(cat_list)//300 + 1):
-            cat_tmp = os.path.join(
-                path_out, f"{term_name}.cat.bed.tmp{str(i)}")
-            if i != len(cat_list)//300:
-                cat_in = ' '.join(cat_list[i*300:(i+1)*300])
-            else:
-                cat_in = ' '.join(cat_list[i * 300:])
-            if i == 0:
-                os.system(f"cat {cat_in} > {cat_tmp}")
-                cat_tmp_0 = cat_tmp
-            else:
-                os.system(f"cat {cat_tmp_0} {cat_in} > {cat_tmp}")
-                os.remove(cat_tmp_0)
-                cat_tmp_0 = cat_tmp
-        os.system(f"mv {cat_tmp} {cat_out}")
-
+    os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
@@ -217,8 +195,7 @@ def ref_dhs(path_in, path_ref):
     )
     df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
 
-    if os.path.exists(path_ref):
-        os.system(f"rm -rf {path_ref}")
+    os.system(f"rm -rf {path_ref}")
     os.mkdir(path_ref)
     meta_out = df_meta_normal.loc[
                :, ['Biosample term name', 'Biosample life stage',
@@ -265,7 +242,7 @@ def ref_dhs(path_in, path_ref):
                                    accession_ids=
                                    life_meta['File accession'].tolist()))
 
-    pool = Pool(processes=50)
+    pool = Pool(processes=20)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
@@ -285,21 +262,14 @@ def unique_bed_files_histone(path_in, path_out):
     )
     df_meta_normal = df_meta.loc[organ_state & cancer_state, :]
 
-    if os.path.exists(path_out):
-        os.system(f"rm -rf {path_out}")
+    os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    meta_out = df_meta_normal.loc[
-               :, ['Biosample term name', 'Biosample life stage',
-                   'Biosample organ']]
-    meta_out = meta_out.drop_duplicates()
-    meta_out.to_csv(os.path.join(path_out, 'metadata.tsv'),
-                    sep='\t', index=None)
 
-    # list_input = []
-    list_input = [dict(path=path_out,
-                       term_name='all_organs',
-                       accession_ids=
-                       df_meta_normal['File accession'].tolist())]
+    list_input = []
+    # list_input = [dict(path=path_out,
+    #                    term_name='all_organs',
+    #                    accession_ids=
+    #                    df_meta_normal['File accession'].tolist())]
     organs = []
     for line in df_meta_normal['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
@@ -312,10 +282,10 @@ def unique_bed_files_histone(path_in, path_out):
             os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(organ_path):
             os.makedirs(organ_path)
-        list_input.append(dict(path=organ_path,
-                               term_name=organ.replace(' ', '_'),
-                               accession_ids=
-                               organ_meta['File accession'].tolist()))
+        # list_input.append(dict(path=organ_path,
+        #                        term_name=organ.replace(' ', '_'),
+        #                        accession_ids=
+        #                        organ_meta['File accession'].tolist()))
         life_stages = []
         for line in organ_meta['Biosample life stage'].tolist():
             life_stages.extend(line.strip().split(','))
@@ -329,10 +299,10 @@ def unique_bed_files_histone(path_in, path_out):
                 os.path.join(organ_path, life_stage.replace(' ', '_'))
             if not os.path.exists(path_life_stage):
                 os.makedirs(path_life_stage)
-            list_input.append(dict(path=path_life_stage,
-                                   term_name=life_stage.replace(' ', '_'),
-                                   accession_ids=
-                                   life_meta['File accession'].tolist()))
+            # list_input.append(dict(path=path_life_stage,
+            #                        term_name=life_stage.replace(' ', '_'),
+            #                        accession_ids=
+            #                        life_meta['File accession'].tolist()))
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
                 filter_meta = \
@@ -349,7 +319,7 @@ def unique_bed_files_histone(path_in, path_out):
                                            '/', '+').replace("'", '--'),
                                        accession_ids=accession_ids))
 
-    pool = Pool(processes=50)
+    pool = Pool(processes=20)
     func_merge = partial(merge_bed, path_in, '5,6,7,8,9,10')
     pool.map(func_merge, list_input)
     pool.close()
@@ -361,35 +331,30 @@ if __name__ == '__main__':
     time_start = time()
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'gencode.v19.annotation.gtf'
+        '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
     protein_file_hg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/gene/' \
-        'genes.protein.gencode.v19.bed'
+        '/home/zy/driver_mutation/data/gene/genes.protein.gencode.v19.bed'
     promoter_file_hg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/gene/' \
+        '/home/zy/driver_mutation/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
     # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
 
     # build life stage dictionary
-    path_lifestage = '/lustre/tianlab/zhangyu/driver_mutation/data/' \
-                     'ENCODE/metadata/life_stage'
+    path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_organ = '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-                 'metadata/organ'
+    path_organ = '/home/zy/driver_mutation/data/ENCODE/metadata/organ'
     dict_organ = build_dict_attr(path_organ)
 
     # build organ dictionary
-    path_cell = '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-                'metadata/cell'
+    path_cell = '/home/zy/driver_mutation/data/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
     # DHS
     # metafile
     path_dhs = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/DNase-seq/all'
+        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
     df_meta_dhs = release_filter(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
@@ -400,19 +365,16 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'DNase-seq/GRCh38tohg19'
+        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19)
 
     # build DHS reference
-    path_dhs_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
     ref_dhs(path_hg38tohg19, path_dhs_hg38tohg19)
 
     # H3K27ac
     path_h3k27ac = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/H3K27ac'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
     df_meta_h3k27ac = release_filter(ori_meta_h3k27ac)
     df_meta_h3k27ac = \
@@ -424,20 +386,19 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K27ac'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac'
     hg38tohg19(path_h3k27ac, path_hg38tohg19)
 
     # unique H3K27ac
     path_h3k27ac_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k27ac_hg38tohg19)
 
     # H3K4me3
     path_h3k4me3 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/H3K4me3'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
     df_meta_h3k4me3 = release_filter(ori_meta_h3k4me3)
     df_meta_h3k4me3 = \
@@ -449,14 +410,14 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19)
 
     # unique H3K27ac
     path_h3k4me3_hg38tohg19 = \
-        '/lustre/tianlab/zhangyu/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3_merge'
     unique_bed_files_histone(path_hg38tohg19, path_h3k4me3_hg38tohg19)
 
     time_end = time()
