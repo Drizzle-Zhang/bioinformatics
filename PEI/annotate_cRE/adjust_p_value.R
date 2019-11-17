@@ -27,7 +27,7 @@ Adjust.pValue <- function(path.in, path.out, peak_num) {
     list.split <- strsplit(df.bed[,'V5'], ',')
     list.pvalue <- lapply(list.split, split.pvalue)
     unlist.pvalue <- unlist(list.pvalue)
-    vec.qvalue <- p.adjust(unlist.pvalue, 'BH', n = peak_num)
+    vec.qvalue <- p.adjust(unlist.pvalue, 'BH', n = as.numeric(peak_num))
     filter.pvalue <- unlist.pvalue[vec.qvalue < 0.05]
     cutoff.pvalue <- max(filter.pvalue)
     vec.combine.p <- 

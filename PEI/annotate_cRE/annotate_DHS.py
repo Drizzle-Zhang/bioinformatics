@@ -10,6 +10,7 @@ import os
 from multiprocessing import Pool
 from functools import partial
 import pandas as pd
+import numpy as np
 from prepare_bed_file_mu02 import merge_bed
 from subprocess import check_output
 
@@ -75,13 +76,14 @@ def generate_file_list(path_in, path_out):
     return list_input
 
 
-def sub_stan(type_bed, dict_in):
+def sub_stan(type_bed, df_meta, dict_in):
     path_out = dict_in['path_out']
     path_in = dict_in['path_in']
     file = dict_in['file']
-    organ = dict_in['organ']
-    life_stage = dict_in['life_stage']
-    term = dict_in['term']
+    organ = dict_in['organ'].replace('_', ' ')
+    life_stage = dict_in['life_stage'].replace('_', ' ')
+    term = dict_in['term'].replace('_', ' ').replace(
+                             '+', '/').replace("--", "'")
     file_label = f"{organ}|{life_stage}|{term}"
     file_in = os.path.join(path_in, file)
     file_out = os.path.join(path_out, file)
@@ -89,6 +91,12 @@ def sub_stan(type_bed, dict_in):
         file_tmp = file_in
     else:
         file_tmp = file_out + '.tmp'
+        df_sub = df_meta.loc[
+            (df_meta['Biosample organ'] == organ) &
+            (df_meta['Biosample life stage'] == life_stage) &
+            (df_meta['Biosample term name'] == term), ['Total peak number']]
+        total_num = np.sum(df_sub).tolist()[0]
+        os.system(f"Rscript adjust_p_value.R {file_in} {file_tmp} {total_num}")
 
     with open(file_tmp, 'r') as r_f:
         with open(file_out, 'w') as w_f:
@@ -104,7 +112,7 @@ def sub_stan(type_bed, dict_in):
                 if type_bed == 'DHS':
                     w_f.write(fmt_dhs.format(**locals()))
                 else:
-                    score = max(list_line[col_score].strip().split(','))
+                    score = list_line[3]
                     w_f.write(fmt_histone.format(**locals()))
 
     return
@@ -118,9 +126,13 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
         os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
                   f"{os.path.join(path_out, 'metadata.tsv')}")
 
+    df_meta = pd.read_csv(
+        os.path.join(path_in, 'metadata.simple.tsv'), sep='\t'
+    )
+
     list_input = generate_file_list(path_in, path_out)
     pool = Pool(processes=num_process)
-    func_stan = partial(sub_stan, type_bed)
+    func_stan = partial(sub_stan, type_bed, df_meta)
     pool.map(func_stan, list_input)
     pool.close()
 
@@ -380,49 +392,49 @@ if __name__ == '__main__':
 
     # standardization
     # DHS
-    path_dhs = '/home/zy/zhangyu/driver_mutation/data/DHS/GRCh38tohg19'
-    path_dhs_stan = '/home/zy/zhangyu/driver_mutation/data/' \
+    path_dhs = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19'
+    path_dhs_stan = '/home/zy/driver_mutation/data/' \
                     'DHS/GRCh38tohg19_standard'
     # standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # H3K27ac
     path_h3k27ac = \
-        '/home/zy/zhangyu/driver_mutation/data/ENCODE/' \
+        '/home/zy/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_merge'
     path_h3k27ac_stan = \
-        '/home/zy/zhangyu/driver_mutation/data/ENCODE/' \
+        '/home/zy/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K27ac_standard'
     standardize_bed(path_h3k27ac, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # H3K4me3
     path_h3k4me3 = \
-        '/home/zy/zhangyu/driver_mutation/data/ENCODE/' \
+        '/home/zy/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_merge'
     path_h3k4me3_stan = \
-        '/home/zy/zhangyu/driver_mutation/data/ENCODE/' \
+        '/home/zy/driver_mutation/data/ENCODE/' \
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
     standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # unify DHS labels
-    path_dhs_uniform = '/home/zy/zhangyu/driver_mutation/data/' \
+    path_dhs_uniform = '/home/zy/driver_mutation/data/' \
                        'DHS/GRCh38tohg19_uniform'
     # merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
     print('Uniform of DHS completed!')
 
     # annotate DHS
-    path_promoter = '/home/zy/zhangyu/driver_mutation/data/gene/' \
+    path_promoter = '/home/zy/driver_mutation/data/gene/' \
                     'promoters.up2k.protein.gencode.v19.bed'
-    path_anno = '/home/zy/zhangyu/driver_mutation/data/DHS/' \
+    path_anno = '/home/zy/driver_mutation/data/DHS/' \
                 'GRCh38tohg19_annotation'
     annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
                  path_h3k4me3_stan, path_anno, num_cpu)
     print('Annotation of DHS completed!')
 
     # annotate cRE
-    path_cre = '/home/zy/zhangyu/driver_mutation/data/DHS/' \
+    path_cre = '/home/zy/driver_mutation/data/DHS/' \
                'GRCh38tohg19_cRE'
     annotate_cre(path_anno, path_cre, num_cpu)
     print('Annotation completed!')
