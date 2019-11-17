@@ -12,6 +12,7 @@ import os
 from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
+from subprocess import check_output
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file):
@@ -258,6 +259,23 @@ def merge_bed(path_bed, dict_in):
     return
 
 
+def calculate_peak_numbers(path_in, dict_in):
+    file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+    file_tail = check_output(f"sort -k 8 -n {file_in} | head -1", shell=True)
+    list_tail = str(file_tail).strip().split('\\t')
+    order = int(str(check_output(f"wc -l {file_in}",
+                                 shell=True).strip()).split(' ')[0][2:])
+    p_value = 10 ** (-float(list_tail[7]))
+    q_value = 10 ** (-float(list_tail[8]))
+    if list_tail[6] == -1:
+        total = '.'
+    else:
+        total = int(q_value/p_value * order)
+
+    return {'File accession': dict_in['File accession'],
+            'Total peak number': total}
+
+
 def unique_bed_files(path_in, path_out, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
@@ -275,8 +293,19 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    df_meta_normal.to_csv(os.path.join(path_out, 'metadata.simple.tsv'),
-                          sep='\t', index=None)
+
+    # total peak numbers
+    list_dict_meta = df_meta_normal.to_dict('records')
+    pool = Pool(processes=num_process)
+    func_calc = partial(calculate_peak_numbers, path_in)
+    result = pool.map(func_calc, list_dict_meta)
+    pool.close()
+    df_res = pd.DataFrame(result)
+    df_meta_merge = pd.merge(df_meta_normal, df_res, on='File accession')
+
+    df_meta_merge.to_csv(os.path.join(path_out, 'metadata.simple.tsv'),
+                         sep='\t', index=None)
+
     meta_out = df_meta_normal.loc[
                :, ['Biosample term name', 'Biosample life stage',
                    'Biosample organ']]
@@ -338,7 +367,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    num_cpu = 80
+    num_cpu = 40
     para_flank = 0.1
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
