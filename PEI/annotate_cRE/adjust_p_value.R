@@ -1,5 +1,3 @@
-library(metap)
-
 split.pvalue <- function(str.vec) {
     num.vec <- as.numeric(str.vec)
     vec.pvalue <- 10 ^ -(num.vec)
@@ -7,36 +5,42 @@ split.pvalue <- function(str.vec) {
     return(vec.pvalue)
 }
 
-cut.integration <- function(vec.pvalue, cutoff) {
-    vec.pvalue <- vec.pvalue[vec.pvalue <= cutoff]
-    if (length(vec.pvalue) == 0) {
-        p.combine <- -1
+cut.integration <- function(vec.lgp, cutoff) {
+    vec.lgp <- vec.lgp[vec.lgp >= cutoff]
+    len.vec <- length(vec.lgp)
+    if (len.vec == 0) {
+        lgp.combine <- -1
     }
-    if (length(vec.pvalue) == 1) {
-        p.combine <- vec.pvalue
+    if (len.vec == 1) {
+        lgp.combine <- vec.lgp
     }
-    if (length(vec.pvalue) > 1) {
-        p.combine <- sumlog(vec.pvalue)$p
+    if (len.vec > 1) {
+        vec.lnp <- vec.lgp * log(10)
+        chisq <- sum(2 * vec.lnp)
+        df <- 2 * len.vec
+        lnp.combine <- pchisq(chisq, df, lower.tail = F, log.p = T)
+        lgp.combine <- -lnp.combine * log10(exp(1))
     } 
     
-    return(p.combine)
+    return(lgp.combine)
 }
 
 Adjust.pValue <- function(path.in, path.out, peak_num) {
     df.bed <- read.delim(path.in, sep = '\t', stringsAsFactors = F, header = F)
     list.split <- strsplit(df.bed[,'V5'], ',')
+    # calculate cutoff
     list.pvalue <- lapply(list.split, split.pvalue)
     unlist.pvalue <- unlist(list.pvalue)
     vec.qvalue <- p.adjust(unlist.pvalue, 'BH', n = as.numeric(peak_num))
     filter.pvalue <- unlist.pvalue[vec.qvalue < 0.05]
-    cutoff.pvalue <- max(filter.pvalue)
-    vec.combine.p <- 
-        unlist(lapply(list.pvalue, cut.integration, cutoff = cutoff.pvalue))
-    df.bed$V6 <- vec.combine.p
+    cutoff.lgp <- -log10(max(filter.pvalue))
+    # combine p value
+    list.lgp <- lapply(list.split, as.numeric)
+    vec.combine.lgp <- 
+        unlist(lapply(list.lgp, cut.integration, cutoff = cutoff.lgp))
+    df.bed$V6 <- vec.combine.lgp
     df.out <- df.bed[df.bed$V6 != -1, c('V1', 'V2', 'V3', 'V6')]
-    df.out$V6 <- -log10(df.out$V6)
-    df.out$V6[df.out$V6 == Inf] <- 500
-    
+
     write.table(df.out, path.out, sep = '\t', quote = F, row.names = F,
                 col.names = F)
 }

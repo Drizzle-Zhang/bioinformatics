@@ -23,12 +23,7 @@ def generate_file_list(path_in, path_out):
             continue
         path_1 = os.path.join(path_in, element_1)
         if not os.path.isdir(path_1):
-            list_input.append(dict(path_out=path_out,
-                                   file=element_1,
-                                   path_in=path_in,
-                                   organ='.',
-                                   life_stage='.',
-                                   term='.'))
+            continue
         else:
             path_1_out = os.path.join(path_out, element_1)
             if not os.path.exists(path_1_out):
@@ -37,12 +32,7 @@ def generate_file_list(path_in, path_out):
             for element_2 in folder_2:
                 path_2 = os.path.join(path_1, element_2)
                 if not os.path.isdir(path_2):
-                    list_input.append(dict(path_out=path_1_out,
-                                           file=element_2,
-                                           path_in=path_1,
-                                           organ=element_1,
-                                           life_stage='.',
-                                           term='.'))
+                    continue
                 else:
                     path_2_out = os.path.join(path_1_out, element_2)
                     if not os.path.exists(path_2_out):
@@ -51,12 +41,7 @@ def generate_file_list(path_in, path_out):
                     for element_3 in folder_3:
                         path_3 = os.path.join(path_2, element_3)
                         if not os.path.isdir(path_3):
-                            list_input.append(dict(path_out=path_2_out,
-                                                   file=element_3,
-                                                   path_in=path_2,
-                                                   organ=element_1,
-                                                   life_stage=element_2,
-                                                   term='.'))
+                            continue
                         else:
                             path_3_out = os.path.join(path_2_out, element_3)
                             if not os.path.exists(path_3_out):
@@ -65,6 +50,8 @@ def generate_file_list(path_in, path_out):
                             for element_4 in folder_4:
                                 path_4 = os.path.join(path_3, element_4)
                                 if not os.path.isdir(path_4):
+                                    if element_4[-4:] != '.bed':
+                                        continue
                                     list_input.append(dict(path_out=path_3_out,
                                                            file=element_4,
                                                            path_in=path_3,
@@ -395,7 +382,7 @@ if __name__ == '__main__':
     path_dhs = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19'
     path_dhs_stan = '/home/zy/driver_mutation/data/' \
                     'DHS/GRCh38tohg19_standard'
-    # standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
+    standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # H3K27ac
@@ -418,26 +405,26 @@ if __name__ == '__main__':
     standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
-    # unify DHS labels
-    path_dhs_uniform = '/home/zy/driver_mutation/data/' \
-                       'DHS/GRCh38tohg19_uniform'
-    # merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
-    print('Uniform of DHS completed!')
-
-    # annotate DHS
-    path_promoter = '/home/zy/driver_mutation/data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.bed'
-    path_anno = '/home/zy/driver_mutation/data/DHS/' \
-                'GRCh38tohg19_annotation'
-    annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
-                 path_h3k4me3_stan, path_anno, num_cpu)
-    print('Annotation of DHS completed!')
-
-    # annotate cRE
-    path_cre = '/home/zy/driver_mutation/data/DHS/' \
-               'GRCh38tohg19_cRE'
-    annotate_cre(path_anno, path_cre, num_cpu)
-    print('Annotation completed!')
+    # # unify DHS labels
+    # path_dhs_uniform = '/home/zy/driver_mutation/data/' \
+    #                    'DHS/GRCh38tohg19_uniform'
+    # # merge_split_bed(path_dhs_stan, path_dhs_uniform, num_cpu)
+    # print('Uniform of DHS completed!')
+    #
+    # # annotate DHS
+    # path_promoter = '/home/zy/driver_mutation/data/gene/' \
+    #                 'promoters.up2k.protein.gencode.v19.bed'
+    # path_anno = '/home/zy/driver_mutation/data/DHS/' \
+    #             'GRCh38tohg19_annotation'
+    # annotate_dhs(path_dhs_uniform, path_promoter, path_h3k27ac_stan,
+    #              path_h3k4me3_stan, path_anno, num_cpu)
+    # print('Annotation of DHS completed!')
+    #
+    # # annotate cRE
+    # path_cre = '/home/zy/driver_mutation/data/DHS/' \
+    #            'GRCh38tohg19_cRE'
+    # annotate_cre(path_anno, path_cre, num_cpu)
+    # print('Annotation completed!')
 
     time_end = time()
     print(time_end - time_start)
