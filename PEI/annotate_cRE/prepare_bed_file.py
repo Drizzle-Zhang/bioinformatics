@@ -100,7 +100,7 @@ def add_attr(df_meta, dict_attr, column_name):
     return df_out
 
 
-def del_organ(df_meta, set_ref):
+def modify_meta(df_meta, set_ref):
     df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
@@ -111,6 +111,16 @@ def del_organ(df_meta, set_ref):
 
     df_meta = df_meta.drop('Biosample organ', 1)
     df_meta['Biosample organ'] = new_organs
+
+    life_stages = df_meta['Biosample life stage'].tolist()
+    new_life_stages = []
+    for life_stage in life_stages:
+        if life_stage in ['adult', 'embryonic', 'unknown', 'newborn', 'child']:
+            new_life_stages.append(life_stage)
+        else:
+            new_life_stages.append('unknown')
+    df_meta = df_meta.drop('Biosample life stage', 1)
+    df_meta['Biosample life stage'] = new_life_stages
 
     return df_meta
 
@@ -405,7 +415,7 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
-    df_meta_dhs = del_organ(df_meta_dhs, set_organs)
+    df_meta_dhs = modify_meta(df_meta_dhs, set_organs)
     meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
 
@@ -427,7 +437,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    df_meta_h3k27ac = del_organ(df_meta_h3k27ac, set_organs)
+    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs)
     meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
 
@@ -453,7 +463,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    df_meta_h3k4me3 = del_organ(df_meta_h3k4me3, set_organs)
+    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs)
     meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
 
