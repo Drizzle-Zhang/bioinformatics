@@ -11,7 +11,6 @@ from multiprocessing import Pool
 from functools import partial
 import pandas as pd
 import numpy as np
-from prepare_bed_file_mu02 import merge_bed
 from subprocess import check_output
 
 
@@ -52,13 +51,12 @@ def generate_file_list(path_in, path_out):
                                 if not os.path.isdir(path_4):
                                     if element_4[-4:] != '.bed':
                                         continue
-                                    list_input.append(dict(path_out=path_3_out,
-                                                           file=element_4,
-                                                           path_in=path_3,
-                                                           organ=element_1,
-                                                           life_stage=
-                                                           element_2,
-                                                           term=element_3))
+                                    list_input.append(
+                                        dict(path_out=path_3_out,
+                                             file=element_4, path_in=path_3,
+                                             organ=element_1,
+                                             life_stage=element_2,
+                                             term=element_3))
 
     return list_input
 
@@ -104,6 +102,8 @@ def sub_stan(type_bed, df_meta, dict_in):
                 else:
                     score = list_line[3]
                     w_f.write(fmt_histone.format(**locals()))
+
+    os.system(f"rm {file_tmp}")
 
     return
 
@@ -151,51 +151,162 @@ def split_ref_bed(ref_file, dict_in):
     return
 
 
-def merge_split_bed(path_in, path_out, num_process):
+def merge_bed(path_bed, dict_in):
+    flank_percent = dict_in['flank_percent']
+    term_name = dict_in['term_name']
+    path_out = dict_in['path']
+    col_collapse = '2,3,5,7'
+    str_collapse = \
+        ','.join([val for val in ['collapse']
+                  for i in range(len(col_collapse.split(',')))])
+    cat_out = os.path.join(path_out, f"{term_name}.bed.cat")
+    sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
+    merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
+    cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
+                       for acce_id in dict_in['accession_ids']])
+    os.system(f"cat {cat_in} > {cat_out}")
+    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
+    os.system(f"bedtools merge -i {sort_out} "
+              f"-c {col_collapse} -o {str_collapse} > {merge_out}")
+
+    # split merge file
+    split_out = os.path.join(path_out, f"{term_name}.bed")
+    with open(merge_out, 'r') as r_f:
+        with open(split_out, 'w') as w_f:
+            fmt = "{chrom}\t{start}\t{end}\t{label}\t{p_value}\n"
+            for line in r_f:
+                list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                array_start = np.array(
+                    [int(num) for num in list_line[3].strip().split(',')])
+                array_end = np.array(
+                    [int(num) for num in list_line[4].strip().split(',')])
+                array_label = np.array(
+                    [num for num in list_line[6].strip().split(',')])
+                array_p_value = np.array(
+                    [num for num in list_line[5].strip().split(',')])
+                array_length = array_end - array_start
+                while array_length.shape[0] > 0:
+                    idx = np.argmax(array_length)
+                    start_idx = array_start[idx]
+                    end_idx = array_end[idx]
+                    flank = array_length[idx] * flank_percent
+                    select_bool = (array_start >= start_idx - flank) & \
+                                  (array_end <= end_idx + flank)
+                    select_start = array_start[select_bool]
+                    select_end = array_end[select_bool]
+                    select_label = array_label[select_bool]
+                    select_p_value = array_p_value[select_bool]
+                    # reset arrays
+                    array_start = array_start[~select_bool]
+                    array_end = array_end[~select_bool]
+                    array_label = array_label[~select_bool]
+                    array_p_value = array_p_value[~select_bool]
+                    array_length = array_end - array_start
+                    # write new rows
+                    start = str(np.min(select_start))
+                    end = str(np.max(select_end))
+                    label = \
+                        ','.join(map(str, select_label.tolist()))
+                    p_value = ','.join(map(str, select_p_value.tolist()))
+                    w_f.write(fmt.format(**locals()))
+
+    os.remove(cat_out)
+    os.remove(sort_out)
+
+    return
+
+
+def sub_merge(dict_in):
+    sub_meta = dict_in['sub_meta']
+    sub_path_in = dict_in['path_in']
+    sub_path_out = dict_in['path_out']
+    file_out = \
+        os.path.join(sub_path_out, dict_in['organ'].replace(' ', '_') + '.bed')
+    if not os.path.exists(sub_path_out):
+        os.mkdir(sub_path_out)
+    list_meta = sub_meta.to_dict("records")
+    accession_ids = [
+        '/'.join([sub_dict['Biosample life stage'].replace(' ', '_'),
+                  sub_dict['Biosample term name'].replace(
+                        ' ', '_').replace('/', '+').replace("'", '--'),
+                  sub_dict['Biosample term name'].replace(
+                        ' ', '_').replace('/', '+').replace("'", '--')])
+        for sub_dict in list_meta]
+    if sub_meta.shape[0] == 1:
+        os.system(
+            f"mv {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
+            f"{file_out}"
+        )
+    elif sub_meta.shape[0] > 1:
+        dict_merge = dict(
+            path=sub_path_out,
+            term_name=dict_in['organ'].replace(' ', '_'),
+            accession_ids=accession_ids,
+            flank_percent=0.1)
+        merge_bed(sub_path_in, dict_merge)
+        labels = [f"{dict_in['organ']}|{sub_dict['Biosample life stage']}|"
+                  f"{sub_dict['Biosample term name']}"
+                  for sub_dict in list_meta]
+        list_bed = \
+            (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
+        list_dict = []
+        for sub_dict in list_bed:
+            out_dict = dict()
+            out_dict['peak_id'] = \
+                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
+            list_label = sub_dict[3].strip().split(',')
+            list_lgp = \
+                [num for num in sub_dict[4].strip().split(',')]
+            for label in labels:
+                try:
+                    idx = list_label.index(label)
+                except ValueError:
+                    out_dict[label] = 0
+                    continue
+                lgp = list_lgp[idx]
+                if lgp != '.':
+                    out_dict[label] = float(lgp)
+                else:
+                    out_dict[label] = -1
+            list_dict.append(out_dict)
+        df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
+        df_label_peak.index = df_label_peak['peak_id']
+        df_label_peak = df_label_peak.drop('peak_id', 1)
+        df_label_peak.to_csv(
+            os.path.join(sub_path_out, 'label_peak.txt'), sep='\t'
+        )
+        os.system(f"Rscript ")
+
+    return
+
+
+def merge_organ_cluster(path_in, path_out, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
     os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
               f"{os.path.join(path_out, 'metadata.tsv')}")
 
-    list_input = generate_file_list(path_in, path_out)
-    df_list = pd.DataFrame(list_input)
-    # merge
-    df_subs = df_list.loc[df_list['organ'] != '.',
-                          ['organ', 'life_stage', 'file']]
-    list_input = (df_list.loc[df_list['organ'] != '.', :]).to_dict('records')
-    accession_ids = []
-    for line in df_subs.to_dict('records'):
-        if line['life_stage'] == '.':
-            accession_ids.append(line['organ'] + '/' + line['file'][:-4])
-        else:
-            accession_ids.append(line['organ'] + '/' + line['life_stage']
-                                 + '/' + line['file'][:-4])
-    dict_merge = dict(term_name='Reference_DHS', path=path_out,
-                      accession_ids=accession_ids)
-    merge_bed(path_in, '7', dict_merge)
+    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.tsv'), sep='\t')
+    organs = []
+    for line in df_meta['Biosample organ'].tolist():
+        organs.extend(line.strip().split(','))
+    organs = set(organs)
+    list_input = []
+    for organ in organs:
+        sub_meta = df_meta.loc[
+                   df_meta['Biosample organ'].apply(
+                       lambda x: organ in x.strip().split(',')), :]
+        list_input.append(
+            dict(sub_meta=sub_meta, organ=organ,
+                 path_out=os.path.join(path_out, organ.replace(' ', '_')),
+                 path_in=os.path.join(path_in, organ.replace(' ', '_'))))
 
-    # add uniform label
-    all_ref = os.path.join(path_out, 'Reference_DHS.plus.bed')
-    with open(os.path.join(path_out, 'Reference_DHS.bed'), 'r') as r_f:
-        with open(all_ref, 'w') as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
-            for line in r_f:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                start = list_line[1]
-                end = list_line[2]
-                label = f"DHS<-{chrom}:{start}-{end}"
-                file_label = list_line[3]
-                w_f.write(fmt_dhs.format(**locals()))
-
-    # split
     pool = Pool(processes=num_process)
-    func_split = partial(split_ref_bed, all_ref)
-    pool.map(func_split, list_input)
+    pool.map(sub_merge, list_input)
     pool.close()
-
-    os.system(f"mv {all_ref} {os.path.join(path_out, 'Reference_DHS.bed')}")
 
     return
 
@@ -407,6 +518,24 @@ if __name__ == '__main__':
         'histone_ChIP-seq/GRCh38tohg19/H3K4me3_standard'
     standardize_bed(path_h3k4me3, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
+
+    # merge and cluster
+    # DHS
+    path_dhs_cluster = \
+        '/home/zy/driver_mutation/data/DHS/GRCh38tohg19_cluster'
+    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
+
+    # H3K27ac
+    path_h3k27ac_cluster = \
+        '/home/zy/driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_cluster'
+    merge_organ_cluster(path_h3k27ac_stan, path_h3k27ac_cluster, num_cpu)
+
+    # H3K4me3
+    path_h3k4me3_cluster = \
+        '/home/zy/driver_mutation/data/ENCODE/' \
+        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_cluster'
+    merge_organ_cluster(path_h3k4me3_stan, path_h3k4me3_cluster, num_cpu)
 
     # # unify DHS labels
     # path_dhs_uniform = '/home/zy/driver_mutation/data/' \

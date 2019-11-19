@@ -44,9 +44,9 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
                     w_gene.write(fmt_gene.format(**dict_gene))
                     if strand == '+':
                         pro_start = str(int(list_line_gene[3]) - 2000)
-                        pro_end = list_line_gene[3]
+                        pro_end = str(int(list_line_gene[3]) + 2000)
                     elif strand == '-':
-                        pro_start = list_line_gene[4]
+                        pro_start = str(int(list_line_gene[4]) - 2000)
                         pro_end = str(int(list_line_gene[4]) + 2000)
                     else:
                         print('Error')
@@ -387,7 +387,7 @@ if __name__ == '__main__':
     promoter_file_hg19 = \
         '/home/zy/driver_mutation/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
 
     # build life stage dictionary
     path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
