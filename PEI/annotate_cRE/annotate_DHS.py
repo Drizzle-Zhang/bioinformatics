@@ -274,10 +274,10 @@ def sub_merge(dict_in):
         df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
         df_label_peak.index = df_label_peak['peak_id']
         df_label_peak = df_label_peak.drop('peak_id', 1)
-        df_label_peak.to_csv(
-            os.path.join(sub_path_out, 'label_peak.txt'), sep='\t'
-        )
-        os.system(f"Rscript ")
+        mat_peak = os.path.join(sub_path_out, 'label_peak.txt')
+        df_label_peak.to_csv(mat_peak, sep='\t')
+        os.system(f"Rscript hcluster.R {mat_peak} "
+                  f"{os.path.join(sub_path_out, 'hcluster.pdf')}")
 
     return
 

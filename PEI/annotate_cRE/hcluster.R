@@ -6,7 +6,7 @@ hier.cluster <- function(file.in, fig.out) {
     d <- dist(t(df.lable.peak), method = 'binary')
     fit.average <- hclust(d, method = 'average')
     pdf(fig.out)
-    plot(fit.average, hang = -1, cex = 1)
+    plot(fit.average, hang = 0.2, cex = 1)
     dev.off()
     
 }

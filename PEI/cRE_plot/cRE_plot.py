@@ -79,6 +79,27 @@ def count_cre(path_in, path_out, num_process):
     return
 
 
+def count_peaks(path_in, dict_in):
+    file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+    df_bed = pd.read_csv(file_in, sep='\t', header=None, usecols=[1, 2])
+    
+
+    return
+
+
+def stat_bed(path_bed):
+    # count peaks and get peak length distribution
+    df_meta = pd.read_csv(
+        os.path.join(path_bed, 'metadata.simple.tsv'), sep='\t',
+        usecols=['File accession', 'Experiment accession', 'Biosample term id',
+                 'Assembly', 'Biosample life stage', 'Biosample term name',
+                 'Biosample organ']
+    )
+    list_meta = df_meta.to_dict('records')
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
 

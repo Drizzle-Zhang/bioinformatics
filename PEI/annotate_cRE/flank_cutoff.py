@@ -23,7 +23,7 @@ def count_rows(dict_in):
     output = check_output(f"wc -l {split_out}", shell=True)
     num_rows = int(str(output).split(' ')[0][2:])
     label = path_out.split('/')[-1]
-    df_bed = pd.read_csv(split_out, sep='\t', usecols=[1, 2])
+    df_bed = pd.read_csv(split_out, sep='\t', usecols=[1, 2], header=None)
     length = df_bed.iloc[:, 1] - df_bed.iloc[:, 0]
     medium = length.quantile(0.5)
     percent_75 = length.quantile(0.75)

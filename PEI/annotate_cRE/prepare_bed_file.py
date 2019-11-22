@@ -65,6 +65,7 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
 
 
 def release_filter(meta_in):
+    # reserve released data and simplify meta file
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
         df_meta['File Status'] == 'released',
@@ -77,6 +78,7 @@ def release_filter(meta_in):
 
 
 def build_dict_attr(path_meta):
+    # build a dictionary to add organ/life stage/cell labels
     dict_accession_attr = defaultdict(list)
     meta_files = os.listdir(path_meta)
     for file in meta_files:
@@ -92,6 +94,7 @@ def build_dict_attr(path_meta):
 
 
 def add_attr(df_meta, dict_attr, column_name):
+    # add labels to meta file
     df_access = df_meta['File accession']
     df_attr = df_access.apply(lambda x: ','.join(dict_attr[x]))
     df_attr.name = column_name
@@ -101,6 +104,10 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def modify_meta(df_meta, set_ref):
+    # only select tissue data
+    df_meta = df_meta.loc[df_meta['Biosample type'] == 'tissue', :]
+
+    # reference organs
     df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
@@ -112,6 +119,7 @@ def modify_meta(df_meta, set_ref):
     df_meta = df_meta.drop('Biosample organ', 1)
     df_meta['Biosample organ'] = new_organs
 
+    # correct fuzzy life stage labels to 'unknown'
     life_stages = df_meta['Biosample life stage'].tolist()
     new_life_stages = []
     for life_stage in life_stages:
@@ -128,6 +136,7 @@ def modify_meta(df_meta, set_ref):
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
+    # Download from UCSC
     file_chain = \
         '/home/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
@@ -387,7 +396,7 @@ if __name__ == '__main__':
     promoter_file_hg19 = \
         '/home/zy/driver_mutation/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
 
     # build life stage dictionary
     path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
