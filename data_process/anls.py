@@ -60,20 +60,6 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
     return
 
 
-def filter_meta(path_in, list_exp):
-    file_meta = os.path.join(path_in, 'metadata.tsv')
-    df_meta = pd.read_csv(file_meta, sep='\t')
-    bool_exp = df_meta['Experiment accession'].apply(lambda x: x in list_exp)
-    df_simple = df_meta.loc[
-        (df_meta['File Status'] == 'released') & bool_exp,
-        ['File accession', 'Experiment accession', 'Output type']]
-    df_simple.to_csv(
-        os.path.join(path_in, 'metadata.simple.tsv'), sep='\t'
-    )
-
-    return
-
-
 def annotate_cre(path_root):
     df_ref = pd.read_csv(os.path.join(path_root, 'list_ref.txt'), sep='\t')
     for i in range(df_ref.shape[0]):
