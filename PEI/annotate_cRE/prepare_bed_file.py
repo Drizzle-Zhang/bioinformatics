@@ -117,9 +117,13 @@ def modify_meta(df_meta, set_ref):
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
     for organ in organs:
-        list_organ = \
-            [val for val in organ.strip().split(',') if val in set_ref]
-        new_organs.append(','.join(list_organ))
+        # modify manually
+        if organ == '':
+            new_organs.append('bone element,limb')
+        else:
+            list_organ = \
+                [val for val in organ.strip().split(',') if val in set_ref]
+            new_organs.append(','.join(list_organ))
 
     df_meta = df_meta.drop('Biosample organ', 1)
     df_meta['Biosample organ'] = new_organs
