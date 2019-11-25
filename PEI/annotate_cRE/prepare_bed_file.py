@@ -64,8 +64,9 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
     return
 
 
-def release_filter(meta_in):
-    # reserve released data and simplify meta file
+def filter_meta(meta_in):
+    # reserve released data and original(not merge) peak file
+    # simplify meta file
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
         (df_meta['File Status'] == 'released') &
@@ -109,7 +110,7 @@ def modify_meta(df_meta, set_ref):
     df_meta = df_meta.loc[df_meta['Biosample type'] == 'tissue', :]
 
     # reference organs
-    df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
+    # df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
     for organ in organs:
@@ -299,34 +300,24 @@ def calculate_peak_numbers(path_in, dict_in):
 def unique_bed_files(path_in, path_out, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-    cancer_state1 = df_meta['Biosample cell'].apply(
-        lambda x: True if isinstance(x, float) else
-        'cancer cell' not in x.strip().split(',')
-    )
-    cancer_state2 = df_meta['Biosample cell'].apply(
-        lambda x: True if isinstance(x, float) else
-        'neuroblastoma cell' not in x.strip().split(',')
-    )
-
-    df_meta_normal = df_meta.loc[cancer_state1 & cancer_state2, :]
 
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
     # total peak numbers
-    list_dict_meta = df_meta_normal.to_dict('records')
+    list_dict_meta = df_meta.to_dict('records')
     pool = Pool(processes=num_process)
     func_calc = partial(calculate_peak_numbers, path_in)
     result = pool.map(func_calc, list_dict_meta)
     pool.close()
     df_res = pd.DataFrame(result)
-    df_meta_merge = pd.merge(df_meta_normal, df_res, on='File accession')
+    df_meta_merge = pd.merge(df_meta, df_res, on='File accession')
 
     df_meta_merge.to_csv(os.path.join(path_out, 'metadata.simple.tsv'),
                          sep='\t', index=None)
 
-    meta_out = df_meta_normal.loc[
+    meta_out = df_meta.loc[
                :, ['Biosample term name', 'Biosample life stage',
                    'Biosample organ']]
     meta_out = meta_out.drop_duplicates()
@@ -335,12 +326,12 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
 
     list_input = []
     organs = []
-    for line in df_meta_normal['Biosample organ'].tolist():
+    for line in df_meta['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
     organs = set(organs)
     for organ in organs:
-        organ_meta = df_meta_normal.loc[
-                     df_meta_normal['Biosample organ'].apply(
+        organ_meta = df_meta.loc[
+                     df_meta['Biosample organ'].apply(
                          lambda x: organ in x.strip().split(',')), :]
         organ_path = \
             os.path.join(path_out, organ.replace(' ', '_'))
@@ -361,9 +352,9 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                 os.makedirs(path_life_stage)
             terms = set(life_meta['Biosample term name'].tolist())
             for term in terms:
-                filter_meta = \
+                term_meta = \
                     life_meta.loc[life_meta['Biosample term name'] == term, :]
-                accession_ids = filter_meta['File accession'].tolist()
+                accession_ids = term_meta['File accession'].tolist()
                 path_term = \
                     os.path.join(path_life_stage, term.replace(
                         ' ', '_').replace('/', '+').replace("'", '--'))
@@ -421,7 +412,7 @@ if __name__ == '__main__':
     path_dhs = \
         '/home/zy/driver_mutation/data/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
-    df_meta_dhs = release_filter(ori_meta_dhs)
+    df_meta_dhs = filter_meta(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
@@ -442,7 +433,7 @@ if __name__ == '__main__':
     path_h3k27ac = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    df_meta_h3k27ac = release_filter(ori_meta_h3k27ac)
+    df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
     df_meta_h3k27ac = \
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
@@ -468,7 +459,7 @@ if __name__ == '__main__':
     path_h3k4me3 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    df_meta_h3k4me3 = release_filter(ori_meta_h3k4me3)
+    df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
     df_meta_h3k4me3 = \
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
