@@ -70,10 +70,13 @@ def filter_meta(meta_in):
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
         (df_meta['File Status'] == 'released') &
-        (df_meta['Biological replicate'] != '1, 2'),
+        (df_meta['Biological replicate(s)'].apply(
+            lambda x: len(x.split(', ')) == 1
+        )),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
-         'Biosample genetic modifications methods', 'Assembly']]
+         'Biosample genetic modifications methods', 'Assembly',
+         'Biological replicate(s)', 'File Status']]
     df_meta_released.index = df_meta_released['File accession']
 
     return df_meta_released
