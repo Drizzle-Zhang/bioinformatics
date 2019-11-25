@@ -224,6 +224,8 @@ def merge_bed(path_bed, dict_in):
     flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
     path_out = dict_in['path']
+
+    # merge bed files from same term
     col_collapse = '2,3,5,6,7,8,9'
     str_collapse = \
         ','.join([val for val in ['collapse']
@@ -235,7 +237,6 @@ def merge_bed(path_bed, dict_in):
                        for acce_id in dict_in['accession_ids']])
     os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
-    # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
               f"-c {col_collapse} -o {str_collapse} > {merge_out}")
 
@@ -260,6 +261,7 @@ def merge_bed(path_bed, dict_in):
                     idx = np.argmax(array_length)
                     start_idx = array_start[idx]
                     end_idx = array_end[idx]
+                    # merge similar peaks
                     flank = array_length[idx] * flank_percent
                     select_bool = (array_start >= start_idx - flank) & \
                                   (array_end <= end_idx + flank)
@@ -312,7 +314,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
-    # total peak numbers
+    # infer total peak numbers
     list_dict_meta = df_meta.to_dict('records')
     pool = Pool(processes=num_process)
     func_calc = partial(calculate_peak_numbers, path_in)
@@ -328,7 +330,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                :, ['Biosample term name', 'Biosample life stage',
                    'Biosample organ']]
     meta_out = meta_out.drop_duplicates()
-    meta_out.to_csv(os.path.join(path_out, 'metadata.tsv'),
+    meta_out.to_csv(os.path.join(path_out, 'meta.reference.tsv'),
                     sep='\t', index=None)
 
     list_input = []

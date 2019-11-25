@@ -78,9 +78,7 @@ def sub_stan(type_bed, df_meta, dict_in):
         file_tmp = file_out + '.tmp'
         df_sub = df_meta.loc[
             (df_meta['Biosample organ'].apply(
-                lambda x: False if isinstance(x, float) else
-                organ in x.strip().split(',')
-            )) &
+                lambda x: organ in x.strip().split(','))) &
             (df_meta['Biosample life stage'] == life_stage) &
             (df_meta['Biosample term name'] == term), ['Total peak number']]
         total_num = np.sum(df_sub).tolist()[0]
@@ -112,9 +110,10 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    if os.path.exists(os.path.join(path_in, 'metadata.tsv')):
-        os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
-                  f"{os.path.join(path_out, 'metadata.tsv')}")
+    os.system(f"cp {os.path.join(path_in, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
+    os.system(f"cp {os.path.join(path_in, 'meta.reference.tsv')} "
+              f"{os.path.join(path_out, 'meta.reference.tsv')}")
 
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t'

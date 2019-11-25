@@ -1,4 +1,4 @@
-hier.cluster <- function(file.in, fig.out) {
+scatter.plot <- function(file.in, fig.out) {
     df.lable.peak <- read.delim(file.in, sep = '\t')
     row.names(df.lable.peak) <- df.lable.peak$peak_id
     df.lable.peak$peak_id <- NULL
@@ -12,5 +12,5 @@ hier.cluster <- function(file.in, fig.out) {
 }
 
 args <- commandArgs(T)
-hier.cluster(args[1], args[2])
+scatter.plot(args[1], args[2])
 
