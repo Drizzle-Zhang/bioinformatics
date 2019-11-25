@@ -71,7 +71,7 @@ def filter_meta(meta_in):
     df_meta_released = df_meta.loc[
         (df_meta['File Status'] == 'released') &
         (df_meta['Biological replicate(s)'].apply(
-            lambda x: len(x.split(', ')) == 1
+            lambda x: len(str(x).split(', ')) == 1
         )),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
