@@ -81,10 +81,22 @@ def count_cre(path_in, path_out, num_process):
 
 def count_peaks(path_in, dict_in):
     file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
-    df_bed = pd.read_csv(file_in, sep='\t', header=None, usecols=[1, 2])
-    
+    total = int(str(check_output(f"wc -l {file_in}",
+                                 shell=True).strip()).split(' ')[0][2:])
+    dict_in['Biosample file rows'] = total
 
-    return
+    return dict_in
+
+
+def get_distribution(path_in, dict_in):
+    file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+    df_bed = pd.read_csv(file_in, sep='\t', header=None, usecols=[1, 2])
+    length = df_bed.iloc[:, 1] - df_bed.iloc[:, 0]
+    for i in range(101):
+        percent_i = length.quantile(i/100)
+        dict_in[str(i)] = percent_i
+
+    return dict_in
 
 
 def stat_bed(path_bed):
@@ -96,6 +108,25 @@ def stat_bed(path_bed):
                  'Biosample organ']
     )
     list_meta = df_meta.to_dict('records')
+
+    pool = Pool(processes=40)
+    func_count = partial(count_peaks, path_bed)
+    list_count = pool.map(func_count, list_meta)
+    pool.close()
+
+    pool = Pool(processes=40)
+    func_distri = partial(get_distribution, path_bed)
+    list_distri = pool.map(func_distri, list_meta)
+    pool.close()
+
+    df_count = pd.DataFrame(list_count)
+    df_distr = pd.DataFrame(list_distri)
+    df_count.to_csv(
+        os.path.join(path_bed, 'count.txt'), sep='\t'
+    )
+    df_distr.to_csv(
+        os.path.join(path_bed, 'distribution.txt'), sep='\t'
+    )
 
     return
 

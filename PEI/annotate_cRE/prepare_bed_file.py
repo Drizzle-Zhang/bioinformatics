@@ -68,7 +68,8 @@ def release_filter(meta_in):
     # reserve released data and simplify meta file
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
-        df_meta['File Status'] == 'released',
+        (df_meta['File Status'] == 'released') &
+        (df_meta['Biological replicate'] != '1, 2'),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
          'Biosample genetic modifications methods', 'Assembly']]
