@@ -433,7 +433,7 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
-    df_meta_dhs = modify_meta(df_meta_dhs, set_organs)
+    df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
     meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
 
@@ -455,7 +455,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs)
+    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
     meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
 
@@ -481,7 +481,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs)
+    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
     meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
 
