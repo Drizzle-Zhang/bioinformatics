@@ -108,22 +108,26 @@ def add_attr(df_meta, dict_attr, column_name):
     return df_out
 
 
-def modify_meta(df_meta, set_ref):
+def modify_meta(df_meta, set_ref, df_com):
     # only select tissue data
     df_meta = df_meta.loc[df_meta['Biosample type'] == 'tissue', :]
+    rows1 = df_meta.shape[0]
 
     # reference organs
-    # df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
+    df_meta_nan = df_meta.loc[df_meta['Biosample organ'] == '', :]
+    df_meta_nan = df_meta_nan.drop(['Biosample organ'], 1)
+    df_meta_nan = pd.merge(df_meta_nan, df_com,
+                           on=['Biosample term id', 'Biosample term name'])
+    df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
+    df_meta = pd.concat([df_meta, df_meta_nan], sort=False)
+    rows2 = df_meta.shape[0]
+    assert rows1 == rows2
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
     for organ in organs:
-        # modify manually
-        if organ == '':
-            new_organs.append('bone element,limb')
-        else:
-            list_organ = \
-                [val for val in organ.strip().split(',') if val in set_ref]
-            new_organs.append(','.join(list_organ))
+        list_organ = \
+            [val for val in organ.strip().split(',') if val in set_ref]
+        new_organs.append(','.join(list_organ))
 
     df_meta = df_meta.drop('Biosample organ', 1)
     df_meta['Biosample organ'] = new_organs
@@ -415,6 +419,10 @@ if __name__ == '__main__':
     ref_organ = '/home/zy/driver_mutation/data/ENCODE/metadata/organ_ref.txt'
     with open(ref_organ, 'r') as r_ref:
         set_organs = set([organ.strip() for organ in r_ref])
+    # organ complement
+    file_complement = \
+        '/home/zy/driver_mutation/data/ENCODE/metadata/complement_organ.txt'
+    df_complement = pd.read_csv(file_complement, sep='\t')
 
     # DHS
     # metafile
