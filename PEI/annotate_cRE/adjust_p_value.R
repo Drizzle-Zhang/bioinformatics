@@ -35,7 +35,7 @@ Adjust.pValue <- function(path.in, path.out, peak_num, file_num) {
         unlist(lapply(list.lgp, cut.integration, 
                       cutoff = cutoff.lgp, file_num = as.numeric(file_num)))
     df.bed$V6 <- vec.combine.lgp
-    df.out <- df.bed[df.bed$V6 != -1, c('V1', 'V2', 'V3', 'V6')]
+    df.out <- df.bed[df.bed$V6 > cutoff.lgp, c('V1', 'V2', 'V3', 'V6')]
 
     write.table(df.out, path.out, sep = '\t', quote = F, row.names = F,
                 col.names = F)

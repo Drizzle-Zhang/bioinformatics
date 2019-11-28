@@ -277,8 +277,8 @@ def sub_merge(dict_in):
         df_label_peak = df_label_peak.drop('peak_id', 1)
         mat_peak = os.path.join(sub_path_out, 'label_peak.txt')
         df_label_peak.to_csv(mat_peak, sep='\t')
-        os.system(f"Rscript hcluster.R {mat_peak} "
-                  f"{os.path.join(sub_path_out, 'hcluster.pdf')}")
+        os.system(f"Rscript scatter.plot.R {mat_peak} "
+                  f"{os.path.join(sub_path_out, 'scatter.pdf')}")
 
     return
 
