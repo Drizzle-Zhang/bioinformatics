@@ -16,7 +16,7 @@ scatter.plot <- function(file.in, fig.out) {
     df.binary[df.binary != 0] = 1
     df.scale <- t(scale(df.binary))
     res.pca <- prcomp(df.scale)
-    pdf(fig.out)
+    png(fig.out)
     plot(res.pca$x[,1:2], main = 'Scatter Plot')
     text(res.pca$x[,1:2], label, cex = .8, pos = 1)
     dev.off()
