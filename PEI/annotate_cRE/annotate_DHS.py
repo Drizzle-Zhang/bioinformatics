@@ -81,7 +81,7 @@ def sub_stan(type_bed, df_meta, dict_in):
                 lambda x: organ in x.strip().split(','))) &
             (df_meta['Biosample life stage'] == life_stage) &
             (df_meta['Biosample term name'] == term), :]
-        total_num = np.sum(df_sub['Total peak number']).tolist()[0]
+        total_num = np.sum(df_sub['Total peak number']).tolist()
         file_num = df_sub.shape[0]
         os.system(f"Rscript adjust_p_value.R "
                   f"{file_in} {file_tmp} {total_num} {file_num}")

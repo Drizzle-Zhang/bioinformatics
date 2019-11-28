@@ -133,6 +133,21 @@ def stat_bed(path_bed):
 
 if __name__ == '__main__':
     time_start = time()
+    # DHS
+    path_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19'
+    stat_bed(path_dhs)
+
+    # H3K4me3
+    path_h3k4me3 = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3'
+    stat_bed(path_h3k4me3)
+
+    # H3K27ac
+    path_h3k27ac = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac'
+    stat_bed(path_h3k27ac)
 
     time_end = time()
     print(time_end - time_start)

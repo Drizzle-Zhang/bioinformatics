@@ -33,7 +33,7 @@ Adjust.pValue <- function(path.in, path.out, peak_num, file_num) {
     list.lgp <- lapply(list.split, as.numeric)
     vec.combine.lgp <- 
         unlist(lapply(list.lgp, cut.integration, 
-                      cutoff = cutoff.lgp, file_num = file_num))
+                      cutoff = cutoff.lgp, file_num = as.numeric(file_num)))
     df.bed$V6 <- vec.combine.lgp
     df.out <- df.bed[df.bed$V6 != -1, c('V1', 'V2', 'V3', 'V6')]
 
