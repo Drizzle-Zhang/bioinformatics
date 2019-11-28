@@ -16,10 +16,14 @@ scatter.plot <- function(file.in, fig.out) {
     df.binary[df.binary != 0] = 1
     df.scale <- t(scale(df.binary))
     res.pca <- prcomp(df.scale)
-    png(fig.out)
+    pdf(fig.out)
+    par(pin = c(6, 4))
     plot(res.pca$x[,1:2], main = 'Scatter Plot')
-    text(res.pca$x[,1:2], label, cex = .8, pos = 1)
+    text(res.pca$x[,1:2], label, cex = .6, pos = 1)
     dev.off()
+    df.out <- cbind(res.pca$x[,1:2], label)
+    write.table(df.out, paste0(fig.out, '.txt'), sep = '\t', quote = F, 
+                row.names = F, col.names = F)
     
 }
 

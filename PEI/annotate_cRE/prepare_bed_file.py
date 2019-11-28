@@ -392,7 +392,6 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 40
-    para_flank = 0.1
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
         '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
@@ -444,7 +443,7 @@ if __name__ == '__main__':
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    unique_bed_files(path_hg38tohg19, path_dhs_hg38tohg19, para_flank, num_cpu)
+    unique_bed_files(path_hg38tohg19, path_dhs_hg38tohg19, 0.5, num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -470,7 +469,7 @@ if __name__ == '__main__':
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_merge'
     unique_bed_files(path_hg38tohg19, path_h3k27ac_hg38tohg19,
-                     para_flank, num_cpu)
+                     0.25, num_cpu)
 
     # H3K4me3
     path_h3k4me3 = \
@@ -496,7 +495,7 @@ if __name__ == '__main__':
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_merge'
     unique_bed_files(path_hg38tohg19, path_h3k4me3_hg38tohg19,
-                     para_flank, num_cpu)
+                     0.25, num_cpu)
 
     time_end = time()
     print(time_end - time_start)

@@ -287,10 +287,11 @@ def merge_organ_cluster(path_in, path_out, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
-    os.system(f"cp {os.path.join(path_in, 'metadata.tsv')} "
-              f"{os.path.join(path_out, 'metadata.tsv')}")
+    os.system(f"cp {os.path.join(path_in, 'meta.reference.tsv')} "
+              f"{os.path.join(path_out, 'meta.reference.tsv')}")
 
-    df_meta = pd.read_csv(os.path.join(path_in, 'metadata.tsv'), sep='\t')
+    df_meta = \
+        pd.read_csv(os.path.join(path_in, 'meta.reference.tsv'), sep='\t')
     organs = []
     for line in df_meta['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
