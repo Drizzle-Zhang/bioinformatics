@@ -8,7 +8,7 @@ split.pvalue <- function(str.vec) {
 cut.integration <- function(vec.lgp, cutoff, file_num) {
     vec.lgp <- vec.lgp[vec.lgp >= cutoff]
     len.vec <- length(vec.lgp)
-    len.null <- file_num - len.vec
+    len.null <- max(file_num - len.vec, 0)
     # complement null and deleted peaks
     vec.lgp <- c(vec.lgp, rep(0, len.null))
     vec.lnp <- vec.lgp * log(10)
