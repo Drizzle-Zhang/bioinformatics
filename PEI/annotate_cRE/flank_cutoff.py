@@ -151,11 +151,12 @@ if __name__ == '__main__':
                  ['B cell', 'adult', 'blood'],
                  ['lung', 'embryonic', 'lung'],
                  ['heart', 'child', 'heart']]
-    path_dhs = '/home/zy/driver_mutation/data/ENCODE/' \
-               'DNase-seq/GRCh38tohg19/'
+    path_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
+               'GRCh38tohg19_experiment'
     path_dhs_flank = '/home/zy/driver_mutation/data/ENCODE/' \
-                     'DNase-seq/GRCh38tohg19/flank'
-    generate_flank_plot_file(path_dhs, path_dhs_flank, list_test)
+                     'DNase-seq/GRCh38tohg19_experiment/flank'
+    list_dict_dhs = generate_term_input(path_dhs, list_test)
+    generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs)
 
     list_test = [['stomach', 'adult', 'stomach'],
                  ['layer of hippocampus', 'adult', 'brain'],

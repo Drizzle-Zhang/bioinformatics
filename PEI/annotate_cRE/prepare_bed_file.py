@@ -361,6 +361,8 @@ def merge_experiment(path_in, path_out, flank_percent, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_in, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
 
     list_input = []
     experiments = set(df_meta['Experiment accession'].tolist())
