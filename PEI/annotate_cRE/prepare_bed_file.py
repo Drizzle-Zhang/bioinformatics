@@ -13,6 +13,7 @@ from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
+from itertools import combinations
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file):
@@ -228,6 +229,13 @@ def merge_bed(path_bed, dict_in):
     flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
     path_out = dict_in['path']
+    accession_ids = dict_in['accession_ids']
+    if len(accession_ids) == 1:
+        file_in = os.path.join(path_bed, accession_ids[0] + '.bed')
+        file_out = os.path.join(path_out, f"{term_name}.bed")
+        os.system(f"cp {file_in} {file_out}")
+
+        return
 
     # merge bed files from same term
     col_collapse = '2,3,5,6,7,8,9'
@@ -238,7 +246,7 @@ def merge_bed(path_bed, dict_in):
     sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
     merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
-                       for acce_id in dict_in['accession_ids']])
+                       for acce_id in accession_ids])
     os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     os.system(f"bedtools merge -i {sort_out} "
@@ -289,6 +297,95 @@ def merge_bed(path_bed, dict_in):
 
     os.remove(cat_out)
     os.remove(sort_out)
+    os.remove(merge_out)
+
+    return
+
+
+def overlap_matrix(path_in, dict_in):
+    term_name = dict_in['term_name']
+    path_out = dict_in['path']
+    accession_ids = dict_in['accession_ids']
+    if len(accession_ids) == 1:
+        return
+    else:
+        file_merge = os.path.join(path_out, term_name + '.bed')
+        pre_ref = os.path.join(path_out, term_name + '.pre')
+        os.system(f"cut -f 1,2,3 {file_merge} > {pre_ref}")
+        file_ref = os.path.join(path_out, term_name + '.ref')
+        old_tmp = ''
+        for i, sub_accession in enumerate(accession_ids):
+            sub_file = os.path.join(path_in, sub_accession + '.bed')
+            file_tmp = os.path.join(path_out, sub_accession + '.tmp')
+            list_col = [str(i) for i in range(1, i+4)]
+            list_col.append(str(i+14))
+            if old_tmp != '':
+                os.system(
+                    f"bedtools intersect -a {old_tmp} -b {sub_file} -wao "
+                    f"| cut -f {','.join(list_col)} > {file_tmp}"
+                )
+                os.remove(old_tmp)
+                old_tmp = file_tmp
+            else:
+                os.system(
+                    f"bedtools intersect -a {pre_ref} -b {sub_file} -wao "
+                    f"| cut -f {','.join(list_col)} > {file_tmp}"
+                )
+                old_tmp = file_tmp
+        os.system(f"mv {file_tmp} {file_ref}")
+        os.remove(pre_ref)
+
+        df_ref = pd.read_csv(file_ref, sep='\t', header=None)
+        list_out = []
+        list_com = combinations(list(range(df_ref.shape[1]))[3:], 2)
+        for com in list_com:
+            len_list1 = (df_ref.loc[df_ref.iloc[:, com[0]] != 0, :]).shape[0]
+            len_list2 = (df_ref.loc[df_ref.iloc[:, com[1]] != 0, :]).shape[0]
+            total = (len_list1 + len_list2) / 2
+            len_overlap = (df_ref.loc[
+                           (df_ref.iloc[:, com[0]] != 0) &
+                           (df_ref.iloc[:, com[1]] != 0), :]).shape[0]
+            list_out.append({'Name': term_name, 'Combination': com,
+                             'Overlap ratio': len_overlap/total})
+
+        df_out = pd.DataFrame(list_out)
+
+        return df_out
+
+
+def merge_experiment(path_in, path_out, flank_percent, num_process):
+    # integrate accession files from same experiment to a single file
+    df_meta = pd.read_csv(
+        os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+
+    if os.path.exists(path_out):
+        os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
+    list_input = []
+    experiments = set(df_meta['Experiment accession'].tolist())
+    for experiment in experiments:
+        df_exp = df_meta.loc[df_meta['Experiment accession'] == experiment, :]
+        accession_ids = df_exp['File accession'].tolist()
+        list_input.append(
+            dict(path=path_out,
+                 term_name=experiment.replace(' ', '_').replace(
+                     '/', '+').replace("'", '--'),
+                 accession_ids=accession_ids,
+                 flank_percent=flank_percent))
+
+    pool = Pool(processes=num_process)
+    func_merge = partial(merge_bed, path_in)
+    pool.map(func_merge, list_input)
+    pool.close()
+
+    pool = Pool(processes=num_process)
+    func_overlap = partial(overlap_matrix, path_in)
+    list_df = pool.map(func_overlap, list_input)
+    pool.close()
+
+    df_overlap = pd.concat(list_df, sort=False)
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
 
     return
 
@@ -414,6 +511,10 @@ if __name__ == '__main__':
     path_cell = '/home/zy/driver_mutation/data/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
+    # build organ dictionary
+    path_lab = '/home/zy/driver_mutation/data/ENCODE/metadata/lab'
+    dict_lab = build_dict_attr(path_lab)
+
     # read reference organ
     ref_organ = '/home/zy/driver_mutation/data/ENCODE/metadata/organ_ref.txt'
     with open(ref_organ, 'r') as r_ref:
@@ -432,6 +533,7 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
+    df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
     meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
@@ -441,9 +543,14 @@ if __name__ == '__main__':
         '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
 
+    # integrate files from same experiment
+    path_exp_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
+                   'GRCh38tohg19_experiment'
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.55, num_cpu)
+
     # build DHS reference
     path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    unique_bed_files(path_hg38tohg19, path_dhs_hg38tohg19, 0.5, num_cpu)
+    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -454,6 +561,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
     df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
     meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
@@ -480,6 +588,7 @@ if __name__ == '__main__':
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
     df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
     meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)

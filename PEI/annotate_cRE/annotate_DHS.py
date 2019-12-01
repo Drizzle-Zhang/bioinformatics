@@ -103,7 +103,8 @@ def sub_stan(type_bed, df_meta, dict_in):
                     score = list_line[3]
                     w_f.write(fmt_histone.format(**locals()))
 
-    os.system(f"rm {file_tmp}")
+    if type_bed != 'DHS':
+        os.system(f"rm {file_tmp}")
 
     return
 
@@ -237,7 +238,7 @@ def sub_merge(dict_in):
         for sub_dict in list_meta]
     if sub_meta.shape[0] == 1:
         os.system(
-            f"mv {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
+            f"cp {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
             f"{file_out}"
         )
     elif sub_meta.shape[0] > 1:
@@ -245,7 +246,7 @@ def sub_merge(dict_in):
             path=sub_path_out,
             term_name=dict_in['organ'].replace(' ', '_'),
             accession_ids=accession_ids,
-            flank_percent=0.1)
+            flank_percent=0.3)
         merge_bed(sub_path_in, dict_merge)
         labels = [f"{dict_in['organ']}|{sub_dict['Biosample life stage']}|"
                   f"{sub_dict['Biosample term name']}"
@@ -278,7 +279,7 @@ def sub_merge(dict_in):
         mat_peak = os.path.join(sub_path_out, 'label_peak.txt')
         df_label_peak.to_csv(mat_peak, sep='\t')
         os.system(f"Rscript scatter.plot.R {mat_peak} "
-                  f"{os.path.join(sub_path_out, 'scatter.png')}")
+                  f"{os.path.join(sub_path_out, 'scatter.pdf')}")
 
     return
 

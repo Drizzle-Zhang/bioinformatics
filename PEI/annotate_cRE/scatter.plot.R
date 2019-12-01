@@ -19,7 +19,7 @@ scatter.plot <- function(file.in, fig.out) {
     pdf(fig.out)
     par(pin = c(6, 4))
     plot(res.pca$x[,1:2], main = 'Scatter Plot')
-    text(res.pca$x[,1:2], label, cex = .6, pos = 1)
+    text(res.pca$x[,1:2], label, cex = .4, pos = 1)
     dev.off()
     df.out <- cbind(res.pca$x[,1:2], label)
     write.table(df.out, paste0(fig.out, '.txt'), sep = '\t', quote = F, 
