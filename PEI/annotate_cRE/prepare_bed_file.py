@@ -256,7 +256,8 @@ def merge_bed(path_bed, dict_in):
     split_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{fold_change}\t{p_value}\n"
+            fmt = "{chrom}\t{start}\t{end}\t.\t0\t.\t" \
+                  "{fold_change}\t{p_value}\t-1\t0\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]

@@ -148,9 +148,9 @@ if __name__ == '__main__':
     list_test = [['brain', 'embryonic', 'brain'],
                  ['frontal cortex', 'adult', 'brain'],
                  ['sigmoid colon', 'adult', 'intestine'],
-                 ['B cell', 'adult', 'blood'],
+                 ['limb', 'embryonic', 'limb'],
                  ['lung', 'embryonic', 'lung'],
-                 ['heart', 'child', 'heart']]
+                 ['cerebellar cortex', 'adult', 'brain']]
     path_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
                'GRCh38tohg19_experiment'
     path_dhs_flank = '/home/zy/driver_mutation/data/ENCODE/' \
