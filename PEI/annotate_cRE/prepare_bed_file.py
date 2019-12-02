@@ -410,7 +410,8 @@ def calculate_peak_numbers(path_in, dict_in):
             'Total peak number': total}
 
 
-def unique_bed_files(path_in, path_out, flank_percent, num_process):
+def unique_bed_files(
+        path_origin, path_in, path_out, flank_percent, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
 
@@ -421,7 +422,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
     # infer total peak numbers
     list_dict_meta = df_meta.to_dict('records')
     pool = Pool(processes=num_process)
-    func_calc = partial(calculate_peak_numbers, path_in)
+    func_calc = partial(calculate_peak_numbers, path_origin)
     result = pool.map(func_calc, list_dict_meta)
     pool.close()
     df_res = pd.DataFrame(result)
@@ -553,7 +554,9 @@ if __name__ == '__main__':
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    unique_bed_files(
+        path_hg38tohg19, path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu
+    )
 
     # H3K27ac
     path_h3k27ac = \
@@ -585,8 +588,10 @@ if __name__ == '__main__':
     path_h3k27ac_hg38tohg19 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_merge'
-    unique_bed_files(path_hg38tohg19, path_h3k27ac_hg38tohg19,
-                     0.5, num_cpu)
+    unique_bed_files(
+        path_hg38tohg19, path_exp_h3k27ac, path_h3k27ac_hg38tohg19,
+        0.5, num_cpu
+    )
 
     # H3K4me3
     path_h3k4me3 = \
@@ -618,8 +623,10 @@ if __name__ == '__main__':
     path_h3k4me3_hg38tohg19 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_merge'
-    unique_bed_files(path_hg38tohg19, path_h3k4me3_hg38tohg19,
-                     0.2, num_cpu)
+    unique_bed_files(
+        path_hg38tohg19, path_exp_h3k4me3, path_h3k4me3_hg38tohg19,
+        0.2, num_cpu
+    )
 
     time_end = time()
     print(time_end - time_start)
