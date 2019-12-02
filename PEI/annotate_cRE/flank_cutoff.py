@@ -57,12 +57,12 @@ def generate_flank_plot_file(path_in, path_flank, list_dict):
                      accession_ids=accession_ids,
                      flank_percent=flank))
 
-    pool = Pool(processes=80)
+    pool = Pool(processes=40)
     func_merge = partial(merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
 
-    pool = Pool(processes=20)
+    pool = Pool(processes=40)
     list_out = pool.map(count_rows, list_input)
     pool.close()
     df_out = pd.DataFrame(list_out)
@@ -161,26 +161,30 @@ if __name__ == '__main__':
     list_test = [['stomach', 'adult', 'stomach'],
                  ['layer of hippocampus', 'adult', 'brain'],
                  ['sigmoid colon', 'adult', 'intestine'],
-                 ['B cell', 'adult', 'blood'],
+                 ['adrenal gland', 'adult', 'adrenal gland'],
                  ['placenta', 'embryonic', 'extraembryonic component'],
                  ['heart left ventricle', 'adult', 'heart']]
     # H3K4me3
     path_h3k4me3 = \
         '/home/zy/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
+        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_experiment'
     path_h3k4me3_flank = \
         '/home/zy/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K4me3/flank'
-    generate_flank_plot_file(path_h3k4me3, path_h3k4me3_flank, list_test)
+        'histone_ChIP-seq/GRCh38tohg19/H3K4me3_experiment/flank'
+    list_dict_h3k4me3 = generate_term_input(path_h3k4me3, list_test)
+    generate_flank_plot_file(
+        path_h3k4me3, path_h3k4me3_flank, list_dict_h3k4me3)
 
     # H3K27ac
     path_h3k27ac = \
         '/home/zy/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K27ac'
+        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_experiment'
     path_h3k27ac_flank = \
         '/home/zy/driver_mutation/data/ENCODE/' \
-        'histone_ChIP-seq/GRCh38tohg19/H3K27ac/flank'
-    generate_flank_plot_file(path_h3k27ac, path_h3k27ac_flank, list_test)
+        'histone_ChIP-seq/GRCh38tohg19/H3K27ac_experiment/flank'
+    list_dict_h3k27ac = generate_term_input(path_h3k27ac, list_test)
+    generate_flank_plot_file(
+        path_h3k27ac, path_h3k27ac_flank, list_dict_h3k27ac)
 
     time_end = time()
     print(time_end - time_start)

@@ -266,9 +266,9 @@ def merge_bed(path_bed, dict_in):
                 array_end = np.array(
                     [int(num) for num in list_line[4].strip().split(',')])
                 array_fold_change = np.array(
-                    [float(num) for num in list_line[7].strip().split(',')])
+                    [num for num in list_line[7].strip().split(',')])
                 array_p_value = np.array(
-                    [float(num) for num in list_line[8].strip().split(',')])
+                    [num for num in list_line[8].strip().split(',')])
                 array_length = array_end - array_start
                 while array_length.shape[0] > 0:
                     idx = np.argmax(array_length)
@@ -549,11 +549,11 @@ if __name__ == '__main__':
     # integrate files from same experiment
     path_exp_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
                    'GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.55, num_cpu)
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
 
     # build DHS reference
-    # path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
-    # unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
+    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
 
     # H3K27ac
     path_h3k27ac = \
@@ -579,15 +579,15 @@ if __name__ == '__main__':
     path_exp_h3k27ac = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_h3k27ac, 0.5, num_cpu)
+    merge_experiment(path_hg38tohg19, path_exp_h3k27ac, 0.4, num_cpu)
 
-    # # unique H3K27ac
-    # path_h3k27ac_hg38tohg19 = \
-    #     '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K27ac_merge'
-    # unique_bed_files(path_hg38tohg19, path_h3k27ac_hg38tohg19,
-    #                  0.25, num_cpu)
-    #
+    # unique H3K27ac
+    path_h3k27ac_hg38tohg19 = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac_merge'
+    unique_bed_files(path_hg38tohg19, path_h3k27ac_hg38tohg19,
+                     0.5, num_cpu)
+
     # H3K4me3
     path_h3k4me3 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
@@ -612,14 +612,14 @@ if __name__ == '__main__':
     path_exp_h3k4me3 = \
         '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_h3k4me3, 0.2, num_cpu)
+    merge_experiment(path_hg38tohg19, path_exp_h3k4me3, 0.12, num_cpu)
 
     # unique H3K4me3
-    # path_h3k4me3_hg38tohg19 = \
-    #     '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K4me3_merge'
-    # unique_bed_files(path_hg38tohg19, path_h3k4me3_hg38tohg19,
-    #                  0.25, num_cpu)
+    path_h3k4me3_hg38tohg19 = \
+        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3_merge'
+    unique_bed_files(path_hg38tohg19, path_h3k4me3_hg38tohg19,
+                     0.2, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
