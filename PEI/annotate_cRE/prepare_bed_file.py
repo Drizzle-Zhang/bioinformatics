@@ -486,6 +486,14 @@ def unique_bed_files(
     pool.map(func_merge, list_input)
     pool.close()
 
+    pool = Pool(processes=num_process)
+    func_overlap = partial(overlap_matrix, path_in)
+    list_df = pool.map(func_overlap, list_input)
+    pool.close()
+
+    df_overlap = pd.concat(list_df, sort=False)
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
+
     return
 
 

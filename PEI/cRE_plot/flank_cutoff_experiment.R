@@ -4,7 +4,7 @@ library(ggplot2)
 
 ### flank cutoff
 # DHS
-df.flank.DHS <- read.delim('./DHS/flank_count.txt', 
+df.flank.DHS <- read.delim('./DHS/flank_count_exp.txt', 
                            sep = '\t', stringsAsFactors = F)
 
 DHS.plot <-
@@ -36,14 +36,14 @@ DHS.plot <-
 #       )
 
 ggsave(
-    plot = DHS.plot, path = './DHS', filename = "flank_DHS_term.png",
+    plot = DHS.plot, path = './DHS', filename = "flank_DHS_exp.png",
     units = 'cm', width = 25, height = 15)
 df.flank.DHS[df.flank.DHS$flank_percent == 0, ]
 df.flank.DHS[df.flank.DHS$flank_percent == 0.4, ]
 
 
 # H3K4me3
-df.flank.H3K4me3 <- read.delim('./H3K4me3/flank_count.txt', 
+df.flank.H3K4me3 <- read.delim('./H3K4me3/flank_count_exp.txt', 
                                sep = '\t', stringsAsFactors = F)
 
 H3K4me3.plot <-
@@ -75,7 +75,7 @@ df.flank.H3K4me3[df.flank.H3K4me3$flank_percent == 0.12, ]
 
 
 # H3K27ac
-df.flank.H3K27ac <- read.delim('./H3K27ac/flank_count.txt', 
+df.flank.H3K27ac <- read.delim('./H3K27ac/flank_count_exp.txt', 
                                sep = '\t', stringsAsFactors = F)
 
 H3K27ac.plot <-
