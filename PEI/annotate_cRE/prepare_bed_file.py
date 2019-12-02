@@ -307,7 +307,7 @@ def overlap_matrix(path_in, dict_in):
     term_name = dict_in['term_name']
     path_out = dict_in['path']
     accession_ids = dict_in['accession_ids']
-    if len(accession_ids) == 1:
+    if len(accession_ids) <= 1:
         return
     else:
         file_merge = os.path.join(path_out, term_name + '.bed')
@@ -369,7 +369,7 @@ def merge_experiment(path_in, path_out, flank_percent, num_process):
     experiments = set(df_meta['Experiment accession'].tolist())
     for experiment in experiments:
         df_exp = df_meta.loc[df_meta['Experiment accession'] == experiment, :]
-        accession_ids = df_exp['File accession'].tolist()
+        accession_ids = list(set(df_exp['File accession'].tolist()))
         list_input.append(
             dict(path=path_out,
                  term_name=experiment.replace(' ', '_').replace(
@@ -468,7 +468,8 @@ def unique_bed_files(
             for term in terms:
                 term_meta = \
                     life_meta.loc[life_meta['Biosample term name'] == term, :]
-                accession_ids = term_meta['Experiment accession'].tolist()
+                accession_ids = \
+                    list(set(term_meta['Experiment accession'].tolist()))
                 path_term = \
                     os.path.join(path_life_stage, term.replace(
                         ' ', '_').replace('/', '+').replace("'", '--'))
