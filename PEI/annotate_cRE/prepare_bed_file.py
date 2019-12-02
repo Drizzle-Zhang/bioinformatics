@@ -468,7 +468,7 @@ def unique_bed_files(
             for term in terms:
                 term_meta = \
                     life_meta.loc[life_meta['Biosample term name'] == term, :]
-                accession_ids = term_meta['File accession'].tolist()
+                accession_ids = term_meta['Experiment accession'].tolist()
                 path_term = \
                     os.path.join(path_life_stage, term.replace(
                         ' ', '_').replace('/', '+').replace("'", '--'))
