@@ -22,7 +22,7 @@ cut.integration <- function(vec.lgp, cutoff, file_num) {
 
 Adjust.pValue <- function(path.in, path.out, peak_num, file_num) {
     df.bed <- read.delim(path.in, sep = '\t', stringsAsFactors = F, header = F)
-    list.split <- strsplit(df.bed[,'V5'], ',')
+    list.split <- strsplit(df.bed[,'V8'], ',')
     # calculate cutoff
     list.pvalue <- lapply(list.split, split.pvalue)
     unlist.pvalue <- unlist(list.pvalue)
@@ -34,8 +34,8 @@ Adjust.pValue <- function(path.in, path.out, peak_num, file_num) {
     vec.combine.lgp <- 
         unlist(lapply(list.lgp, cut.integration, 
                       cutoff = cutoff.lgp, file_num = as.numeric(file_num)))
-    df.bed$V6 <- vec.combine.lgp
-    df.out <- df.bed[df.bed$V6 > cutoff.lgp, c('V1', 'V2', 'V3', 'V6')]
+    df.bed$V11 <- vec.combine.lgp
+    df.out <- df.bed[df.bed$V6 > cutoff.lgp, c('V1', 'V2', 'V3', 'V11')]
 
     write.table(df.out, path.out, sep = '\t', quote = F, row.names = F,
                 col.names = F)

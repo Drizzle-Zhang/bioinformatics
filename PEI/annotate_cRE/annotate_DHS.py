@@ -12,6 +12,7 @@ from functools import partial
 import pandas as pd
 import numpy as np
 from subprocess import check_output
+from itertools import combinations
 
 
 def generate_file_list(path_in, path_out):
@@ -131,28 +132,6 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     return
 
 
-def split_ref_bed(ref_file, dict_in):
-    organ = dict_in['organ']
-    life_stage = dict_in['life_stage']
-    term = dict_in['term']
-    label = '|'.join([organ, life_stage, term])
-    with open(ref_file, 'r') as r_ref:
-        with open(os.path.join(dict_in['path_out'], dict_in['file']), 'w') \
-                as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t.\t.\t{label}\n"
-            for line in r_ref:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                start = list_line[1]
-                end = list_line[2]
-                dhs_id = list_line[3]
-                list_label = list_line[6].strip().split(',')
-                if label in list_label:
-                    w_f.write(fmt_dhs.format(**locals()))
-
-    return
-
-
 def merge_bed(path_bed, dict_in):
     flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
@@ -224,8 +203,8 @@ def sub_merge(dict_in):
     sub_meta = dict_in['sub_meta']
     sub_path_in = dict_in['path_in']
     sub_path_out = dict_in['path_out']
-    file_out = \
-        os.path.join(sub_path_out, dict_in['organ'].replace(' ', '_') + '.bed')
+    organ = dict_in['organ']
+    file_out = os.path.join(sub_path_out, organ.replace(' ', '_') + '.bed')
     if not os.path.exists(sub_path_out):
         os.mkdir(sub_path_out)
     list_meta = sub_meta.to_dict("records")
@@ -241,14 +220,15 @@ def sub_merge(dict_in):
             f"cp {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
             f"{file_out}"
         )
+        return
     elif sub_meta.shape[0] > 1:
         dict_merge = dict(
             path=sub_path_out,
-            term_name=dict_in['organ'].replace(' ', '_'),
+            term_name=organ.replace(' ', '_'),
             accession_ids=accession_ids,
             flank_percent=0.3)
         merge_bed(sub_path_in, dict_merge)
-        labels = [f"{dict_in['organ']}|{sub_dict['Biosample life stage']}|"
+        labels = [f"{organ}|{sub_dict['Biosample life stage']}|"
                   f"{sub_dict['Biosample term name']}"
                   for sub_dict in list_meta]
         list_bed = \
@@ -276,12 +256,31 @@ def sub_merge(dict_in):
         df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
         df_label_peak.index = df_label_peak['peak_id']
         df_label_peak = df_label_peak.drop('peak_id', 1)
+        # write score matrix to txt file
         mat_peak = os.path.join(sub_path_out, 'label_peak.txt')
         df_label_peak.to_csv(mat_peak, sep='\t')
+        # calculate overlap ratio
+        list_out = []
+        list_com = combinations(list(range(df_label_peak.shape[1])), 2)
+        for com in list_com:
+            len_list1 = (df_label_peak.loc[
+                         df_label_peak.iloc[:, com[0]] != 0, :]).shape[0]
+            len_list2 = (df_label_peak.loc[
+                         df_label_peak.iloc[:, com[1]] != 0, :]).shape[0]
+            total = (len_list1 + len_list2) / 2
+            len_overlap = (df_label_peak.loc[
+                           (df_label_peak.iloc[:, com[0]] != 0) &
+                           (df_label_peak.iloc[:, com[1]] != 0), :]).shape[0]
+            list_out.append({'Name': organ, 'Combination': com,
+                             'Overlap ratio': len_overlap/total})
+
+        df_out = pd.DataFrame(list_out)
+
+        # scatter plot
         os.system(f"Rscript scatter.plot.R {mat_peak} "
                   f"{os.path.join(sub_path_out, 'scatter.pdf')}")
 
-    return
+        return df_out
 
 
 def merge_organ_cluster(path_in, path_out, num_process):
@@ -308,8 +307,11 @@ def merge_organ_cluster(path_in, path_out, num_process):
                  path_in=os.path.join(path_in, organ.replace(' ', '_'))))
 
     pool = Pool(processes=num_process)
-    pool.map(sub_merge, list_input)
+    list_df = pool.map(sub_merge, list_input)
     pool.close()
+
+    df_overlap = pd.concat(list_df, sort=False)
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
 
     return
 

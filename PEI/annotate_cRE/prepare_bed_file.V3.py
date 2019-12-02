@@ -66,12 +66,11 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
 
 
 def filter_meta(meta_in):
-    # reserve released data and original(untreated) peak file
+    # reserve released data and original(not merge) peak file
     # simplify meta file
     df_meta = pd.read_csv(meta_in, sep='\t')
     df_meta_released = df_meta.loc[
         (df_meta['File Status'] == 'released') &
-        (df_meta['Output type'] == 'peaks') &
         (df_meta['Biological replicate(s)'].apply(
             lambda x: len(str(x).split(', ')) == 1
         )),
@@ -157,20 +156,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
-        with open(file_hg19, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
-                  "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
-            with open(file_hg38, 'r') as r_hg38:
-                for line in r_hg38:
-                    list_line = line.strip().split('\t')
-                    dict_hg19 = dict(
-                        chrom=list_line[0], start=list_line[1],
-                        end=list_line[2], peak_id=dict_in['File accession'],
-                        score=list_line[4], strand=list_line[5],
-                        fold_change=list_line[6], p_value=list_line[7],
-                        q_value=list_line[8], peak_location=list_line[9]
-                    )
-                    w_f.write(fmt.format(**dict_hg19))
+        os.system(f"cp {file_hg38} {file_hg19}")
     if dict_in['Assembly'] == 'GRCh38':
         file_prefix = file_hg38 + '.prefix'
         file_suffix = file_hg38 + '.suffix'
@@ -271,7 +257,7 @@ def merge_bed(path_bed, dict_in):
     final_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{access}\t0\t.\t" \
+            fmt = "{chrom}\t{start}\t{end}\t{term_name}\t0\t.\t" \
                   "{fold_change}\t{p_value}\t-1\t0\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
@@ -280,8 +266,6 @@ def merge_bed(path_bed, dict_in):
                     [int(num) for num in list_line[3].strip().split(',')])
                 array_end = np.array(
                     [int(num) for num in list_line[4].strip().split(',')])
-                array_access = np.array(
-                    [num for num in list_line[5].strip().split(',')])
                 array_fold_change = np.array(
                     [num for num in list_line[8].strip().split(',')])
                 array_p_value = np.array(
@@ -297,20 +281,17 @@ def merge_bed(path_bed, dict_in):
                                   (array_end <= end_idx + flank)
                     select_start = array_start[select_bool]
                     select_end = array_end[select_bool]
-                    select_access = array_access[select_bool]
                     select_fold_change = array_fold_change[select_bool]
                     select_p_value = array_p_value[select_bool]
                     # reset arrays
                     array_start = array_start[~select_bool]
                     array_end = array_end[~select_bool]
-                    array_access = array_access[~select_bool]
                     array_fold_change = array_fold_change[~select_bool]
                     array_p_value = array_p_value[~select_bool]
                     array_length = array_end - array_start
                     # write new rows
                     start = str(np.min(select_start))
                     end = str(np.max(select_end))
-                    access = '|'.join(map(str, select_access.tolist()))
                     fold_change = \
                         '|'.join(map(str, select_fold_change.tolist()))
                     p_value = '|'.join(map(str, select_p_value.tolist()))
@@ -330,9 +311,6 @@ def overlap_matrix(path_in, dict_in):
     term_name = dict_in['term_name']
     path_out = dict_in['path']
     accession_ids = dict_in['accession_ids']
-    df_meta = pd.read_csv(
-        os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-
     if len(accession_ids) <= 1:
         return
     else:
@@ -344,33 +322,64 @@ def overlap_matrix(path_in, dict_in):
             out_dict = dict()
             out_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            list_access = sub_dict[3].strip().split('|')
+            list_access = sub_dict[3].strip().split(',')
             for access in accession_ids:
-                if accession_ids[0][:5] == 'ENCSR':
-                    access_files = (df_meta.loc[
-                        df_meta['Experiment accession'] == access,
-                        'File accession']).tolist()
-                    if set(access_files).intersection(set(list_access)):
-                        out_dict[access] = 1
-                    else:
-                        out_dict[access] = 0
+                if access in list_access:
+                    out_dict[access] = 1
                 else:
-                    if access in list_access:
-                        out_dict[access] = 1
-                    else:
-                        out_dict[access] = 0
+                    out_dict[access] = 0
             list_dict.append(out_dict)
-        df_ref = pd.DataFrame(
+        df_label_peak = pd.DataFrame(
             list_dict, columns=['peak_id'] + accession_ids
         )
-        df_ref.index = df_ref['peak_id']
-        df_ref = df_ref.drop('peak_id', 1)
+        df_label_peak.index = df_label_peak['peak_id']
+        df_label_peak = df_label_peak.drop('peak_id', 1)
         # write score matrix to txt file
         file_ref = os.path.join(path_out, term_name + '.ref')
-        df_ref.to_csv(file_ref, sep='\t')
+        df_label_peak.to_csv(file_ref, sep='\t')
+        pre_ref = os.path.join(path_out, term_name + '.pre')
+        os.system(f"cut -f 1,2,3 {file_merge} > {pre_ref}")
+        file_ref = os.path.join(path_out, term_name + '.ref')
+        old_tmp = ''
+        for i, sub_accession in enumerate(accession_ids):
+            sub_file = os.path.join(path_in, sub_accession + '.bed')
+            file_tmp1 = os.path.join(path_out, sub_accession + '.tmp1')
+            file_tmp2 = os.path.join(path_out, sub_accession + '.tmp2')
+            list_col = [str(i) for i in range(1, i+4)]
+            list_col.append(str(i+14))
+            if old_tmp == '':
+                os.system(
+                    f"bedtools intersect -a {pre_ref} -b {sub_file} -wao "
+                    f"| cut -f {','.join(list_col)} > {file_tmp1}"
+                )
+                os.system(
+                    f"bedtools merge -i {file_tmp1} -c {str(i + 4)} -o sum "
+                    f"> {file_tmp2}"
+                )
+                os.remove(file_tmp1)
+                old_tmp = file_tmp2
+            else:
+                os.system(
+                    f"bedtools intersect -a {old_tmp} -b {sub_file} -wao "
+                    f"| cut -f {','.join(list_col)} > {file_tmp1}"
+                )
+                col = ','.join([str(j) for j in list(range(4, i+4))])
+                col_opt = ','.join(
+                    [val for val in ['collapse'] for j in list(range(4, i+4))]
+                )
+                os.system(
+                    f"bedtools merge -i {file_tmp1} -c {col},{str(i+4)} "
+                    f"-o {col_opt},sum > {file_tmp2}"
+                )
+                os.remove(old_tmp)
+                os.remove(file_tmp1)
+                old_tmp = file_tmp2
+        os.system(f"mv {file_tmp2} {file_ref}")
+        os.remove(pre_ref)
 
+        df_ref = pd.read_csv(file_ref, sep='\t', header=None)
         list_out = []
-        list_com = combinations(list(range(df_ref.shape[1])), 2)
+        list_com = combinations(list(range(df_ref.shape[1]))[3:], 2)
         for com in list_com:
             len_list1 = (df_ref.loc[df_ref.iloc[:, com[0]] != 0, :]).shape[0]
             len_list2 = (df_ref.loc[df_ref.iloc[:, com[1]] != 0, :]).shape[0]
@@ -378,20 +387,8 @@ def overlap_matrix(path_in, dict_in):
             len_overlap = (df_ref.loc[
                            (df_ref.iloc[:, com[0]] != 0) &
                            (df_ref.iloc[:, com[1]] != 0), :]).shape[0]
-            if accession_ids[0][:5] == 'ENCFF':
-                list_rep = ((df_meta.loc[
-                    df_meta['Experiment accession'] == term_name,
-                    'Biological replicate(s)']).drop_duplicates()).tolist()
-                if len(list_rep) == 2:
-                    replicate = 'Biological'
-                elif len(list_rep) == 1:
-                    replicate = 'Technical'
-                list_out.append({'Name': term_name, 'Combination': com,
-                                 'Overlap ratio': len_overlap / total,
-                                 'replicate': replicate})
-            else:
-                list_out.append({'Name': term_name, 'Combination': com,
-                                 'Overlap ratio': len_overlap/total})
+            list_out.append({'Name': term_name, 'Combination': com,
+                             'Overlap ratio': len_overlap/total})
 
         df_out = pd.DataFrame(list_out)
 
@@ -432,9 +429,7 @@ def merge_experiment(path_in, path_out, flank_percent, num_process):
     pool.close()
 
     df_overlap = pd.concat(list_df, sort=False)
-    df_overlap.to_csv(
-        os.path.join(path_out, 'overlap.txt'), sep='\t', index=None
-    )
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
 
     return
 
@@ -533,15 +528,13 @@ def unique_bed_files(
     pool.map(func_merge, list_input)
     pool.close()
 
-    pool = Pool(processes=num_process)
+    pool = Pool(processes=20)
     func_overlap = partial(overlap_matrix, path_in)
     list_df = pool.map(func_overlap, list_input)
     pool.close()
 
     df_overlap = pd.concat(list_df, sort=False)
-    df_overlap.to_csv(
-        os.path.join(path_out, 'overlap.txt'), sep='\t', index=None
-    )
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
 
     return
 
