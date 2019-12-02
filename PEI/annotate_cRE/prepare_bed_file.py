@@ -487,7 +487,7 @@ def unique_bed_files(
     pool.map(func_merge, list_input)
     pool.close()
 
-    pool = Pool(processes=num_process)
+    pool = Pool(processes=20)
     func_overlap = partial(overlap_matrix, path_in)
     list_df = pool.map(func_overlap, list_input)
     pool.close()
