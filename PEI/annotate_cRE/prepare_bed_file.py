@@ -292,8 +292,8 @@ def merge_bed(path_bed, dict_in):
                     start = str(np.min(select_start))
                     end = str(np.max(select_end))
                     fold_change = \
-                        ','.join(map(str, select_fold_change.tolist()))
-                    p_value = ','.join(map(str, select_p_value.tolist()))
+                        '|'.join(map(str, select_fold_change.tolist()))
+                    p_value = '|'.join(map(str, select_p_value.tolist()))
                     w_f.write(fmt.format(**locals()))
 
     os.remove(cat_out)
