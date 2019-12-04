@@ -155,7 +155,7 @@ def merge_bed(path_bed, dict_in):
     split_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{label}\t{p_value}\n"
+            fmt = "{chrom}\t{start}\t{end}\t.\t{p_value}\t.\t{label}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -189,8 +189,8 @@ def merge_bed(path_bed, dict_in):
                     start = str(np.min(select_start))
                     end = str(np.max(select_end))
                     label = \
-                        ','.join(map(str, select_label.tolist()))
-                    p_value = ','.join(map(str, select_p_value.tolist()))
+                        '/'.join(map(str, select_label.tolist()))
+                    p_value = '/'.join(map(str, select_p_value.tolist()))
                     w_f.write(fmt.format(**locals()))
 
     os.remove(cat_out)
@@ -220,6 +220,18 @@ def sub_merge(dict_in):
             f"cp {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
             f"{file_out}"
         )
+        with open(file_out, 'w') as w_f:
+            fmt = "{chrom}\t{start}\t{end}\t.\t{score}\t.\t{label}\n"
+            with open(os.path.join(sub_path_in, accession_ids[0] + '.bed'),
+                      'r') as r_f:
+                for line in r_f:
+                    list_line = line.strip().split('\t')
+                    dict_out = dict(
+                        chrom=list_line[0], start=list_line[1],
+                        end=list_line[2], label=list_line[6],
+                        score=list_line[4]
+                    )
+                    w_f.write(fmt.format(**dict_out))
         return
     elif sub_meta.shape[0] > 1:
         dict_merge = dict(
@@ -238,9 +250,8 @@ def sub_merge(dict_in):
             out_dict = dict()
             out_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            list_label = sub_dict[3].strip().split(',')
-            list_lgp = \
-                [num for num in sub_dict[4].strip().split(',')]
+            list_label = sub_dict[6].strip().split('/')
+            list_lgp = [num for num in sub_dict[4].strip().split('/')]
             for label in labels:
                 try:
                     idx = list_label.index(label)
@@ -312,6 +323,68 @@ def merge_organ_cluster(path_in, path_out, num_process):
 
     df_overlap = pd.concat(list_df, sort=False)
     df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
+
+    # merge all organ
+    organs = os.listdir(path_out)
+    accession_ids = []
+    labels = []
+    for organ in organs:
+        path_organ = os.path.join(path_out, organ)
+        if os.path.isdir(path_organ):
+            labels.append(organ.replace('_', ' '))
+            accession_ids.append(os.path.join(path_organ, organ))
+
+    dict_merge = dict(
+        path=path_out,
+        term_name='all_organs',
+        accession_ids=accession_ids,
+        flank_percent=0.2)
+    merge_bed(path_out, dict_merge)
+    list_bed = \
+        (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
+                     sep='\t', header=None)).to_dict('records')
+    list_dict = []
+    for sub_dict in list_bed:
+        out_dict = dict()
+        out_dict['peak_id'] = \
+            f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
+        list_label = set([val.split('|')[0]
+                          for val in sub_dict[6].strip().split('/')])
+        for label in labels:
+            if label in list_label:
+                out_dict[label] = 1
+            else:
+                out_dict[label] = 0
+        list_dict.append(out_dict)
+    df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
+    df_label_peak.index = df_label_peak['peak_id']
+    df_label_peak = df_label_peak.drop('peak_id', 1)
+    # write score matrix to txt file
+    mat_peak = os.path.join(path_out, 'all_organs_label_peak.txt')
+    df_label_peak.to_csv(mat_peak, sep='\t')
+    # calculate overlap ratio
+    list_out = []
+    list_com = combinations(df_label_peak.columns, 2)
+    for com in list_com:
+        len_list1 = (df_label_peak.loc[
+                     df_label_peak.loc[:, com[0]] != 0, :]).shape[0]
+        len_list2 = (df_label_peak.loc[
+                     df_label_peak.loc[:, com[1]] != 0, :]).shape[0]
+        total = (len_list1 + len_list2) / 2
+        len_overlap = (df_label_peak.loc[
+                       (df_label_peak.loc[:, com[0]] != 0) &
+                       (df_label_peak.loc[:, com[1]] != 0), :]).shape[0]
+        list_out.append({'Combination': com,
+                         'Overlap ratio': len_overlap / total})
+
+    df_overlap = pd.DataFrame(list_out)
+    df_overlap.to_csv(
+        os.path.join(path_out, 'all_organs_overlap.txt'), sep='\t', index=None
+    )
+
+    # scatter plot
+    os.system(f"Rscript scatter.plot.R {mat_peak} "
+              f"{os.path.join(path_out, 'all_organs_scatter.pdf')}")
 
     return
 
@@ -499,8 +572,7 @@ if __name__ == '__main__':
     # standardization
     # DHS
     path_dhs = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19'
-    path_dhs_stan = '/home/zy/driver_mutation/data/' \
-                    'DHS/GRCh38tohg19_standard'
+    path_dhs_stan = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 

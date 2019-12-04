@@ -153,7 +153,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
     # Download from UCSC
     file_chain = \
-        '/home/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+        '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
@@ -552,44 +552,44 @@ if __name__ == '__main__':
     num_cpu = 40
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/gencode.v19.annotation.gtf'
+        '/local/zy/PEI/data/ENCODE/gencode.v19.annotation.gtf'
     protein_file_hg19 = \
-        '/home/zy/driver_mutation/data/gene/genes.protein.gencode.v19.bed'
+        '/local/zy/PEI/data/gene/genes.protein.gencode.v19.bed'
     promoter_file_hg19 = \
-        '/home/zy/driver_mutation/data/gene/' \
+        '/local/zy/PEI/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
 
     # build life stage dictionary
-    path_lifestage = '/home/zy/driver_mutation/data/ENCODE/metadata/life_stage'
+    path_lifestage = '/local/zy/PEI/data/ENCODE/metadata/life_stage'
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_organ = '/home/zy/driver_mutation/data/ENCODE/metadata/organ'
+    path_organ = '/local/zy/PEI/data/ENCODE/metadata/organ'
     dict_organ = build_dict_attr(path_organ)
 
     # build organ dictionary
-    path_cell = '/home/zy/driver_mutation/data/ENCODE/metadata/cell'
+    path_cell = '/local/zy/PEI/data/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_cell)
 
     # build organ dictionary
-    path_lab = '/home/zy/driver_mutation/data/ENCODE/metadata/lab'
+    path_lab = '/local/zy/PEI/data/ENCODE/metadata/lab'
     dict_lab = build_dict_attr(path_lab)
 
     # read reference organ
-    ref_organ = '/home/zy/driver_mutation/data/ENCODE/metadata/organ_ref.txt'
+    ref_organ = '/local/zy/PEI/data/ENCODE/metadata/organ_ref.txt'
     with open(ref_organ, 'r') as r_ref:
         set_organs = set([organ.strip() for organ in r_ref])
     # organ complement
     file_complement = \
-        '/home/zy/driver_mutation/data/ENCODE/metadata/complement_organ.txt'
+        '/local/zy/PEI/data/ENCODE/metadata/complement_organ.txt'
     df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
     # DHS
     # metafile
     path_dhs = \
-        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/all'
+        '/local/zy/PEI/data/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
     df_meta_dhs = filter_meta(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
@@ -602,23 +602,23 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19'
+        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
 
     # integrate files from same experiment
-    path_exp_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
+    path_exp_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/' \
                    'GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
 
     # build DHS reference
-    path_dhs_hg38tohg19 = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
     unique_bed_files(
         path_hg38tohg19, path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu
     )
 
     # H3K27ac
     path_h3k27ac = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K27ac'
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
     df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
     df_meta_h3k27ac = \
@@ -632,19 +632,19 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac'
     hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
 
     # integrate files from same experiment
     path_exp_h3k27ac = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_experiment'
     merge_experiment(path_hg38tohg19, path_exp_h3k27ac, 0.4, num_cpu)
 
     # unique H3K27ac
     path_h3k27ac_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_merge'
     unique_bed_files(
         path_hg38tohg19, path_exp_h3k27ac, path_h3k27ac_hg38tohg19,
@@ -653,7 +653,7 @@ if __name__ == '__main__':
 
     # H3K4me3
     path_h3k4me3 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/H3K4me3'
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
     df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
     df_meta_h3k4me3 = \
@@ -667,19 +667,19 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
 
     # integrate files from same experiment
     path_exp_h3k4me3 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_experiment'
     merge_experiment(path_hg38tohg19, path_exp_h3k4me3, 0.12, num_cpu)
 
     # unique H3K4me3
     path_h3k4me3_hg38tohg19 = \
-        '/home/zy/driver_mutation/data/ENCODE/histone_ChIP-seq/' \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3_merge'
     unique_bed_files(
         path_hg38tohg19, path_exp_h3k4me3, path_h3k4me3_hg38tohg19,
