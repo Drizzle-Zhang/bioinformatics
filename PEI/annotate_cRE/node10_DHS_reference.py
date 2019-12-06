@@ -177,7 +177,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         file_hg19_prefix = file_hg19 + '.prefix'
         os.system(f"cut -f 1,2,3,4 {file_hg38} > {file_prefix}")
         os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38} > {file_suffix}")
-        os.system(f"liftOver {file_prefix} {file_chain} "
+        os.system(f"/local/zy/tools/liftOver {file_prefix} {file_chain} "
                   f"{file_hg19_prefix} {file_ummap}")
         dict_peak_score = defaultdict(list)
         with open(file_suffix, 'r') as r_f:
