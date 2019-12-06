@@ -370,11 +370,11 @@ def overlap_matrix(path_in, dict_in):
         df_ref.to_csv(file_ref, sep='\t')
 
         list_out = []
-        list_com = combinations(list(range(df_ref.shape[1])), 2)
+        list_com = combinations(df_ref.columns, 2)
         for com in list_com:
             len_list1 = (df_ref.loc[df_ref.iloc[:, com[0]] != 0, :]).shape[0]
             len_list2 = (df_ref.loc[df_ref.iloc[:, com[1]] != 0, :]).shape[0]
-            total = (len_list1 + len_list2) / 2
+            total = min(len_list1, len_list2)
             len_overlap = (df_ref.loc[
                            (df_ref.iloc[:, com[0]] != 0) &
                            (df_ref.iloc[:, com[1]] != 0), :]).shape[0]
