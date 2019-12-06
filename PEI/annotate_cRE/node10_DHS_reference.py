@@ -879,16 +879,16 @@ if __name__ == '__main__':
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_organ = '/local/zy/PEI/data/ENCODE/metadata/organ'
-    dict_organ = build_dict_attr(path_organ)
+    path_meta_organ = '/local/zy/PEI/data/ENCODE/metadata/organ'
+    dict_organ = build_dict_attr(path_meta_organ)
 
     # build organ dictionary
-    path_cell = '/local/zy/PEI/data/ENCODE/metadata/cell'
-    dict_cell = build_dict_attr(path_cell)
+    path_meta_cell = '/local/zy/PEI/data/ENCODE/metadata/cell'
+    dict_cell = build_dict_attr(path_meta_cell)
 
     # build organ dictionary
-    path_lab = '/local/zy/PEI/data/ENCODE/metadata/lab'
-    dict_lab = build_dict_attr(path_lab)
+    path_meta_lab = '/local/zy/PEI/data/ENCODE/metadata/lab'
+    dict_lab = build_dict_attr(path_meta_lab)
 
     # read reference organ
     ref_organ = '/local/zy/PEI/data/ENCODE/metadata/organ_ref.txt'
@@ -933,6 +933,18 @@ if __name__ == '__main__':
         path_hg38tohg19, path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu
     )
     print("Integration of files from same term ---- completed")
+
+    # standardization
+    # DHS
+    path_dhs_stan = '/home/zy/driver_mutation/data/DHS/GRCh38tohg19_standard'
+    standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
+    print('Standardization of DHS completed!')
+
+    # merge and cluster
+    # DHS
+    path_dhs_cluster = \
+        '/home/zy/driver_mutation/data/DHS/GRCh38tohg19_cluster'
+    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
