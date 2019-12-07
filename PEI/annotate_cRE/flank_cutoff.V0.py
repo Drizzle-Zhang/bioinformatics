@@ -6,7 +6,7 @@
 # @time: 11/13/19 8:22 PM
 
 from time import time
-from node10_preparation import merge_bed, merge_standard_bed
+from prepare_bed_file import merge_bed
 import pandas as pd
 import numpy as np
 import os
@@ -38,7 +38,7 @@ def count_rows(dict_in):
             'percent_99': percent_99, 'maximum': maximum}
 
 
-def generate_flank_plot_file(path_in, path_flank, list_dict, merge_type=1):
+def generate_flank_plot_file(path_in, path_flank, list_dict):
     if os.path.exists(path_flank):
         os.system(f"rm -rf {path_flank}")
     os.mkdir(path_flank)
@@ -57,16 +57,10 @@ def generate_flank_plot_file(path_in, path_flank, list_dict, merge_type=1):
                      accession_ids=accession_ids,
                      flank_percent=flank))
 
-    if merge_type == 1:
-        pool = Pool(processes=40)
-        func_merge = partial(merge_bed, path_in)
-        pool.map(func_merge, list_input)
-        pool.close()
-    elif merge_type == 2:
-        pool = Pool(processes=40)
-        func_merge = partial(merge_standard_bed, path_in)
-        pool.map(func_merge, list_input)
-        pool.close()
+    pool = Pool(processes=40)
+    func_merge = partial(merge_bed, path_in)
+    pool.map(func_merge, list_input)
+    pool.close()
 
     pool = Pool(processes=40)
     list_out = pool.map(count_rows, list_input)
@@ -112,62 +106,85 @@ def generate_term_input(path_in, list_select):
     return list_out
 
 
-def generate_organ_input(path_in, list_select):
-    df_meta = pd.read_csv(
-        os.path.join(path_in, 'meta.reference.tsv'), sep='\t')
-
-    list_out = []
-    for line in list_select:
-        sub_meta = df_meta.loc[df_meta['Biosample organ'] == line, :]
-        sub_name = line.replace(' ', '_')
-        accession_ids = []
-        for sub_dict in sub_meta.to_dict('records'):
-            organ = sub_dict['Biosample organ']
-            life_stage = sub_dict['Biosample life stage']
-            term = sub_dict['Biosample term name']
-            term_name = \
-                term.replace(' ', '_').replace('/', '+').replace("'", "--")
-            accession_ids.append(
-                f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/"
-                f"{term_name}/{term_name}"
-            )
-        list_out.append({'name': sub_name, 'files': accession_ids})
-
-    return list_out
-
-
 if __name__ == '__main__':
     time_start = time()
     # experiments
+    # DHS
     list_test = ['ENCSR000EIJ', 'ENCSR503HIB', 'ENCSR792ZXA', 'ENCSR946DXB',
                  'ENCSR095GWE', 'ENCSR499IFY']
-    path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19/'
-    path_dhs_flank = '/local/zy/PEI/data/ENCODE/' \
+    path_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/GRCh38tohg19/'
+    path_dhs_flank = '/home/zy/driver_mutation/data/ENCODE/' \
                      'DNase-seq/GRCh38tohg19/flank'
     list_dict_dhs = generate_experiment_input(path_dhs, list_test)
     generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs)
 
-    # term
+    # # H3K4me3
+    # list_test = ['ENCSR432GOP', 'ENCSR477BHF', 'ENCSR377ILM', 'ENCSR813ZEY',
+    #              'ENCSR780FXX', 'ENCSR107RDP']
+    # path_h3k4me3 = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K4me3'
+    # path_h3k4me3_flank = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K4me3/flank'
+    # list_dict_h3k4me3 = generate_experiment_input(path_h3k4me3, list_test)
+    # generate_flank_plot_file(
+    #     path_h3k4me3, path_h3k4me3_flank, list_dict_h3k4me3)
+    #
+    # # H3K27ac
+    # list_test = ['ENCSR743DDX', 'ENCSR668GBL', 'ENCSR203KCB', 'ENCSR726WVB',
+    #              'ENCSR150QXE', 'ENCSR792VLP']
+    # path_h3k27ac = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K27ac'
+    # path_h3k27ac_flank = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K27ac/flank'
+    # list_dict_h3k27ac = generate_experiment_input(path_h3k27ac, list_test)
+    # generate_flank_plot_file(
+    #     path_h3k27ac, path_h3k27ac_flank, list_dict_h3k27ac)
+
+    # DHS
     list_test = [['brain', 'embryonic', 'brain'],
                  ['frontal cortex', 'adult', 'brain'],
                  ['sigmoid colon', 'adult', 'intestine'],
                  ['limb', 'embryonic', 'limb'],
                  ['lung', 'embryonic', 'lung'],
                  ['cerebellar cortex', 'adult', 'brain']]
-    path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/' \
+    path_dhs = '/home/zy/driver_mutation/data/ENCODE/DNase-seq/' \
                'GRCh38tohg19_experiment'
-    path_dhs_flank = '/local/zy/PEI/data/ENCODE/' \
+    path_dhs_flank = '/home/zy/driver_mutation/data/ENCODE/' \
                      'DNase-seq/GRCh38tohg19_experiment/flank'
     list_dict_dhs = generate_term_input(path_dhs, list_test)
     generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs)
 
-    # organ
-    list_test = ['adrenal gland', 'brain', 'intestine', 'musculature of body',
-                 'testis', 'heart']
-    path_dhs = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
-    path_dhs_flank = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard/flank'
-    list_dict_dhs = generate_organ_input(path_dhs, list_test)
-    generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs, 2)
+    # list_test = [['stomach', 'adult', 'stomach'],
+    #              ['layer of hippocampus', 'adult', 'brain'],
+    #              ['sigmoid colon', 'adult', 'intestine'],
+    #              ['adrenal gland', 'adult', 'adrenal gland'],
+    #              ['placenta', 'embryonic', 'extraembryonic component'],
+    #              ['heart left ventricle', 'adult', 'heart']]
+    # # H3K4me3
+    # path_h3k4me3 = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K4me3_experiment'
+    # path_h3k4me3_flank = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K4me3_experiment/flank'
+    # list_dict_h3k4me3 = generate_term_input(path_h3k4me3, list_test)
+    # generate_flank_plot_file(
+    #     path_h3k4me3, path_h3k4me3_flank, list_dict_h3k4me3)
+    #
+    # # H3K27ac
+    # path_h3k27ac = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K27ac_experiment'
+    # path_h3k27ac_flank = \
+    #     '/home/zy/driver_mutation/data/ENCODE/' \
+    #     'histone_ChIP-seq/GRCh38tohg19/H3K27ac_experiment/flank'
+    # list_dict_h3k27ac = generate_term_input(path_h3k27ac, list_test)
+    # generate_flank_plot_file(
+    #     path_h3k27ac, path_h3k27ac_flank, list_dict_h3k27ac)
 
     time_end = time()
     print(time_end - time_start)
