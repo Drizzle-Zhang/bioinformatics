@@ -1,25 +1,27 @@
+library(ggplot2)
 scatter.plot <- function(file.in, meta.in, path.out) {
-    df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
-                                stringsAsFactors = F)
-    df.meta <- read.delim(meta.in, sep = '\t', stringsAsFactors = F)
-    label <- as.character(df.lable.peak[1, 2:dim(df.lable.peak)[2]])
-    names(df.lable.peak) <- as.character(df.lable.peak[1,])
-    df.lable.peak <- df.lable.peak[-1,]
-    row.names(df.lable.peak) <- df.lable.peak$peak_id
-    df.lable.peak$peak_id <- NULL
-    df.lable.peak <- data.frame(lapply(df.lable.peak, as.numeric))
-    
+    df.lable.peak <- read.delim(file.in, sep = '\t', header = T,
+                                row.names = 'peak_id', stringsAsFactors = F)
+    df.meta <- read.delim(meta.in, sep = '\t', header = T,
+                          row.names = 'File.accession', stringsAsFactors = F)
+
     df.scale <- t(scale(df.lable.peak))
     res.pca <- prcomp(df.scale)
-    df.plot <- data.frame(res.pca$x[,1:2])
-    pdf(paste0(path.out, '/scatter.organ.accession.pdf'))
-    par(pin = c(6, 4))
-    plot(res.pca$x[,1:2], main = 'Scatter Plot')
-    text(res.pca$x[,1:2], label, cex = .4, pos = 1)
-    dev.off()
-    df.out <- cbind(res.pca$x[,1:2], label)
-    write.table(df.out, paste0(path.out, '/scatter.organ.accession.txt'), 
-                sep = '\t', quote = F, row.names = F, col.names = F)
+    PC1 <- res.pca$x[,1]
+    PC2 <- res.pca$x[,2]
+    accessions <- names(df.lable.peak)
+    df.plot <- data.frame(PC1, PC2, accessions)
+    df.plot <- merge(df.plot, df.meta, by = 'File.accession')
+    obj.ggplot <- ggplot(
+        data = df.plot, 
+        aes(x = PC1, y = PC2, color = Biosample.term.id, 
+            shape = Biosample.life.stage, text = File.accession)
+        ) + 
+        geom_point() + geom_text(aes(label = text))
+    ggsave(filename = 'scatter.organ.accession.png', path = path.out, 
+           width = 6, height = 4)
+    write.table(df.plot, paste0(path.out, '/scatter.organ.accession.txt'), 
+                sep = '\t', quote = F)
     
 }
 

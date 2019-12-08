@@ -203,8 +203,8 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
 
         df_old = pd.read_csv(file_prefix, sep='\t', header=None)
         length_old = df_old.iloc[:, 2] - df_old.iloc[:, 1]
-        up_limit = np.max(length_old) + 10
-        down_limit = np.min(length_old) - 10
+        up_limit = min(np.max(length_old) + 10, 15000)
+        down_limit = max(np.min(length_old) - 10, 140)
         df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
