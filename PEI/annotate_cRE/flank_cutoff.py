@@ -44,7 +44,7 @@ def generate_flank_plot_file(path_in, path_flank, list_dict, merge_type=1):
     os.mkdir(path_flank)
 
     list_input = []
-    array_flank = np.linspace(0, 1, 51)
+    array_flank = np.linspace(0, 1.5, 76)
     for line in list_dict:
         path_out = os.path.join(path_flank, line['name'])
         os.mkdir(path_out)
@@ -136,6 +136,18 @@ def generate_organ_input(path_in, list_select):
     return list_out
 
 
+def generate_all_input(path_in):
+    folders = os.listdir(path_in)
+
+    accession_ids = []
+    for folder in folders:
+        if os.path.isdir(os.path.join(path_in, folder)) & (folder != 'flank'):
+            accession_ids.append(f"{folder}/{folder}")
+    list_out = {'name': 'all_organs', 'files': accession_ids}
+
+    return list_out
+
+
 if __name__ == '__main__':
     time_start = time()
     # experiments
@@ -165,6 +177,12 @@ if __name__ == '__main__':
     list_test = ['adrenal gland', 'brain', 'intestine', 'musculature of body',
                  'testis', 'heart']
     path_dhs = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
+    path_dhs_flank = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard/flank'
+    list_dict_dhs = generate_organ_input(path_dhs, list_test)
+    generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs, 2)
+
+    # all
+    path_dhs = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
     path_dhs_flank = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard/flank'
     list_dict_dhs = generate_organ_input(path_dhs, list_test)
     generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs, 2)

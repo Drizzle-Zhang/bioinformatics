@@ -1,4 +1,4 @@
-scatter.plot <- function(file.in, fig.out) {
+scatter.plot <- function(file.in, path.out) {
     df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
                                 stringsAsFactors = F)
     label <- as.character(df.lable.peak[1, 2:dim(df.lable.peak)[2]])
@@ -16,14 +16,14 @@ scatter.plot <- function(file.in, fig.out) {
     df.binary[df.binary != 0] = 1
     df.scale <- t(scale(df.binary))
     res.pca <- prcomp(df.scale)
-    pdf(fig.out)
+    pdf(paste0(path.out, '/scatter.organ.pdf'))
     par(pin = c(6, 4))
     plot(res.pca$x[,1:2], main = 'Scatter Plot')
     text(res.pca$x[,1:2], label, cex = .4, pos = 1)
     dev.off()
     df.out <- cbind(res.pca$x[,1:2], label)
-    write.table(df.out, paste0(fig.out, '.txt'), sep = '\t', quote = F, 
-                row.names = F, col.names = F)
+    write.table(df.out, paste0(path.out, '/scatter.organ.txt'), 
+                sep = '\t', quote = F, row.names = F, col.names = F)
     
 }
 

@@ -21,7 +21,7 @@ cut.integration <- function(vec.lgp, cutoff, file_num) {
 }
 
 Adjust.pValue <- function(path.in, path.out, peak_num, file_num) {
-    df.bed <- read.delim(path.in, sep = '\t', stringsAsFactors = F, header = F)
+                df.bed <- read.delim(path.in, sep = '\t', stringsAsFactors = F, header = F)
     list.split <- strsplit(df.bed[,'V8'], ',')
     # calculate cutoff
     list.pvalue <- lapply(list.split, split.pvalue)

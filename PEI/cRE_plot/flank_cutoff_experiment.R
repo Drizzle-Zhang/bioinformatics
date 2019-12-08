@@ -39,7 +39,7 @@ ggsave(
     plot = DHS.plot, path = './DHS', filename = "flank_DHS_exp.png",
     units = 'cm', width = 25, height = 15)
 df.flank.DHS[df.flank.DHS$flank_percent == 0, ]
-df.flank.DHS[df.flank.DHS$flank_percent == 0.4, ]
+df.flank.DHS[df.flank.DHS$flank_percent == 0.56, ]
 
 
 # H3K4me3

@@ -175,6 +175,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         file_prefix = file_hg38 + '.prefix'
         file_suffix = file_hg38 + '.suffix'
         file_hg19_prefix = file_hg19 + '.prefix'
+        file_hg19_format = file_hg19 + '.format'
         os.system(f"cut -f 1,2,3,4 {file_hg38} > {file_prefix}")
         os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38} > {file_suffix}")
         os.system(f"/local/zy/tools/liftOver {file_prefix} {file_chain} "
@@ -184,7 +185,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
             for line in r_f:
                 list_line = line.strip().split('\t')
                 dict_peak_score[list_line[0]].append(list_line[1:])
-        with open(file_hg19, 'w') as w_f:
+        with open(file_hg19_format, 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
                   "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
             with open(file_hg19_prefix, 'r') as r_hg19:
@@ -199,10 +200,20 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                         q_value=list_suffix[4], peak_location=list_suffix[5]
                     )
                     w_f.write(fmt.format(**dict_hg19))
+
+        df_old = pd.read_csv(file_prefix, sep='\t', header=None)
+        length_old = df_old.iloc[:, 2] - df_old.iloc[:, 1]
+        up_limit = np.max(length_old) + 10
+        down_limit = np.min(length_old) - 10
+        df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
+        length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
+        df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
+        df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
         os.remove(file_ummap)
         os.remove(file_prefix)
         os.remove(file_suffix)
         os.remove(file_hg19_prefix)
+        os.remove(file_hg19_format)
 
     return
 
@@ -369,22 +380,24 @@ def overlap_matrix(path_in, dict_in):
             out_dict = dict()
             out_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            list_access = sub_dict[3].strip().split('|')
-            for access in accession_ids:
-                if accession_ids[0][:5] == 'ENCSR':
+            set_access = set(sub_dict[3].strip().split('|'))
+            if accession_ids[0][:5] == 'ENCSR':
+                for access in accession_ids:
                     access_files = (df_meta.loc[
                         df_meta['Experiment accession'] == access,
                         'File accession']).tolist()
-                    if set(access_files).intersection(set(list_access)):
+                    if set(access_files).intersection(set_access):
                         out_dict[access] = 1
                     else:
                         out_dict[access] = 0
-                else:
-                    if access in list_access:
+                    list_dict.append(out_dict)
+            else:
+                for access in accession_ids:
+                    if access in set_access:
                         out_dict[access] = 1
                     else:
                         out_dict[access] = 0
-            list_dict.append(out_dict)
+                list_dict.append(out_dict)
         df_ref = pd.DataFrame(
             list_dict, columns=['peak_id'] + accession_ids
         )
@@ -552,11 +565,13 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                f"{term_name}/{term_name}.bed"
         folder1 = os.path.join(path_out, f"{organ.replace(' ', '_')}")
         folder2 = os.path.join(
-            path_out, f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}"
+            path_out,
+            f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}"
         )
         folder3 = os.path.join(
-            path_out, f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/"
-                      f"{term_name}"
+            path_out,
+            f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/"
+            f"{term_name}"
         )
         file_in = os.path.join(path_in, file)
         file_out = os.path.join(path_out, file)
@@ -575,12 +590,13 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         with open(file_out, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
             fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
-                          "{score}\t.\t{file_label}\n"
+                          "{score}\t.\t{file_label}\t{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
                 start = list_line[1]
                 end = list_line[2]
+                accessions = list_line[3]
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
                 if type_bed == 'DHS':
                     w_f.write(fmt_dhs.format(**locals()))
@@ -623,7 +639,7 @@ def merge_standard_bed(path_bed, dict_in):
     flank_percent = dict_in['flank_percent']
     term_name = dict_in['term_name']
     path_out = dict_in['path']
-    col_collapse = '2,3,5,7'
+    col_collapse = '2,3,5,7,8'
     str_collapse = \
         ','.join([val for val in ['collapse']
                   for i in range(len(col_collapse.split(',')))])
@@ -642,7 +658,8 @@ def merge_standard_bed(path_bed, dict_in):
     split_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t.\t{p_value}\t.\t{label}\n"
+            fmt = "{chrom}\t{start}\t{end}\t.\t{p_value}\t.\t{label}\t" \
+                  "{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -654,6 +671,8 @@ def merge_standard_bed(path_bed, dict_in):
                     [num for num in list_line[6].strip().split(',')])
                 array_p_value = np.array(
                     [num for num in list_line[5].strip().split(',')])
+                array_accessions = np.array(
+                    [num for num in list_line[7].strip().split(',')])
                 array_length = array_end - array_start
                 while array_length.shape[0] > 0:
                     idx = np.argmax(array_length)
@@ -666,11 +685,13 @@ def merge_standard_bed(path_bed, dict_in):
                     select_end = array_end[select_bool]
                     select_label = array_label[select_bool]
                     select_p_value = array_p_value[select_bool]
+                    select_accessions = array_accessions[select_bool]
                     # reset arrays
                     array_start = array_start[~select_bool]
                     array_end = array_end[~select_bool]
                     array_label = array_label[~select_bool]
                     array_p_value = array_p_value[~select_bool]
+                    array_accessions = array_accessions[~select_bool]
                     array_length = array_end - array_start
                     # write new rows
                     start = str(np.min(select_start))
@@ -678,6 +699,7 @@ def merge_standard_bed(path_bed, dict_in):
                     label = \
                         '/'.join(map(str, select_label.tolist()))
                     p_value = '/'.join(map(str, select_p_value.tolist()))
+                    accessions = '|'.join(map(str, select_accessions.tolist()))
                     w_f.write(fmt.format(**locals()))
 
     os.remove(cat_out)
@@ -687,6 +709,7 @@ def merge_standard_bed(path_bed, dict_in):
 
 
 def sub_merge(dict_in):
+    sub_ref_meta = dict_in['sub_ref_meta']
     sub_meta = dict_in['sub_meta']
     sub_path_in = dict_in['path_in']
     sub_path_out = dict_in['path_out']
@@ -694,7 +717,7 @@ def sub_merge(dict_in):
     file_out = os.path.join(sub_path_out, organ.replace(' ', '_') + '.bed')
     if not os.path.exists(sub_path_out):
         os.mkdir(sub_path_out)
-    list_meta = sub_meta.to_dict("records")
+    list_meta = sub_ref_meta.to_dict("records")
     accession_ids = [
         '/'.join([sub_dict['Biosample life stage'].replace(' ', '_'),
                   sub_dict['Biosample term name'].replace(
@@ -702,7 +725,7 @@ def sub_merge(dict_in):
                   sub_dict['Biosample term name'].replace(
                         ' ', '_').replace('/', '+').replace("'", '--')])
         for sub_dict in list_meta]
-    if sub_meta.shape[0] == 1:
+    if sub_ref_meta.shape[0] == 1:
         os.system(
             f"cp {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
             f"{file_out}"
@@ -720,63 +743,83 @@ def sub_merge(dict_in):
                     )
                     w_f.write(fmt.format(**dict_out))
         return
-    elif sub_meta.shape[0] > 1:
+    elif sub_ref_meta.shape[0] > 1:
         dict_merge = dict(
             path=sub_path_out,
             term_name=organ.replace(' ', '_'),
             accession_ids=accession_ids,
-            flank_percent=0.3)
+            flank_percent=0.6)
         merge_standard_bed(sub_path_in, dict_merge)
         labels = [f"{organ}|{sub_dict['Biosample life stage']}|"
                   f"{sub_dict['Biosample term name']}"
                   for sub_dict in list_meta]
+        accessions = [sub_dict['File accession']
+                      for sub_dict in sub_meta.to_dict("records")]
         list_bed = \
             (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
-        list_dict = []
+        list_label = []
+        list_exp = []
         for sub_dict in list_bed:
-            out_dict = dict()
-            out_dict['peak_id'] = \
+            dict_label = dict()
+            dict_exp = dict()
+            dict_label['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            list_label = sub_dict[6].strip().split('/')
-            list_lgp = [num for num in sub_dict[4].strip().split('/')]
+            dict_exp['peak_id'] = \
+                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
+            set_label = set(sub_dict[6].strip().split('/'))
             for label in labels:
-                try:
-                    idx = list_label.index(label)
-                except ValueError:
-                    out_dict[label] = 0
-                    continue
-                lgp = list_lgp[idx]
-                if lgp != '.':
-                    out_dict[label] = float(lgp)
+                if label in set_label:
+                    dict_label[label] = 1
                 else:
-                    out_dict[label] = -1
-            list_dict.append(out_dict)
-        df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
-        df_label_peak.index = df_label_peak['peak_id']
-        df_label_peak = df_label_peak.drop('peak_id', 1)
+                    dict_label[label] = 0
+            set_accession = set(sub_dict[7].strip().split('|'))
+            for accession in accessions:
+                if accession in set_accession:
+                    dict_exp[accession] = 1
+                else:
+                    dict_exp[accession] = 0
+            list_label.append(dict_label)
+            list_exp.append(dict_exp)
+
+        # label matrix
+        df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
+        df_label.index = df_label['peak_id']
+        df_label = df_label.drop('peak_id', 1)
         # write score matrix to txt file
-        mat_peak = os.path.join(sub_path_out, 'label_peak.txt')
-        df_label_peak.to_csv(mat_peak, sep='\t')
+        mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
+        df_label.to_csv(mat_label, sep='\t')
+
+        # experiment matrix
+        df_exp = \
+            pd.DataFrame(list_exp, columns=['peak_id'] + accessions)
+        df_exp.index = df_exp['peak_id']
+        df_exp = df_exp.drop('peak_id', 1)
+        # write score matrix to txt file
+        mat_exp = os.path.join(sub_path_out, 'experiment_matrix.txt')
+        df_exp.to_csv(mat_exp, sep='\t')
+
         # calculate overlap ratio
         list_out = []
-        list_com = combinations(list(range(df_label_peak.shape[1])), 2)
+        list_com = combinations(df_label.columns, 2)
         for com in list_com:
-            len_list1 = (df_label_peak.loc[
-                         df_label_peak.iloc[:, com[0]] != 0, :]).shape[0]
-            len_list2 = (df_label_peak.loc[
-                         df_label_peak.iloc[:, com[1]] != 0, :]).shape[0]
-            total = (len_list1 + len_list2) / 2
-            len_overlap = (df_label_peak.loc[
-                           (df_label_peak.iloc[:, com[0]] != 0) &
-                           (df_label_peak.iloc[:, com[1]] != 0), :]).shape[0]
+            len_list1 = (df_label.loc[
+                         df_label.loc[:, com[0]] != 0, :]).shape[0]
+            len_list2 = (df_label.loc[
+                         df_label.loc[:, com[1]] != 0, :]).shape[0]
+            total = min(len_list1, len_list2)
+            len_overlap = (df_label.loc[
+                           (df_label.loc[:, com[0]] != 0) &
+                           (df_label.loc[:, com[1]] != 0), :]).shape[0]
             list_out.append({'Name': organ, 'Combination': com,
                              'Overlap ratio': len_overlap/total})
 
         df_out = pd.DataFrame(list_out)
 
         # scatter plot
-        os.system(f"Rscript scatter.plot.R {mat_peak} "
-                  f"{os.path.join(sub_path_out, 'scatter.pdf')}")
+        # os.system(f"Rscript scatter.plot.organ.R {mat_label} "
+        #           f"{os.path.join(sub_path_out, 'scatter.pdf')}")
+        # os.system(f"Rscript scatter.plot.organ.accession.R {mat_label} "
+        #           f"{os.path.join(sub_path_out, 'scatter.pdf')}")
 
         return df_out
 
@@ -790,19 +833,24 @@ def merge_organ_cluster(path_in, path_out, num_process):
     os.system(f"cp {os.path.join(path_in, 'metadata.simple.tsv')} "
               f"{os.path.join(path_out, 'metadata.simple.tsv')}")
 
-    df_meta = \
+    df_meta_ref = \
         pd.read_csv(os.path.join(path_in, 'meta.reference.tsv'), sep='\t')
+    df_meta = \
+        pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
     organs = []
-    for line in df_meta['Biosample organ'].tolist():
+    for line in df_meta_ref['Biosample organ'].tolist():
         organs.extend(line.strip().split(','))
     organs = set(organs)
     list_input = []
     for organ in organs:
+        sub_ref_meta = df_meta_ref.loc[
+                   df_meta_ref['Biosample organ'].apply(
+                       lambda x: organ in x.strip().split(',')), :]
         sub_meta = df_meta.loc[
                    df_meta['Biosample organ'].apply(
                        lambda x: organ in x.strip().split(',')), :]
         list_input.append(
-            dict(sub_meta=sub_meta, organ=organ,
+            dict(sub_ref_meta=sub_ref_meta, organ=organ, sub_meta=sub_meta,
                  path_out=os.path.join(path_out, organ.replace(' ', '_')),
                  path_in=os.path.join(path_in, organ.replace(' ', '_'))))
 
@@ -827,7 +875,7 @@ def merge_organ_cluster(path_in, path_out, num_process):
         path=path_out,
         term_name='all_organs',
         accession_ids=accession_ids,
-        flank_percent=0.2)
+        flank_percent=0.7)
     merge_standard_bed(path_out, dict_merge)
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
@@ -872,8 +920,8 @@ def merge_organ_cluster(path_in, path_out, num_process):
     )
 
     # scatter plot
-    os.system(f"Rscript scatter.plot.R {mat_peak} "
-              f"{os.path.join(path_out, 'all_organs_scatter.pdf')}")
+    # os.system(f"Rscript scatter.plot.R {mat_peak} "
+    #           f"{os.path.join(path_out, 'all_organs_scatter.pdf')}")
 
     return
 
@@ -955,8 +1003,7 @@ if __name__ == '__main__':
     print('Standardization of DHS completed!')
 
     # merge and cluster
-    path_dhs_cluster = \
-        '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
+    path_dhs_cluster = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
     merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
     print('Cluster and merge of DHS completed!')
 
