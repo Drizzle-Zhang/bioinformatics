@@ -765,8 +765,6 @@ def sub_merge(dict_in):
     sub_path_in = dict_in['path_in']
     sub_path_out = dict_in['path_out']
     organ = dict_in['organ']
-    bool_label = dict_in['bool_label']
-    bool_overlap = dict_in['bool_overlap']
     bool_accession = dict_in['bool_accession']
     bool_plot = dict_in['bool_plot']
     file_out = os.path.join(sub_path_out, organ.replace(' ', '_') + '.bed')
@@ -815,37 +813,35 @@ def sub_merge(dict_in):
             (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
 
         # label matrix
-        if bool_label:
-            func_label = partial(label_mat, labels)
-            list_label = [func_label(sub_dict) for sub_dict in list_bed]
-            df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
-            df_label.index = df_label['peak_id']
-            df_label = df_label.drop('peak_id', 1)
-            # write score matrix to txt file
-            mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
-            df_label.to_csv(mat_label, sep='\t')
+        func_label = partial(label_mat, labels)
+        list_label = [func_label(sub_dict) for sub_dict in list_bed]
+        df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
+        df_label.index = df_label['peak_id']
+        df_label = df_label.drop('peak_id', 1)
+        # write score matrix to txt file
+        mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
+        df_label.to_csv(mat_label, sep='\t')
 
-            if bool_overlap:
-                # Jaccard distance
-                list_out = []
-                list_com = combinations(df_label.columns, 2)
-                for com in list_com:
-                    jdist = pdist(
-                        (df_label.loc[
-                            (df_label.loc[:, com[0]] != 0) |
-                            (df_label.loc[:, com[1]] != 0), com]).T,
-                        'jaccard')[0]
-                    list_out.append({'Name': organ, 'Combination': com,
-                                     'Jaccard distance': jdist})
+        # Jaccard distance
+        list_out = []
+        list_com = combinations(df_label.columns, 2)
+        for com in list_com:
+            jdist = pdist(
+                (df_label.loc[
+                    (df_label.loc[:, com[0]] != 0) |
+                    (df_label.loc[:, com[1]] != 0), com]).T,
+                'jaccard')[0]
+            list_out.append({'Name': organ, 'Combination': com,
+                             'Jaccard distance': jdist})
 
-                df_out = pd.DataFrame(list_out)
+        df_out = pd.DataFrame(list_out)
 
-            if bool_plot:
-                # scatter plot
-                str_head = '_'.join(labels)
-                os.system(
-                    f"Rscript scatter.plot.organ.R {mat_label} {str_head} "
-                    f"{sub_path_out}")
+        if bool_plot:
+            # scatter plot
+            str_head = '_'.join(labels)
+            os.system(
+                f"Rscript scatter.plot.organ.R {mat_label} {str_head} "
+                f"{sub_path_out}")
 
         # accession matrix
         if bool_accession:
@@ -868,10 +864,7 @@ def sub_merge(dict_in):
                     f"{os.path.join(path_in, 'metadata.simple.tsv')} "
                     f"{sub_path_out}")
 
-        if bool_overlap:
-            return df_out
-        else:
-            return
+        return df_out
 
 
 def organ_mat(organs, dict_in):
@@ -938,8 +931,7 @@ def merge_organ_cluster(path_in, path_out, num_process):
             dict(sub_ref_meta=sub_ref_meta, organ=organ, sub_meta=sub_meta,
                  path_out=os.path.join(path_out, organ.replace(' ', '_')),
                  path_in=os.path.join(path_in, organ.replace(' ', '_')),
-                 bool_label=True, bool_overlap=True, bool_accession=True,
-                 bool_plot=True))
+                 bool_accession=True, bool_plot=True))
 
     pool = Pool(processes=num_process)
     list_df = pool.map(sub_merge, list_input)
