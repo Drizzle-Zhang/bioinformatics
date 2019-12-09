@@ -14,6 +14,7 @@ from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
 from itertools import combinations
+from scipy.spatial.distance import pdist
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file):
@@ -588,7 +589,7 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}" \
                       "\t{accessions}\n"
             fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
-                          "{score}\t.\t{file_label}\t{accessions}\n"
+                          "{score}\t.\t{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -614,6 +615,24 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     if os.path.exists(os.path.join(path_in, 'meta.reference.tsv')):
         os.system(f"cp {os.path.join(path_in, 'meta.reference.tsv')} "
                   f"{os.path.join(path_out, 'meta.reference.tsv')}")
+    else:
+        df_meta = pd.read_csv(
+            os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+        meta_out = df_meta.loc[
+                   :, ['Biosample term name', 'Biosample life stage',
+                       'Biosample organ']]
+        meta_out = meta_out.drop_duplicates()
+        dict_meta = []
+        for sub_dict in meta_out.to_dict('records'):
+            organs = sub_dict['Biosample organ'].split(',')
+            for organ in organs:
+                dict_meta.append(
+                    {'Biosample term name': sub_dict['Biosample term name'],
+                     'Biosample life stage': sub_dict['Biosample life stage'],
+                     'Biosample organ': organ})
+        meta_out = pd.DataFrame(dict_meta)
+        meta_out.to_csv(os.path.join(path_out, 'meta.reference.tsv'),
+                        sep='\t', index=None)
 
     if type_bed == 'DHS':
         df_meta = pd.read_csv(
@@ -746,6 +765,10 @@ def sub_merge(dict_in):
     sub_path_in = dict_in['path_in']
     sub_path_out = dict_in['path_out']
     organ = dict_in['organ']
+    bool_label = dict_in['bool_label']
+    bool_overlap = dict_in['bool_overlap']
+    bool_accession = dict_in['bool_accession']
+    bool_plot = dict_in['bool_plot']
     file_out = os.path.join(sub_path_out, organ.replace(' ', '_') + '.bed')
     if not os.path.exists(sub_path_out):
         os.mkdir(sub_path_out)
@@ -790,52 +813,65 @@ def sub_merge(dict_in):
                       for sub_dict in sub_meta.to_dict("records")]
         list_bed = \
             (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
-        func_label = partial(label_mat, labels)
-        func_accession = partial(accession_mat, accessions)
-        list_label = [func_label(sub_dict) for sub_dict in list_bed]
-        list_accession = [func_accession(sub_dict) for sub_dict in list_bed]
 
         # label matrix
-        df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
-        df_label.index = df_label['peak_id']
-        df_label = df_label.drop('peak_id', 1)
-        # write score matrix to txt file
-        mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
-        df_label.to_csv(mat_label, sep='\t')
+        if bool_label:
+            func_label = partial(label_mat, labels)
+            list_label = [func_label(sub_dict) for sub_dict in list_bed]
+            df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
+            df_label.index = df_label['peak_id']
+            df_label = df_label.drop('peak_id', 1)
+            # write score matrix to txt file
+            mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
+            df_label.to_csv(mat_label, sep='\t')
 
-        # experiment matrix
-        df_accession = \
-            pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
-        df_accession.index = df_accession['peak_id']
-        df_accession = df_accession.drop('peak_id', 1)
-        # write score matrix to txt file
-        mat_accession = os.path.join(sub_path_out, 'accession_matrix.txt')
-        df_accession.to_csv(mat_accession, sep='\t')
+            if bool_overlap:
+                # Jaccard distance
+                list_out = []
+                list_com = combinations(df_label.columns, 2)
+                for com in list_com:
+                    jdist = pdist(
+                        (df_label.loc[
+                            (df_label.loc[:, com[0]] != 0) |
+                            (df_label.loc[:, com[1]] != 0), com]).T,
+                        'jaccard')[0]
+                    list_out.append({'Name': organ, 'Combination': com,
+                                     'Jaccard distance': jdist})
 
-        # calculate overlap ratio
-        list_out = []
-        list_com = combinations(df_label.columns, 2)
-        for com in list_com:
-            len_list1 = (df_label.loc[
-                         df_label.loc[:, com[0]] != 0, :]).shape[0]
-            len_list2 = (df_label.loc[
-                         df_label.loc[:, com[1]] != 0, :]).shape[0]
-            total = min(len_list1, len_list2)
-            len_overlap = (df_label.loc[
-                           (df_label.loc[:, com[0]] != 0) &
-                           (df_label.loc[:, com[1]] != 0), :]).shape[0]
-            list_out.append({'Name': organ, 'Combination': com,
-                             'Overlap ratio': len_overlap/total})
+                df_out = pd.DataFrame(list_out)
 
-        df_out = pd.DataFrame(list_out)
+            if bool_plot:
+                # scatter plot
+                str_head = '_'.join(labels)
+                os.system(
+                    f"Rscript scatter.plot.organ.R {mat_label} {str_head} "
+                    f"{sub_path_out}")
 
-        # scatter plot
-        # os.system(f"Rscript scatter.plot.organ.R {mat_label} "
-        #           f"{os.path.join(sub_path_out, 'scatter.pdf')}")
-        # os.system(f"Rscript scatter.plot.organ.accession.R {mat_label} "
-        #           f"{os.path.join(sub_path_out, 'scatter.pdf')}")
+        # accession matrix
+        if bool_accession:
+            func_accession = partial(accession_mat, accessions)
+            list_accession = \
+                [func_accession(sub_dict) for sub_dict in list_bed]
+            df_accession = \
+                pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
+            df_accession.index = df_accession['peak_id']
+            df_accession = df_accession.drop('peak_id', 1)
+            # write score matrix to txt file
+            mat_accession = os.path.join(sub_path_out, 'accession_matrix.txt')
+            df_accession.to_csv(mat_accession, sep='\t')
 
-        return df_out
+            if bool_plot:
+                # scatter plot
+                path_in = '/'.join(sub_path_in.split('/')[:-1])
+                os.system(
+                    f"Rscript scatter.plot.organ.accession.R {mat_accession} "
+                    f"{os.path.join(path_in, 'metadata.simple.tsv')} "
+                    f"{sub_path_out}")
+
+        if bool_overlap:
+            return df_out
+        else:
+            return
 
 
 def organ_mat(organs, dict_in):
@@ -851,6 +887,27 @@ def organ_mat(organs, dict_in):
             organ_dict[organ] = 0
 
     return organ_dict
+
+
+def calculate_overlap(df_organ, com):
+    # Overlap ratio
+    # len_list1 = (df_organ.loc[
+    #              df_organ.loc[:, com[0]] != 0, :]).shape[0]
+    # len_list2 = (df_organ.loc[
+    #              df_organ.loc[:, com[1]] != 0, :]).shape[0]
+    # total = min(len_list1, len_list2)
+    # len_overlap = (df_organ.loc[
+    #                (df_organ.loc[:, com[0]] != 0) &
+    #                (df_organ.loc[:, com[1]] != 0), :]).shape[0]
+
+    # Jaccard distance
+    jdist = pdist(
+        (df_organ.loc[
+            (df_organ.loc[:, com[0]] != 0) |
+            (df_organ.loc[:, com[1]] != 0), com]).T,
+        'jaccard')[0]
+
+    return {'Combination': com, 'Jaccard distance': jdist}
 
 
 def merge_organ_cluster(path_in, path_out, num_process):
@@ -880,7 +937,9 @@ def merge_organ_cluster(path_in, path_out, num_process):
         list_input.append(
             dict(sub_ref_meta=sub_ref_meta, organ=organ, sub_meta=sub_meta,
                  path_out=os.path.join(path_out, organ.replace(' ', '_')),
-                 path_in=os.path.join(path_in, organ.replace(' ', '_'))))
+                 path_in=os.path.join(path_in, organ.replace(' ', '_')),
+                 bool_label=True, bool_overlap=True, bool_accession=True,
+                 bool_plot=True))
 
     pool = Pool(processes=num_process)
     list_df = pool.map(sub_merge, list_input)
@@ -902,26 +961,52 @@ def merge_organ_cluster(path_in, path_out, num_process):
         path=path_out,
         term_name='all_organs',
         accession_ids=accession_ids,
-        flank_percent=0.7)
+        flank_percent=0.8)
     merge_standard_bed(path_out, dict_merge)
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
                      sep='\t', header=None)).to_dict('records')
-    accessions = [sub_dict['File accession']
-                  for sub_dict in df_meta.to_dict("records")]
-    organs = list(organs)
 
+    # label matrix
+    labels = [f"{sub_dict['Biosample organ']}|"
+              f"{sub_dict['Biosample life stage']}|"
+              f"{sub_dict['Biosample term name']}"
+              for sub_dict in df_meta_ref.to_dict("records")]
+    pool = Pool(processes=num_process)
+    func_label = partial(label_mat, labels)
+    list_label = pool.map(func_label, list_bed)
+    pool.close()
+
+    df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
+    df_label.index = df_label['peak_id']
+    df_label = df_label.drop('peak_id', 1)
+    # write score matrix to txt file
+    mat_label = os.path.join(path_out, 'label_matrix.txt')
+    df_label.to_csv(mat_label, sep='\t')
+
+    # experiment matrix
+    # accessions = [sub_dict['File accession']
+    #               for sub_dict in df_meta.to_dict("records")]
+    # pool = Pool(processes=num_process)
+    # func_accession = partial(accession_mat, accessions)
+    # list_accession = pool.map(func_accession, list_bed)
+    # pool.close()
+
+    # df_accession = \
+    #     pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
+    # df_accession.index = df_accession['peak_id']
+    # df_accession = df_accession.drop('peak_id', 1)
+    # # write score matrix to txt file
+    # mat_accession = os.path.join(path_out, 'accession_matrix.txt')
+    # df_accession.to_csv(mat_accession, sep='\t')
+
+    # organ matrix
+    organs = list(organs)
     pool = Pool(processes=num_process)
     func_organ = partial(organ_mat, organs)
     list_organ = pool.map(func_organ, list_bed)
     pool.close()
 
-    pool = Pool(processes=num_process)
-    func_accession = partial(accession_mat, accessions)
-    list_accession = pool.map(func_accession, list_bed)
-    pool.close()
-
-    # label matrix
     df_organ = pd.DataFrame(list_organ, columns=['peak_id'] + organs)
     df_organ.index = df_organ['peak_id']
     df_organ = df_organ.drop('peak_id', 1)
@@ -929,29 +1014,12 @@ def merge_organ_cluster(path_in, path_out, num_process):
     mat_organ = os.path.join(path_out, 'organ_matrix.txt')
     df_organ.to_csv(mat_organ, sep='\t')
 
-    # experiment matrix
-    df_accession = \
-        pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
-    df_accession.index = df_accession['peak_id']
-    df_accession = df_accession.drop('peak_id', 1)
-    # write score matrix to txt file
-    mat_accession = os.path.join(path_out, 'accession_matrix.txt')
-    df_accession.to_csv(mat_accession, sep='\t')
-
     # calculate overlap ratio
-    list_out = []
     list_com = combinations(df_organ.columns, 2)
-    for com in list_com:
-        len_list1 = (df_organ.loc[
-                     df_organ.loc[:, com[0]] != 0, :]).shape[0]
-        len_list2 = (df_organ.loc[
-                     df_organ.loc[:, com[1]] != 0, :]).shape[0]
-        total = min(len_list1, len_list2)
-        len_overlap = (df_organ.loc[
-                       (df_organ.loc[:, com[0]] != 0) &
-                       (df_organ.loc[:, com[1]] != 0), :]).shape[0]
-        list_out.append({'Combination': com,
-                         'Overlap ratio': len_overlap / total})
+    pool = Pool(processes=num_process)
+    func_overlap = partial(calculate_overlap, df_organ)
+    list_out = pool.map(func_overlap, list_com)
+    pool.close()
 
     df_overlap = pd.DataFrame(list_out)
     df_overlap.to_csv(
@@ -959,8 +1027,9 @@ def merge_organ_cluster(path_in, path_out, num_process):
     )
 
     # scatter plot
-    # os.system(f"Rscript scatter.plot.R {mat_peak} "
-    #           f"{os.path.join(path_out, 'all_organs_scatter.pdf')}")
+    str_head = '_'.join(labels)
+    os.system(f"Rscript scatter.plot.R {mat_label} {str_head} "
+              f"{os.path.join(path_in, 'metadata.simple.tsv')} {path_out}")
 
     return
 
@@ -1005,31 +1074,31 @@ if __name__ == '__main__':
     df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
-    # # DHS reference
-    # # metafile
-    # path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/all'
-    # ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
-    # df_meta_dhs = filter_meta(ori_meta_dhs)
-    # df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
-    # df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
-    # df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
-    # df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
-    # df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    # meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
-    # df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
-    # print("DHS metadata ---- completed")
-    #
-    # # hg38 to hg19
-    # path_hg38tohg19 = \
-    #     '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
-    # hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
-    # print("Format conversion: hg38 -> hg19 ---- completed")
-    #
-    # # integrate files from same experiment
-    # path_exp_dhs = \
-    #     '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
-    # merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
-    # print("Integration of files from same experiment ---- completed")
+    # DHS reference
+    # metafile
+    path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/all'
+    ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
+    df_meta_dhs = filter_meta(ori_meta_dhs)
+    df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
+    df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
+    df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
+    df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
+    df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
+    meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
+    df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
+    print("DHS metadata ---- completed")
+
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
+    hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # integrate files from same experiment
+    path_exp_dhs = \
+        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
+    print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
@@ -1046,6 +1115,8 @@ if __name__ == '__main__':
     merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
     print('Cluster and merge of DHS completed!')
 
+    # merge sub-organ
+
     # preparation of bed files of histone and TF
     # H3K4me3
     path_h3k4me3 = \
@@ -1060,12 +1131,21 @@ if __name__ == '__main__':
     df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
     meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
+    print("H3K4me3 metadata ---- completed")
 
     # hg38 to hg19
     path_hg38tohg19 = \
         '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_h3k4me3_stan = \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3_standard'
+    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    print('Standardization of H3K4me3 completed!')
 
     # H3K27ac
     path_h3k27ac = \
@@ -1080,12 +1160,21 @@ if __name__ == '__main__':
     df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
     meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
+    print("H3K27ac metadata ---- completed")
 
     # hg38 to hg19
     path_hg38tohg19 = \
         '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac'
     hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_h3k27ac_stan = \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac_standard'
+    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    print('Standardization of H3K27ac completed!')
 
     time_end = time()
     print(time_end - time_start)

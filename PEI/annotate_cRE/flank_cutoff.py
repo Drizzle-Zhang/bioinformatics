@@ -63,7 +63,7 @@ def generate_flank_plot_file(path_in, path_flank, list_dict, merge_type=1):
         pool.map(func_merge, list_input)
         pool.close()
     elif merge_type == 2:
-        pool = Pool(processes=40)
+        pool = Pool(processes=11)
         func_merge = partial(merge_standard_bed, path_in)
         pool.map(func_merge, list_input)
         pool.close()
@@ -143,9 +143,8 @@ def generate_all_input(path_in):
     for folder in folders:
         if os.path.isdir(os.path.join(path_in, folder)) & (folder != 'flank'):
             accession_ids.append(f"{folder}/{folder}")
-    list_out = {'name': 'all_organs', 'files': accession_ids}
 
-    return list_out
+    return [dict(name='all_organs', files=accession_ids)]
 
 
 if __name__ == '__main__':
@@ -183,8 +182,8 @@ if __name__ == '__main__':
 
     # all
     path_dhs = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
-    path_dhs_flank = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard/flank'
-    list_dict_dhs = generate_organ_input(path_dhs, list_test)
+    path_dhs_flank = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster/flank'
+    list_dict_dhs = generate_all_input(path_dhs)
     generate_flank_plot_file(path_dhs, path_dhs_flank, list_dict_dhs, 2)
 
     time_end = time()

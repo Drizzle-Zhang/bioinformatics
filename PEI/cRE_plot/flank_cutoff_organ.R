@@ -40,17 +40,15 @@ DHS.plot <-
             'Testis', 'Heart'
         )
     )
-    # theme(panel.background = element_rect(fill = "transparent",colour = NA),
-    #       plot.background = element_rect(fill = "transparent",colour = NA),
-    #       panel.grid.major = element_line(colour = 'grey'),
-    #       panel.grid.minor = element_line(colour = 'grey'),
-    #       # axis.line = element_line(colour = "black")
-    #       )
+# theme(panel.background = element_rect(fill = "transparent",colour = NA),
+#       plot.background = element_rect(fill = "transparent",colour = NA),
+#       panel.grid.major = element_line(colour = 'grey'),
+#       panel.grid.minor = element_line(colour = 'grey'),
+#       # axis.line = element_line(colour = "black")
+#       )
 
 ggsave(
     plot = DHS.plot, path = './DHS', filename = "flank_DHS_organ.png",
     units = 'cm', width = 25, height = 15)
 df.flank.DHS[df.flank.DHS$flank_percent == 0, ]
-df.flank.DHS[df.flank.DHS$flank_percent == 0.7000000000000001, ]
-
-
+df.flank.DHS[df.flank.DHS$flank_percent == 0.6, ]

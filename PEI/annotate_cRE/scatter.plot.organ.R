@@ -1,32 +1,39 @@
-scatter.plot <- function(file.in, path.out) {
-    df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
-                                stringsAsFactors = F)
-    label <- as.character(df.lable.peak[1, 2:dim(df.lable.peak)[2]])
-    list.label <- strsplit(label, '|', fixed = T)
-    label <- unlist(
-        lapply(list.label, function(x){paste(x[2:3], collapse = '_')})
-        )
-    names(df.lable.peak) <- as.character(df.lable.peak[1,])
-    df.lable.peak <- df.lable.peak[-1,]
-    row.names(df.lable.peak) <- df.lable.peak$peak_id
-    df.lable.peak$peak_id <- NULL
-    df.lable.peak <- data.frame(lapply(df.lable.peak, as.numeric))
+library(ggplot2)
+scatter.plot <- function(file.in, str.head, path.out) {
+    labels <- as.character(unlist(strsplit(str.head, '_', fixed = T)))
+    list.label <- strsplit(labels, '|', fixed = T)
+    label <- as.character(unlist(
+        lapply(list.label, function(x){paste(x[2:3], collapse = '-')})
+    ))
     
-    df.binary <- df.lable.peak
-    df.binary[df.binary != 0] = 1
-    df.scale <- t(scale(df.binary))
+    df.lable.peak <- read.delim(file.in, sep = '\t', header = T,
+                                row.names = 'peak_id', stringsAsFactors = F)
+    
+    df.scale <- t(scale(df.lable.peak))
     res.pca <- prcomp(df.scale)
-    pdf(paste0(path.out, '/scatter.organ.pdf'))
-    par(pin = c(6, 4))
-    plot(res.pca$x[,1:2], main = 'Scatter Plot')
-    text(res.pca$x[,1:2], label, cex = .4, pos = 1)
-    dev.off()
-    df.out <- cbind(res.pca$x[,1:2], label)
-    write.table(df.out, paste0(path.out, '/scatter.organ.txt'), 
-                sep = '\t', quote = F, row.names = F, col.names = F)
-    
+    PC1 <- res.pca$x[,1]
+    PC2 <- res.pca$x[,2]
+    len.PC1 <- max(PC1) - min(PC1)
+    down.x <- min(PC1) - 0.1*len.PC1
+    up.x <- max(PC1) + 0.1*len.PC1
+    len.PC2 <- max(PC2) - min(PC2)
+    down.y <- min(PC2) - 0.1*len.PC2
+    up.y <- max(PC2) + 0.1*len.PC2
+    df.plot <- data.frame(PC1, PC2, label)
+    obj.ggplot <- ggplot(
+        data = df.plot, 
+        aes(x = PC1, y = PC2)
+    ) + 
+        geom_point(size = 2, alpha = 0.5, shape = 1) + 
+        geom_text(aes(label = label), size = 2.5) + 
+        xlim(down.x, up.x) + ylim(down.y, up.y)
+    ggsave(plot = obj.ggplot, filename = 'scatter.organ.pdf', 
+           path = path.out, width = 10, height = 7)
+    write.table(df.plot, paste0(path.out, '/scatter.organ.txt'), 
+                sep = '\t', quote = F)
+
 }
 
 args <- commandArgs(T)
-scatter.plot(args[1], args[2])
+scatter.plot(args[1], args[2], args[3])
 
