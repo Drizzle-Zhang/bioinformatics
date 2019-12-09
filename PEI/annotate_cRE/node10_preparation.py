@@ -1102,8 +1102,8 @@ if __name__ == '__main__':
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
-    # unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
-    # print("Integration of files from same term ---- completed")
+    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    print("Integration of files from same term ---- completed")
 
     # standardization
     path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
