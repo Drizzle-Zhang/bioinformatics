@@ -40,5 +40,5 @@ scatter.plot <- function(file.in, str.head, meta.in, path.out) {
 }
 
 args <- commandArgs(T)
-scatter.plot(args[1], args[2], args[3])
+scatter.plot(args[1], args[2], args[3], args[4])
 
