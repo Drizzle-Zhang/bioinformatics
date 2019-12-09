@@ -585,7 +585,8 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
 
     with open(file_in, 'r') as r_f:
         with open(file_out, 'w') as w_f:
-            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}\n"
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t.\t.\t{file_label}" \
+                      "\t{accessions}\n"
             fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
                           "{score}\t.\t{file_label}\t{accessions}\n"
             for line in r_f:
