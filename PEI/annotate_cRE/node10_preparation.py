@@ -712,6 +712,34 @@ def merge_standard_bed(path_bed, dict_in):
     return
 
 
+def label_mat(labels, dict_in):
+    dict_label = dict()
+    dict_label['peak_id'] = \
+        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
+    set_label = set(dict_in[6].strip().split('/'))
+    for label in labels:
+        if label in set_label:
+            dict_label[label] = 1
+        else:
+            dict_label[label] = 0
+
+    return dict_label
+
+
+def accession_mat(accessions, dict_in):
+    dict_accession = dict()
+    dict_accession['peak_id'] = \
+        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
+    set_accession = set(dict_in[7].strip().split('|'))
+    for accession in accessions:
+        if accession in set_accession:
+            dict_accession[accession] = 1
+        else:
+            dict_accession[accession] = 0
+
+    return dict_accession
+
+
 def sub_merge(dict_in):
     sub_ref_meta = dict_in['sub_ref_meta']
     sub_meta = dict_in['sub_meta']
@@ -735,7 +763,8 @@ def sub_merge(dict_in):
             f"{file_out}"
         )
         with open(file_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t.\t{score}\t.\t{label}\n"
+            fmt = "{chrom}\t{start}\t{end}\t.\t{score}\t.\t{label}\t" \
+                  "{accessions}\n"
             with open(os.path.join(sub_path_in, accession_ids[0] + '.bed'),
                       'r') as r_f:
                 for line in r_f:
@@ -743,7 +772,7 @@ def sub_merge(dict_in):
                     dict_out = dict(
                         chrom=list_line[0], start=list_line[1],
                         end=list_line[2], label=list_line[6],
-                        score=list_line[4]
+                        score=list_line[4], accessions=list_line[7]
                     )
                     w_f.write(fmt.format(**dict_out))
         return
@@ -761,29 +790,10 @@ def sub_merge(dict_in):
                       for sub_dict in sub_meta.to_dict("records")]
         list_bed = \
             (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
-        list_label = []
-        list_exp = []
-        for sub_dict in list_bed:
-            dict_label = dict()
-            dict_exp = dict()
-            dict_label['peak_id'] = \
-                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            dict_exp['peak_id'] = \
-                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            set_label = set(sub_dict[6].strip().split('/'))
-            for label in labels:
-                if label in set_label:
-                    dict_label[label] = 1
-                else:
-                    dict_label[label] = 0
-            set_accession = set(sub_dict[7].strip().split('|'))
-            for accession in accessions:
-                if accession in set_accession:
-                    dict_exp[accession] = 1
-                else:
-                    dict_exp[accession] = 0
-            list_label.append(dict_label)
-            list_exp.append(dict_exp)
+        func_label = partial(label_mat, labels)
+        func_accession = partial(accession_mat, accessions)
+        list_label = [func_label(sub_dict) for sub_dict in list_bed]
+        list_accession = [func_accession(sub_dict) for sub_dict in list_bed]
 
         # label matrix
         df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
@@ -794,13 +804,13 @@ def sub_merge(dict_in):
         df_label.to_csv(mat_label, sep='\t')
 
         # experiment matrix
-        df_exp = \
-            pd.DataFrame(list_exp, columns=['peak_id'] + accessions)
-        df_exp.index = df_exp['peak_id']
-        df_exp = df_exp.drop('peak_id', 1)
+        df_accession = \
+            pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
+        df_accession.index = df_accession['peak_id']
+        df_accession = df_accession.drop('peak_id', 1)
         # write score matrix to txt file
-        mat_exp = os.path.join(sub_path_out, 'experiment_matrix.txt')
-        df_exp.to_csv(mat_exp, sep='\t')
+        mat_accession = os.path.join(sub_path_out, 'accession_matrix.txt')
+        df_accession.to_csv(mat_accession, sep='\t')
 
         # calculate overlap ratio
         list_out = []
@@ -828,6 +838,21 @@ def sub_merge(dict_in):
         return df_out
 
 
+def organ_mat(organs, dict_in):
+    organ_dict = dict()
+    organ_dict['peak_id'] = \
+        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
+    list_organ = set([val.split('|')[0]
+                      for val in dict_in[6].strip().split('/')])
+    for organ in organs:
+        if organ in list_organ:
+            organ_dict[organ] = 1
+        else:
+            organ_dict[organ] = 0
+
+    return organ_dict
+
+
 def merge_organ_cluster(path_in, path_out, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
@@ -841,10 +866,9 @@ def merge_organ_cluster(path_in, path_out, num_process):
         pd.read_csv(os.path.join(path_in, 'meta.reference.tsv'), sep='\t')
     df_meta = \
         pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-    organs = []
-    for line in df_meta_ref['Biosample organ'].tolist():
-        organs.extend(line.strip().split(','))
-    organs = set(organs)
+
+    organs = set([organ for organ in df_meta_ref['Biosample organ'].tolist()])
+
     list_input = []
     for organ in organs:
         sub_ref_meta = df_meta_ref.loc[
@@ -864,16 +888,15 @@ def merge_organ_cluster(path_in, path_out, num_process):
 
     df_overlap = pd.concat(list_df, sort=False)
     df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
+    print("Integration of organ ---- completed!")
 
     # merge all organ
-    organs = os.listdir(path_out)
+    organ_folders = os.listdir(path_out)
     accession_ids = []
-    labels = []
-    for organ in organs:
-        path_organ = os.path.join(path_out, organ)
-        if os.path.isdir(path_organ):
-            labels.append(organ.replace('_', ' '))
-            accession_ids.append(os.path.join(path_organ, organ))
+    for organ_folder in organ_folders:
+        path_organ = os.path.join(path_out, organ_folder)
+        if (os.path.isdir(path_organ)) & (organ_folder != 'flank'):
+            accession_ids.append(os.path.join(path_organ, organ_folder))
 
     dict_merge = dict(
         path=path_out,
@@ -884,37 +907,49 @@ def merge_organ_cluster(path_in, path_out, num_process):
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
                      sep='\t', header=None)).to_dict('records')
-    list_dict = []
-    for sub_dict in list_bed:
-        out_dict = dict()
-        out_dict['peak_id'] = \
-            f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-        list_label = set([val.split('|')[0]
-                          for val in sub_dict[6].strip().split('/')])
-        for label in labels:
-            if label in list_label:
-                out_dict[label] = 1
-            else:
-                out_dict[label] = 0
-        list_dict.append(out_dict)
-    df_label_peak = pd.DataFrame(list_dict, columns=['peak_id'] + labels)
-    df_label_peak.index = df_label_peak['peak_id']
-    df_label_peak = df_label_peak.drop('peak_id', 1)
+    accessions = [sub_dict['File accession']
+                  for sub_dict in df_meta.to_dict("records")]
+    organs = list(organs)
+
+    pool = Pool(processes=num_process)
+    func_organ = partial(organ_mat, organs)
+    list_organ = pool.map(func_organ, list_bed)
+    pool.close()
+
+    pool = Pool(processes=num_process)
+    func_accession = partial(accession_mat, accessions)
+    list_accession = pool.map(func_accession, list_bed)
+    pool.close()
+
+    # label matrix
+    df_organ = pd.DataFrame(list_organ, columns=['peak_id'] + organs)
+    df_organ.index = df_organ['peak_id']
+    df_organ = df_organ.drop('peak_id', 1)
     # write score matrix to txt file
-    mat_peak = os.path.join(path_out, 'all_organs_label_peak.txt')
-    df_label_peak.to_csv(mat_peak, sep='\t')
+    mat_organ = os.path.join(path_out, 'organ_matrix.txt')
+    df_organ.to_csv(mat_organ, sep='\t')
+
+    # experiment matrix
+    df_accession = \
+        pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
+    df_accession.index = df_accession['peak_id']
+    df_accession = df_accession.drop('peak_id', 1)
+    # write score matrix to txt file
+    mat_accession = os.path.join(path_out, 'accession_matrix.txt')
+    df_accession.to_csv(mat_accession, sep='\t')
+
     # calculate overlap ratio
     list_out = []
-    list_com = combinations(df_label_peak.columns, 2)
+    list_com = combinations(df_organ.columns, 2)
     for com in list_com:
-        len_list1 = (df_label_peak.loc[
-                     df_label_peak.loc[:, com[0]] != 0, :]).shape[0]
-        len_list2 = (df_label_peak.loc[
-                     df_label_peak.loc[:, com[1]] != 0, :]).shape[0]
-        total = (len_list1 + len_list2) / 2
-        len_overlap = (df_label_peak.loc[
-                       (df_label_peak.loc[:, com[0]] != 0) &
-                       (df_label_peak.loc[:, com[1]] != 0), :]).shape[0]
+        len_list1 = (df_organ.loc[
+                     df_organ.loc[:, com[0]] != 0, :]).shape[0]
+        len_list2 = (df_organ.loc[
+                     df_organ.loc[:, com[1]] != 0, :]).shape[0]
+        total = min(len_list1, len_list2)
+        len_overlap = (df_organ.loc[
+                       (df_organ.loc[:, com[0]] != 0) &
+                       (df_organ.loc[:, com[1]] != 0), :]).shape[0]
         list_out.append({'Combination': com,
                          'Overlap ratio': len_overlap / total})
 
