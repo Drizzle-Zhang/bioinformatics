@@ -563,7 +563,6 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         file_label = f"{organ}|{life_stage}|{term}"
         file = f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/" \
                f"{term_name}/{term_name}.bed"
-        folder1 = os.path.join(path_out, f"{organ.replace(' ', '_')}")
         folder2 = os.path.join(
             path_out,
             f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}"
@@ -576,8 +575,6 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         file_in = os.path.join(path_in, file)
         file_out = os.path.join(path_out, file)
         # make folder
-        if not os.path.exists(folder1):
-            os.mkdir(folder1)
         if not os.path.exists(folder2):
             os.mkdir(folder2)
         if not os.path.exists(folder3):
@@ -627,6 +624,12 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
         )
 
     list_input = df_meta.to_dict('records')
+    for sub_dict in list_input:
+        organ = sub_dict['Biosample organ']
+        folder1 = os.path.join(path_out, f"{organ.replace(' ', '_')}")
+        if not os.path.exists(folder1):
+            os.mkdir(folder1)
+
     pool = Pool(processes=num_process)
     func_stan = partial(sub_stan, type_bed, path_in, path_out)
     pool.map(func_stan, list_input)
@@ -938,7 +941,7 @@ if __name__ == '__main__':
     promoter_file_hg19 = \
         '/local/zy/PEI/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
 
     # build life stage dictionary
     path_lifestage = '/local/zy/PEI/data/ENCODE/metadata/life_stage'
@@ -966,36 +969,36 @@ if __name__ == '__main__':
     df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
-    # DHS reference
-    # metafile
-    path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/all'
-    ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
-    df_meta_dhs = filter_meta(ori_meta_dhs)
-    df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
-    df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
-    df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
-    df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
-    df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
-    df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
-    print("DHS metadata ---- completed")
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
-
-    # integrate files from same experiment
-    path_exp_dhs = \
-        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
-    print("Integration of files from same experiment ---- completed")
+    # # DHS reference
+    # # metafile
+    # path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/all'
+    # ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
+    # df_meta_dhs = filter_meta(ori_meta_dhs)
+    # df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
+    # df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
+    # df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
+    # df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
+    # df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
+    # meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
+    # df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
+    # print("DHS metadata ---- completed")
+    #
+    # # hg38 to hg19
+    # path_hg38tohg19 = \
+    #     '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
+    # hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
+    # print("Format conversion: hg38 -> hg19 ---- completed")
+    #
+    # # integrate files from same experiment
+    # path_exp_dhs = \
+    #     '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
+    # merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
+    # print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
     path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
-    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
-    print("Integration of files from same term ---- completed")
+    # unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    # print("Integration of files from same term ---- completed")
 
     # standardization
     path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
