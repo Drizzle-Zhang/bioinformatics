@@ -34,7 +34,7 @@ scatter.plot <- function(file.in, meta.in, path.out) {
     ) + 
         geom_point(size = 3, alpha = 0.3) + 
         geom_text(aes(label = labels), size = 2)
-    ggsave(plot = obj.ggplot, filename = 'PCA.all.png', 
+    ggsave(plot = obj.ggplot, filename = 'PCA.all.pdf', 
            path = path.out, width = 20, height = 15)
     write.table(df.plot, paste0(path.out, '/PCA.all.txt'), 
                 sep = '\t', quote = F)

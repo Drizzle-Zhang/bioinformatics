@@ -29,7 +29,7 @@ scatter.plot <- function(file.in, path.out) {
         geom_point(size = 2, alpha = 0.5, shape = 1) + 
         geom_text(aes(label = label), size = 2.5) + 
         xlim(down.x, up.x) + ylim(down.y, up.y)
-    ggsave(plot = obj.ggplot, filename = 'scatter.organ.png', 
+    ggsave(plot = obj.ggplot, filename = 'scatter.organ.pdf', 
            path = path.out, width = 10, height = 7)
     write.table(df.plot, paste0(path.out, '/scatter.organ.txt'), 
                 sep = '\t', quote = F)
