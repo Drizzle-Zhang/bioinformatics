@@ -1,3 +1,4 @@
+library(ggplot2)
 scatter.plot <- function(file.in, path.out) {
     df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
                                 stringsAsFactors = F)
