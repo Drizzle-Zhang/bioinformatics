@@ -838,10 +838,8 @@ def sub_merge(dict_in):
 
         if bool_plot:
             # scatter plot
-            str_head = '_'.join(labels)
             os.system(
-                f"Rscript scatter.plot.organ.R {mat_label} {str_head} "
-                f"{sub_path_out}")
+                f"Rscript scatter.plot.organ.R {mat_label} {sub_path_out}")
 
         # accession matrix
         if bool_accession:
@@ -917,7 +915,9 @@ def merge_organ_cluster(path_in, path_out, num_process):
     df_meta = \
         pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
 
-    organs = set([organ for organ in df_meta_ref['Biosample organ'].tolist()])
+    organs = list(
+        set([organ for organ in df_meta_ref['Biosample organ'].tolist()])
+    )
 
     list_input = []
     for organ in organs:
@@ -993,7 +993,6 @@ def merge_organ_cluster(path_in, path_out, num_process):
     # df_accession.to_csv(mat_accession, sep='\t')
 
     # organ matrix
-    organs = list(organs)
     pool = Pool(processes=num_process)
     func_organ = partial(organ_mat, organs)
     list_organ = pool.map(func_organ, list_bed)
@@ -1019,9 +1018,19 @@ def merge_organ_cluster(path_in, path_out, num_process):
     )
 
     # scatter plot
-    str_head = '_'.join(labels)
-    os.system(f"Rscript scatter.plot.R {mat_label} {str_head} "
+    os.system(f"Rscript scatter.plot.R {mat_label} "
               f"{os.path.join(path_in, 'metadata.simple.tsv')} {path_out}")
+
+    return
+
+
+def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
+    df_meta_ref = pd.read_csv(meta_suborgan, sep='\t')
+    df_ref_filter = df_meta_ref.dropna()
+    df_meta = \
+        pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+
+
 
     return
 

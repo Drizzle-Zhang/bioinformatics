@@ -1,12 +1,14 @@
 library(ggplot2)
-scatter.plot <- function(file.in, str.head, meta.in, path.out) {
-    labels <- as.character(unlist(strsplit(str.head, '_', fixed = T)))
+scatter.plot <- function(file.in, meta.in, path.out) {
+    df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
+                                stringsAsFactors = F)
+    labels <- as.character(df.lable.peak[1, 2:dim(df.lable.peak)[2]])
     list.label <- strsplit(labels, '|', fixed = T)
     df.label <- data.frame(
         matrix(unlist(list.label), ncol = 3, byrow = T), 
         stringsAsFactors = FALSE
         )
-    names(df.label) <- c("Biosample.organ.1", "Biosample.life.stage",
+    names(df.label) <- c("Biosample.organ", "Biosample.life.stage",
                          "Biosample.term.name")
     df.label$labels <- labels
     
@@ -32,7 +34,7 @@ scatter.plot <- function(file.in, str.head, meta.in, path.out) {
     ) + 
         geom_point(size = 3, alpha = 0.3) + 
         geom_text(aes(label = labels), size = 2)
-    ggsave(plot = obj.ggplot, filename = 'PCA.all.pdf', 
+    ggsave(plot = obj.ggplot, filename = 'PCA.all.png', 
            path = path.out, width = 20, height = 15)
     write.table(df.plot, paste0(path.out, '/PCA.all.txt'), 
                 sep = '\t', quote = F)
@@ -40,5 +42,5 @@ scatter.plot <- function(file.in, str.head, meta.in, path.out) {
 }
 
 args <- commandArgs(T)
-scatter.plot(args[1], args[2], args[3], args[4])
+scatter.plot(args[1], args[2], args[3])
 
