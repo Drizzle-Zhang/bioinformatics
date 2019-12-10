@@ -1,8 +1,8 @@
 scatter.plot <- function(file.in, path.out) {
     df.lable.peak <- read.delim(file.in, sep = '\t', header = F,
                                 stringsAsFactors = F)
-    list.label <- strsplit(df.lable.peak[1, 2:dim(df.lable.peak)[2]], 
-                           '|', fixed = T)
+    list.label <- strsplit(
+        as.character(df.lable.peak[1, 2:dim(df.lable.peak)[2]]), '|', fixed = T)
     label <- as.character(unlist(
         lapply(list.label, function(x){paste(x[2:3], collapse = ' ')})
     ))
