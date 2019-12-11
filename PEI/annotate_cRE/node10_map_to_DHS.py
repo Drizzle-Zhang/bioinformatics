@@ -189,7 +189,9 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
     return
 
 
-def annotate
+def annotate_h3k27ac_ref():
+
+    return 
 
 
 if __name__ == '__main__':
