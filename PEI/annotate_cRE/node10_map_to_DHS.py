@@ -15,8 +15,119 @@ from functools import partial
 from subprocess import check_output
 from itertools import combinations
 
+
+def sub_annotate_promoter(dict_in):
+    file_dhs = dict_in['file_dhs']
+    path_out = dict_in['path_out']
+    path_h3k4me3 = dict_in['path_h3k4me3']
+    sub_h3k4me3 = dict_in['sub_h3k4me3']
+    loc_promoter = dict_in['loc_promoter']
+    accessions = sub_h3k4me3['File accession'].tolist()
+
+    # promoter
+    os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
+              f"| cut -f 1,2,3> {bedtools_out}")
+
+    for accession in accessions:
+
+
+    return
+
+
+def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
+                             loc_promoter, ref_dhs, ref_histone, path_out):
+    df_ref_histone = pd.read_csv(ref_histone, sep='\t')
+    df_ref_dhs = pd.read_csv(ref_dhs, sep='\t')
+    df_meta_h3k4me3 = pd.read_csv(
+        os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
+    )
+
+    organs = list(
+        set([organ for organ in df_ref_histone['Biosample organ'].tolist()])
+    )
+
+    list_input = []
+    for organ in organs:
+        str_organ = organ.replace(' ', '_')
+        sub_ref_histone = df_ref_histone.loc[
+            df_ref_histone['Biosample organ'] == organ, :
+        ]
+        sub_ref_dhs = df_ref_dhs.loc[df_ref_dhs['Biosample organ'] == organ, :]
+        path_organ = os.path.join(path_out, organ.replace(' ', '_'))
+        if not os.path.exists(path_organ):
+            os.mkdir(path_organ)
+        suborgans = list(
+            set([suborgan for suborgan in
+                 df_ref_histone['Biosample suborgan'].tolist()])
+        )
+        for suborgan in suborgans:
+            str_suborgan = suborgan.replace(' ', '_')
+            suborgan_histone = \
+                sub_ref_histone.loc[
+                    sub_ref_histone['Biosample suborgan'] == suborgan, :]
+            path_suborgan = \
+                os.path.join(path_organ, suborgan.replace(' ', '_'))
+            if not os.path.exists(path_suborgan):
+                os.mkdir(path_suborgan)
+            for sub_dict in suborgan_histone.to_dict("records"):
+                term = sub_dict['Biosample term name']
+                life = sub_dict['Biosample life stage']
+                str_term = sub_dict['Biosample term name'].replace(
+                    ' ', '_').replace('/', '+').replace("'", '--')
+                path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
+                term_dhs = sub_ref_dhs.loc[
+                    (sub_ref_dhs['Biosample life stage'] == life) &
+                    (sub_ref_dhs['Biosample term name'] == term), :
+                ]
+                if term_dhs.shape[0] == 1:
+                    file_dhs = os.path.join(
+                        path_dhs,
+                        f"{str_organ}/{life}/{str_term}/{str_term}.bed"
+                    )
+                elif term_dhs.shape[0] == 0:
+                    file_dhs = os.path.join(
+                        path_cluster,
+                        f"{str_organ}/{str_suborgan}/{str_suborgan}.bed"
+                    )
+                sub_h3k4me3 = df_meta_h3k4me3.loc[
+                    (df_meta_h3k4me3['Biosample life stage'] == life) &
+                    (df_meta_h3k4me3['Biosample term name'] == term), :]
+                list_input.append(dict(
+                    file_dhs=file_dhs, path_out=path_term,
+                    path_h3k4me3=path_h3k4me3, sub_h3k4me3=sub_h3k4me3,
+                    loc_promoter=loc_promoter)
+                )
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
+    # multiple processes
+    num_cpu = 40
+
+    # annotate DHS by term
+    path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
+    path_dhs_cluster = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
+    path_h3k4me3_stan = \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K4me3_standard'
+    path_h3k27ac_stan = \
+        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+        'GRCh38tohg19/H3K27ac_standard'
+    # select data having H3K4me3 and H3K27ac
+    file_meta = '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/meta.reference.tsv'
+    df_h3k4me3 = pd.read_csv(
+        os.path.join(path_h3k4me3_stan, 'meta.reference.tsv'), sep='\t'
+    )
+    df_h3k27ac = pd.read_csv(
+        os.path.join(path_h3k27ac_stan, 'meta.reference.tsv'), sep='\t'
+    )
+    df_intersect = pd.merge(
+        df_h3k4me3, df_h3k27ac,
+        on=['Biosample organ', 'Biosample life stage', 'Biosample term name']
+    )
+    df_intersect.to_csv(file_meta, sep='\t', index=None)
 
     time_end = time()
     print(time_end - time_start)

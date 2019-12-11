@@ -681,8 +681,8 @@ def merge_standard_bed(path_bed, dict_in):
     split_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t.\t{p_value}\t.\t{label}\t" \
-                  "{accessions}\n"
+            fmt = "{chrom}\t{start}\t{end}\t{dhs_id}\t{p_value}\t.\t" \
+                  "{label}\t{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -719,6 +719,7 @@ def merge_standard_bed(path_bed, dict_in):
                     # write new rows
                     start = str(np.min(select_start))
                     end = str(np.max(select_end))
+                    dhs_id = f"DHS<-{chrom}:{start}-{end}"
                     label = \
                         '/'.join(map(str, select_label.tolist()))
                     p_value = '/'.join(map(str, select_p_value.tolist()))
@@ -804,11 +805,10 @@ def sub_merge(dict_in):
             accession_ids=accession_ids,
             flank_percent=0.6)
         merge_standard_bed(sub_path_in, dict_merge)
-        labels = [f"{organ}|{sub_dict['Biosample life stage']}|"
+        labels = [f"{sub_dict['Biosample organ']}|"
+                  f"{sub_dict['Biosample life stage']}|"
                   f"{sub_dict['Biosample term name']}"
                   for sub_dict in list_meta]
-        accessions = [sub_dict['File accession']
-                      for sub_dict in sub_meta.to_dict("records")]
         list_bed = \
             (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
 
@@ -843,6 +843,8 @@ def sub_merge(dict_in):
 
         # accession matrix
         if bool_accession:
+            accessions = [sub_dict['File accession']
+                          for sub_dict in sub_meta.to_dict("records")]
             func_accession = partial(accession_mat, accessions)
             list_accession = \
                 [func_accession(sub_dict) for sub_dict in list_bed]
@@ -1027,10 +1029,31 @@ def merge_organ_cluster(path_in, path_out, num_process):
 def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
     df_meta_ref = pd.read_csv(meta_suborgan, sep='\t')
     df_ref_filter = df_meta_ref.dropna()
-    df_meta = \
-        pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
 
+    suborgans = list(
+        set([organ for organ in df_ref_filter['Biosample suborgan'].tolist()])
+    )
 
+    list_input = []
+    for suborgan in suborgans:
+        sub_ref_meta = df_meta_ref.loc[
+                   df_meta_ref['Biosample suborgan'] == suborgan, :]
+        organ = sub_ref_meta['Biosample organ'].tolist()[0]
+        path_organ = os.path.join(path_out, organ.replace(' ', '_'))
+        list_input.append(
+            dict(sub_ref_meta=sub_ref_meta, organ=suborgan,
+                 sub_meta=sub_ref_meta,
+                 path_out=os.path.join(path_organ, suborgan.replace(' ', '_')),
+                 path_in=os.path.join(path_in, organ.replace(' ', '_')),
+                 bool_accession=False, bool_plot=False))
+
+    pool = Pool(processes=num_process)
+    list_df = pool.map(sub_merge, list_input)
+    pool.close()
+
+    df_overlap = pd.concat(list_df, sort=False)
+    df_overlap.to_csv(os.path.join(path_out, 'overlap.suborgan.txt'), sep='\t')
+    print("Integration of suborgan ---- completed!")
 
     return
 
@@ -1117,6 +1140,8 @@ if __name__ == '__main__':
     print('Cluster and merge of DHS completed!')
 
     # merge sub-organ
+    meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
+    merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
 
     # preparation of bed files of histone and TF
     # H3K4me3
