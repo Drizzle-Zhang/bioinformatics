@@ -17,7 +17,7 @@ from itertools import combinations
 from scipy.spatial.distance import pdist
 
 
-def generate_gene_file(gtf_file, protein_file, promoter_file):
+def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge):
     with open(protein_file, 'w') as w_gene:
         with open(promoter_file, 'w') as w_pro:
             fmt_gene = \
@@ -62,6 +62,11 @@ def generate_gene_file(gtf_file, protein_file, promoter_file):
                                          ensg_id=ensg_id,
                                          strand=strand)
                     w_pro.write(fmt_promoter.format(**dict_promoter))
+
+    promoter_sort = promoter_file + '.sort'
+    os.system(f"bedtools sort -i {promoter_file} > {promoter_sort}")
+    os.system(f"bedtools merge -i {promoter_sort} "
+              f"-c 4,5,6 -o collapse,collapse,collapse > {promoter_merge}")
 
     return
 
@@ -1071,7 +1076,11 @@ if __name__ == '__main__':
     promoter_file_hg19 = \
         '/local/zy/PEI/data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19)
+    promoter_file_hg19_merge = \
+        '/local/zy/PEI/data/gene/' \
+        'promoters.up2k.protein.gencode.v19.merge.bed'
+    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
+                       promoter_file_hg19_merge)
 
     # build life stage dictionary
     path_lifestage = '/local/zy/PEI/data/ENCODE/metadata/life_stage'

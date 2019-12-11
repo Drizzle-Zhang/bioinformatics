@@ -13,7 +13,6 @@ from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
-from itertools import combinations
 
 
 def sub_annotate_promoter(dict_in):
@@ -25,24 +24,41 @@ def sub_annotate_promoter(dict_in):
     accessions = sub_h3k4me3['File accession'].tolist()
 
     def drop_dup(x):
-        max_overlap = np.max(x.iloc[:, -1])
-        row_out = x.loc[x.iloc[:, -1] == max_overlap, :]
-
-        return row_out
+        if x.shape[0] == 1:
+            return x
+        else:
+            max_overlap = np.max(x.iloc[:, -1])
+            row_out = x.loc[x.iloc[:, -1] == max_overlap, :]
+            return row_out
 
     # promoter
     file_promoter = os.path.join(path_out, 'ref_promoter.txt')
-    file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
-    file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
     os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
               f"| cut -f 1,2,3,4,12,15 > {file_promoter}")
     # drop duplicates
-    df_plus = pd.read_csv(file_promoter, sep='\t', header=None)
-    df_uniq = df_plus.groupby('V3').apply(drop_dup)
-    df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
-    os.system(f"bedtools sort -i {file_promoter_uniq} > {file_promoter_sort}")
+    len_ref = int(str(check_output(f"wc -l {file_dhs}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    len_pro = int(str(check_output(f"wc -l {file_promoter}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    if len_ref == len_pro:
+        file_ref = file_promoter
+    else:
+        file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
+        file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
+        df_plus = pd.read_csv(file_promoter, sep='\t', header=None)
+        df_0 = df_plus.loc[df_plus[5] == 0, :]
+        df_pn = df_plus.loc[df_plus[5] > 0, :]
+        df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+        df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+        df_uniq = pd.concat([df_0, df_pn_uniq])
+        df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
+        os.system(f"bedtools sort -i {file_promoter_uniq} > "
+                  f"{file_promoter_sort}")
+        os.remove(file_promoter)
+        os.remove(file_promoter_uniq)
+        os.system(f"mv {file_promoter_sort} {file_promoter}")
+        file_ref = file_promoter
 
-    file_ref = file_promoter
     for accession in accessions:
         file_accession = os.path.join(path_h3k4me3, accession + '.bed')
         file_plus = os.path.join(path_out, accession + '.plus')
@@ -54,32 +70,55 @@ def sub_annotate_promoter(dict_in):
             check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
                          shell=True).strip())
         use_col_list = list(range(1, col_num + 1))
-        use_col_list.extend([col_num + 4, col_num + 5, col_num + 7])
+        use_col_list.extend([col_num + 4, col_num + 5, col_num + 8])
         use_col = ','.join([str(num) for num in use_col_list])
         os.system(
-            f"bedtools intersect -a {file_accession} -b {file_ref} -wao "
+            f"bedtools intersect -a {file_ref} -b {file_accession} -wao "
             f"| cut -f {use_col} > {file_plus}")
         # drop duplicates
-        df_plus = pd.read_csv(file_plus, sep='\t', header=None)
-        df_uniq = df_plus.groupby('V3').apply(drop_dup)
-        df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
-        os.system(f"bedtools sort -i {file_uniq} > {file_sort}")
+        len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        len_pro = int(str(check_output(f"wc -l {file_plus}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        if len_ref == len_pro:
+            file_ref = file_plus
+        else:
+            df_plus = pd.read_csv(file_plus, sep='\t', header=None)
+            df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+            df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
+            df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+            df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+            df_uniq = pd.concat([df_0, df_pn_uniq])
+            df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+            os.system(f"sort -k 1,1 -k2,2n {file_uniq} > {file_sort}")
 
-        os.remove(file_ref)
-        os.remove(file_plus)
-        os.remove(file_uniq)
-        file_ref = file_sort
+            os.remove(file_ref)
+            os.remove(file_plus)
+            os.remove(file_uniq)
+            file_ref = file_sort
 
     file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3.origin')
-    os.system(f"mv {file_sort} {file_origin}")
+    os.system(f"mv {file_ref} {file_origin}")
 
+    # adjust p value
+    infer_num = np.sum(sub_h3k4me3['Inferred peak number'])
+    file_num = sub_h3k4me3.shape[0]
+    file_promoter_out = os.path.join(path_out, 'DHS_promoter_H3K4me3.txt')
+    os.system(f"Rscript adjust_p_value_H3K4me3.R "
+              f"{file_origin} {file_promoter_out} {infer_num} {file_num}")
 
     return
 
 
 def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
-                             loc_promoter, ref_dhs, ref_histone, path_out):
+                             loc_promoter, ref_dhs, ref_histone, path_out,
+                             num_process):
+    if os.path.exists(path_out):
+        os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
     df_ref_histone = pd.read_csv(ref_histone, sep='\t')
+    df_ref_histone = df_ref_histone.dropna()
     df_ref_dhs = pd.read_csv(ref_dhs, sep='\t')
     df_meta_h3k4me3 = pd.read_csv(
         os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
@@ -101,7 +140,7 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
             os.mkdir(path_organ)
         suborgans = list(
             set([suborgan for suborgan in
-                 df_ref_histone['Biosample suborgan'].tolist()])
+                 sub_ref_histone['Biosample suborgan'].tolist()])
         )
         for suborgan in suborgans:
             str_suborgan = suborgan.replace(' ', '_')
@@ -118,6 +157,8 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
                 str_term = sub_dict['Biosample term name'].replace(
                     ' ', '_').replace('/', '+').replace("'", '--')
                 path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
+                if not os.path.exists(path_term):
+                    os.mkdir(path_term)
                 term_dhs = sub_ref_dhs.loc[
                     (sub_ref_dhs['Biosample life stage'] == life) &
                     (sub_ref_dhs['Biosample term name'] == term), :
@@ -141,6 +182,10 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
                     loc_promoter=loc_promoter)
                 )
 
+    pool = Pool(processes=num_process)
+    pool.map(sub_annotate_promoter, list_input)
+    pool.close()
+
     return
 
 
@@ -159,7 +204,8 @@ if __name__ == '__main__':
         '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
         'GRCh38tohg19/H3K27ac_standard'
     # select data having H3K4me3 and H3K27ac
-    file_meta = '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/meta.reference.tsv'
+    file_meta = '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+                'meta.reference.histone.tsv'
     df_h3k4me3 = pd.read_csv(
         os.path.join(path_h3k4me3_stan, 'meta.reference.tsv'), sep='\t'
     )
@@ -171,6 +217,17 @@ if __name__ == '__main__':
         on=['Biosample organ', 'Biosample life stage', 'Biosample term name']
     )
     df_intersect.to_csv(file_meta, sep='\t', index=None)
+
+    # promoter reference
+    promoter_file_hg19 = \
+        '/local/zy/PEI/data/gene/promoters.up2k.protein.gencode.v19.bed'
+    meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
+    path_ref_promoter = '/local/zy/PEI/data/DHS/ref_promoter'
+    annotate_promoter_to_dhs(
+        path_dhs_stan, path_dhs_cluster, path_h3k4me3_stan,
+        promoter_file_hg19, meta_suborgan_dhs, file_meta, path_ref_promoter,
+        num_cpu
+    )
 
     time_end = time()
     print(time_end - time_start)
