@@ -216,7 +216,7 @@ if __name__ == '__main__':
         df_h3k4me3, df_h3k27ac,
         on=['Biosample organ', 'Biosample life stage', 'Biosample term name']
     )
-    df_intersect.to_csv(file_meta, sep='\t', index=None)
+    # df_intersect.to_csv(file_meta, sep='\t', index=None)
 
     # promoter reference
     promoter_file_hg19 = \
