@@ -15,6 +15,15 @@ from functools import partial
 from subprocess import check_output
 
 
+def drop_dup(x):
+    if x.shape[0] == 1:
+        return x
+    else:
+        max_overlap = np.max(x.iloc[:, -1])
+        row_out = x.loc[x.iloc[:, -1] == max_overlap, :]
+        return row_out
+
+
 def sub_annotate_promoter(dict_in):
     file_dhs = dict_in['file_dhs']
     path_out = dict_in['path_out']
@@ -22,14 +31,6 @@ def sub_annotate_promoter(dict_in):
     sub_h3k4me3 = dict_in['sub_h3k4me3']
     loc_promoter = dict_in['loc_promoter']
     accessions = sub_h3k4me3['File accession'].tolist()
-
-    def drop_dup(x):
-        if x.shape[0] == 1:
-            return x
-        else:
-            max_overlap = np.max(x.iloc[:, -1])
-            row_out = x.loc[x.iloc[:, -1] == max_overlap, :]
-            return row_out
 
     # promoter
     file_promoter = os.path.join(path_out, 'ref_promoter.txt')
@@ -189,9 +190,67 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
     return
 
 
-def annotate_h3k27ac_ref():
+def map_h3k27ac(path_ref, path_h3k27ac, path_out, dict_in):
+    accession_ids = dict_in['File accession']
+    file_in = os.path.join(path_h3k27ac, accession_ids + '.bed')
+    str_organ = dict_in['Biosample organ'].replace(' ', '_')
+    str_suborgan = dict_in['Biosample suborgan'].replace(' ', '_')
+    str_term = dict_in['Biosample term name'].replace(
+                    ' ', '_').replace('/', '+').replace("'", '--')
+    file_ref = os.path.join(
+        path_ref,
+        f"{str_organ}/{str_suborgan}/{dict_in['Biosample life stage']}_"
+        f"{str_term}/DHS_promoter_H3K4me3.txt"
+    )
 
-    return 
+    # map H3K4me3 to DHS
+    file_plus = os.path.join(path_out, accession_ids + '.plus')
+    file_uniq = os.path.join(path_out, accession_ids + '.uniq')
+    file_sort = os.path.join(path_out, accession_ids + '.sort')
+
+    os.system(
+        f"bedtools intersect -a {file_ref} -b {file_in} -wao "
+        f"| cut -f 1,2,3,4,5,6,10,11,14 > {file_plus}")
+    # drop duplicates
+    df_plus = pd.read_csv(file_plus, sep='\t', header=None)
+    df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+    df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
+    df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+    df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+    df_uniq = pd.concat([df_0, df_pn_uniq])
+    df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+    os.system(f"sort -k 1,1 -k2,2n {file_uniq} > {file_sort}")
+
+    os.remove(file_plus)
+    os.remove(file_uniq)
+
+    file_out = os.path.join(path_out, accession_ids + '.bed')
+    os.system(f"mv {file_sort} {file_out}")
+
+    return
+
+
+def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
+                         path_out, num_process):
+    if os.path.exists(path_out):
+        os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
+
+    df_ref_histone = pd.read_csv(ref_histone, sep='\t')
+    df_ref_histone = df_ref_histone.dropna()
+    df_meta_h3k27ac = pd.read_csv(
+        os.path.join(path_h3k27ac, 'metadata.simple.tsv'), sep='\t'
+    )
+    df_merge = pd.merge(
+        df_ref_histone, df_meta_h3k27ac,
+        on=['Biosample organ', 'Biosample life stage', 'Biosample term name'])
+
+    pool = Pool(processes=num_process)
+    func_map = partial(map_h3k27ac, path_ref, path_h3k27ac, path_out)
+    pool.map(func_map, df_merge.to_dict('records'))
+    pool.close()
+
+    return
 
 
 if __name__ == '__main__':
@@ -221,6 +280,15 @@ if __name__ == '__main__':
         df_h3k4me3, df_h3k27ac,
         on=['Biosample organ', 'Biosample life stage', 'Biosample term name']
     )
+    set_h3k27ac = set([
+        f"{sub_dict['Biosample life stage']}_{sub_dict['Biosample term name']}"
+        for sub_dict in df_h3k27ac.to_dict('records')
+    ])
+    set_intersect = set([
+        f"{sub_dict['Biosample life stage']}_{sub_dict['Biosample term name']}"
+        for sub_dict in df_intersect.to_dict('records')
+    ])
+    set_diff = set_h3k27ac.difference(set_intersect)
     # df_intersect.to_csv(file_meta, sep='\t', index=None)
 
     # promoter reference
@@ -233,6 +301,11 @@ if __name__ == '__main__':
         promoter_file_hg19, meta_suborgan_dhs, file_meta, path_ref_promoter,
         num_cpu
     )
+
+    # map H3K27ac to reference
+    path_map_h3k27ac = '/local/zy/PEI/data/DHS/map_h3k27ac'
+    annotate_h3k27ac_ref(path_ref_promoter, file_meta, path_h3k27ac_stan,
+                         path_map_h3k27ac, num_cpu)
 
     time_end = time()
     print(time_end - time_start)

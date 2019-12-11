@@ -416,14 +416,13 @@ def overlap_matrix(path_in, dict_in):
         list_out = []
         list_com = combinations(df_ref.columns, 2)
         for com in list_com:
-            len_list1 = (df_ref.loc[df_ref.loc[:, com[0]] != 0, :]).shape[0]
-            len_list2 = (df_ref.loc[df_ref.loc[:, com[1]] != 0, :]).shape[0]
-            total = min(len_list1, len_list2)
-            len_overlap = (df_ref.loc[
-                           (df_ref.loc[:, com[0]] != 0) &
-                           (df_ref.loc[:, com[1]] != 0), :]).shape[0]
+            jdist = pdist(
+                (df_ref.loc[
+                    (df_ref.loc[:, com[0]] != 0) |
+                    (df_ref.loc[:, com[1]] != 0), com]).T,
+                'jaccard')[0]
             list_out.append({'Name': term_name, 'Combination': com,
-                             'Overlap ratio': len_overlap/total})
+                             'Jaccard distance': jdist})
 
         df_out = pd.DataFrame(list_out)
 
