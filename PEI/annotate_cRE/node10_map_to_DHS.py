@@ -189,6 +189,9 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
     return
 
 
+def annotate
+
+
 if __name__ == '__main__':
     time_start = time()
     # multiple processes

@@ -1,3 +1,4 @@
+library(plyr)
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
     vec.lgp[vec.lgp == '.'] <- '0'
     vec.lgp.num <- as.numeric(vec.lgp)
