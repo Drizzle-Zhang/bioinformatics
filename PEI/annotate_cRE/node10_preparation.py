@@ -564,10 +564,6 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         file_label = f"{organ}|{life_stage}|{term}"
         file = f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/" \
                f"{term_name}/{term_name}.bed"
-        folder2 = os.path.join(
-            path_out,
-            f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}"
-        )
         folder3 = os.path.join(
             path_out,
             f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}/"
@@ -576,8 +572,6 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         file_in = os.path.join(path_in, file)
         file_out = os.path.join(path_out, file)
         # make folder
-        if not os.path.exists(folder2):
-            os.mkdir(folder2)
         if not os.path.exists(folder3):
             os.mkdir(folder3)
     else:
@@ -649,6 +643,13 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
         folder1 = os.path.join(path_out, f"{organ.replace(' ', '_')}")
         if not os.path.exists(folder1):
             os.mkdir(folder1)
+        life_stage = sub_dict['Biosample life stage']
+        folder2 = os.path.join(
+            path_out,
+            f"{organ.replace(' ', '_')}/{life_stage.replace(' ', '_')}"
+        )
+        if not os.path.exists(folder2):
+            os.mkdir(folder2)
 
     pool = Pool(processes=num_process)
     func_stan = partial(sub_stan, type_bed, path_in, path_out)
@@ -1020,7 +1021,7 @@ def merge_organ_cluster(path_in, path_out, num_process):
     )
 
     # scatter plot
-    os.system(f"Rscript scatter.plot.R {mat_label} "
+    os.system(f"Rscript scatter.plot.all.R {mat_label} "
               f"{os.path.join(path_in, 'metadata.simple.tsv')} {path_out}")
 
     return

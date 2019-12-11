@@ -24,11 +24,54 @@ def sub_annotate_promoter(dict_in):
     loc_promoter = dict_in['loc_promoter']
     accessions = sub_h3k4me3['File accession'].tolist()
 
-    # promoter
-    os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
-              f"| cut -f 1,2,3> {bedtools_out}")
+    def drop_dup(x):
+        max_overlap = np.max(x.iloc[:, -1])
+        row_out = x.loc[x.iloc[:, -1] == max_overlap, :]
 
+        return row_out
+
+    # promoter
+    file_promoter = os.path.join(path_out, 'ref_promoter.txt')
+    file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
+    file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
+    os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
+              f"| cut -f 1,2,3,4,12,15 > {file_promoter}")
+    # drop duplicates
+    df_plus = pd.read_csv(file_promoter, sep='\t', header=None)
+    df_uniq = df_plus.groupby('V3').apply(drop_dup)
+    df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
+    os.system(f"bedtools sort -i {file_promoter_uniq} > {file_promoter_sort}")
+
+    file_ref = file_promoter
     for accession in accessions:
+        file_accession = os.path.join(path_h3k4me3, accession + '.bed')
+        file_plus = os.path.join(path_out, accession + '.plus')
+        file_uniq = os.path.join(path_out, accession + '.uniq')
+        file_sort = os.path.join(path_out, accession + '.sort')
+
+        # map H3K4me3 to DHS
+        col_num = int(
+            check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                         shell=True).strip())
+        use_col_list = list(range(1, col_num + 1))
+        use_col_list.extend([col_num + 4, col_num + 5, col_num + 7])
+        use_col = ','.join([str(num) for num in use_col_list])
+        os.system(
+            f"bedtools intersect -a {file_accession} -b {file_ref} -wao "
+            f"| cut -f {use_col} > {file_plus}")
+        # drop duplicates
+        df_plus = pd.read_csv(file_plus, sep='\t', header=None)
+        df_uniq = df_plus.groupby('V3').apply(drop_dup)
+        df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+        os.system(f"bedtools sort -i {file_uniq} > {file_sort}")
+
+        os.remove(file_ref)
+        os.remove(file_plus)
+        os.remove(file_uniq)
+        file_ref = file_sort
+
+    file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3.origin')
+    os.system(f"mv {file_sort} {file_origin}")
 
 
     return

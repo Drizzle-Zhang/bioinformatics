@@ -8,7 +8,7 @@ scatter.plot <- function(file.in, meta.in, path.out) {
         matrix(unlist(list.label), ncol = 3, byrow = T), 
         stringsAsFactors = FALSE
         )
-    names(df.label) <- c("Biosample.organ", "Biosample.life.stage",
+    names(df.label) <- c("Biosample.organ.1", "Biosample.life.stage",
                          "Biosample.term.name")
     df.label$labels <- labels
     
