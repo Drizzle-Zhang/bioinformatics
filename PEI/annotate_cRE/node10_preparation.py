@@ -984,20 +984,20 @@ def merge_organ_cluster(path_in, path_out, num_process):
     df_label.to_csv(mat_label, sep='\t')
 
     # experiment matrix
-    # accessions = [sub_dict['File accession']
-    #               for sub_dict in df_meta.to_dict("records")]
-    # pool = Pool(processes=num_process)
-    # func_accession = partial(accession_mat, accessions)
-    # list_accession = pool.map(func_accession, list_bed)
-    # pool.close()
+    accessions = [sub_dict['File accession']
+                  for sub_dict in df_meta.to_dict("records")]
+    pool = Pool(processes=num_process)
+    func_accession = partial(accession_mat, accessions)
+    list_accession = pool.map(func_accession, list_bed)
+    pool.close()
 
-    # df_accession = \
-    #     pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
-    # df_accession.index = df_accession['peak_id']
-    # df_accession = df_accession.drop('peak_id', 1)
-    # # write score matrix to txt file
-    # mat_accession = os.path.join(path_out, 'accession_matrix.txt')
-    # df_accession.to_csv(mat_accession, sep='\t')
+    df_accession = \
+        pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
+    df_accession.index = df_accession['peak_id']
+    df_accession = df_accession.drop('peak_id', 1)
+    # write score matrix to txt file
+    mat_accession = os.path.join(path_out, 'accession_matrix.txt')
+    df_accession.to_csv(mat_accession, sep='\t')
 
     # organ matrix
     pool = Pool(processes=num_process)

@@ -29,5 +29,16 @@ df.plot <- rbind(
     df.overlap.suborgan[,col_select], df.overlap.organ[,col_select], 
     df.overlap.all[,col_select]
 )
+df.plot$Level <- factor(
+    df.plot$Level, levels = c('Experiment', 'Term', 'Suborgan', 'Organ', 'All'), 
+    ordered = TRUE)
+plot.out <- 
+    ggplot(df.plot, aes(x = Level, y = Jaccard.distance, fill = Level)) + 
+    geom_boxplot(fill = terrain.colors(10)[3:7])
+ggsave(filename = 'boxplot_overlap.png', path = './', plot = plot.out, 
+       units = 'cm', width = 15, height = 10)
+
+
+
 
 
