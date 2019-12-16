@@ -790,7 +790,7 @@ def sub_merge(dict_in):
             f"{file_out}"
         )
         with open(file_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t.\t{score}\t.\t{label}\t" \
+            fmt = "{chrom}\t{start}\t{end}\t{dhs_id}\t{score}\t.\t{label}\t" \
                   "{accessions}\n"
             with open(os.path.join(sub_path_in, accession_ids[0] + '.bed'),
                       'r') as r_f:
@@ -799,6 +799,8 @@ def sub_merge(dict_in):
                     dict_out = dict(
                         chrom=list_line[0], start=list_line[1],
                         end=list_line[2], label=list_line[6],
+                        dhs_id=f"DHS<-{list_line[0]}:"
+                               f"{list_line[1]}-{list_line[2]}",
                         score=list_line[4], accessions=list_line[7]
                     )
                     w_f.write(fmt.format(**dict_out))

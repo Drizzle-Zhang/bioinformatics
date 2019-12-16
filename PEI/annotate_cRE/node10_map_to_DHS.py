@@ -9,7 +9,6 @@ from time import time
 import pandas as pd
 import numpy as np
 import os
-from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
@@ -231,34 +230,26 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     path_out = dict_in['path_out']
     sub_h3k27ac = dict_in['sub_h3k27ac']
     accessions = sub_h3k27ac['File accession'].tolist()
+    len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                   shell=True).strip()).split(' ')[0][2:])
 
-    ref_accession = file_ref
+    df_ref = pd.read_csv(file_ref, sep='\t', header=None)
     for accession in accessions:
         file_accession = os.path.join(path_h3k27ac_map, accession + '.bed')
-        file_plus = os.path.join(path_out, accession + '.plus')
-
-        col_num = int(
-            check_output("head -n 1 " + ref_accession + " | awk '{print NF}'",
-                         shell=True).strip())
-        use_col_list = list(range(1, col_num + 1))
-        use_col_list.extend([col_num + 7, col_num + 8])
-        use_col = ','.join([str(num) for num in use_col_list])
-        os.system(
-            f"bedtools intersect -a {ref_accession} -b {file_accession} -wao "
-            f"| cut -f {use_col} > {file_plus}")
-        if ref_accession != file_ref:
-            os.remove(ref_accession)
-        ref_accession = file_plus
+        df_accession = pd.read_csv(
+            file_accession, sep='\t', header=None, usecols=[0, 1, 2, 3, 6, 7])
+        df_plus = pd.merge(df_ref, df_accession, on=[0, 1, 2, 3])
+        df_ref = df_plus
 
         # check error
-        len_ref = int(str(check_output(f"wc -l {file_ref}",
-                                       shell=True).strip()).split(' ')[0][2:])
-        len_plus = int(str(check_output(f"wc -l {file_plus}",
-                                        shell=True).strip()).split(' ')[0][2:])
-        assert len_ref == len_plus
+        try:
+            assert len_ref == df_plus.shape[0]
+        except AssertionError:
+            print(dict_in)
+            return
 
     file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3_H3K27ac.origin')
-    os.system(f"mv {file_plus} {file_origin}")
+    df_ref.to_csv(file_origin, sep='\t', header=None, index=None)
 
     # adjust p value
     infer_num = np.sum(sub_h3k27ac['Inferred peak number'])
@@ -271,15 +262,46 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     return
 
 
-def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
-                         path_out, path_combine, num_process):
-    if os.path.exists(path_out):
-        os.system(f"rm -rf {path_out}")
-    os.mkdir(path_out)
+def sub_annotate_cre(dict_in):
+    path = dict_in['path_out']
+    file_in = os.path.join(path, 'DHS_promoter_H3K4me3_H3K27ac.txt')
+    if not os.path.exists(file_in):
+        return
+    file_out = os.path.join(path, 'cRE.txt')
+    with open(file_in, 'r') as r_f:
+        with open(file_out, 'w') as w_f:
+            fmt_dhs = "{chrom}\t{start}\t{end}\t{dhs_id}\t{cre}\t" \
+                      "{promoter_id}\t{score_h3k4me3}\t{score_h3k27ac}\n"
+            for line in r_f:
+                list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                start = list_line[1]
+                end = list_line[2]
+                dhs_id = list_line[3]
+                promoter_id = list_line[4]
+                score_h3k4me3 = list_line[5]
+                score_h3k27ac = list_line[6]
+                if (promoter_id != '.') & (score_h3k4me3 != '0') & \
+                        (score_h3k27ac != '0'):
+                    cre = 'Promoter'
+                elif score_h3k27ac != '0':
+                    cre = 'Enhancer'
+                else:
+                    cre = '.'
+                w_f.write(fmt_dhs.format(**locals()))
+
+    return
+
+
+def annotate_cre(path_ref, ref_histone, path_h3k27ac,
+                 path_out_h3k27ac, path_cre, num_process):
+    if os.path.exists(path_out_h3k27ac):
+        os.system(f"rm -rf {path_out_h3k27ac}")
+    os.mkdir(path_out_h3k27ac)
     os.system(f"cp {os.path.join(path_h3k27ac, 'metadata.simple.tsv')} "
-              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
+              f"{os.path.join(path_out_h3k27ac, 'metadata.simple.tsv')}")
     os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
-              f"{os.path.join(path_out, 'meta.reference.tsv')}")
+              f"{os.path.join(path_out_h3k27ac, 'meta.reference.tsv')}")
 
     df_ref_histone = pd.read_csv(ref_histone, sep='\t')
     df_ref_histone = df_ref_histone.dropna()
@@ -292,18 +314,18 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
 
     # map H3K27ac to sample
     pool = Pool(processes=num_process)
-    func_map = partial(map_h3k27ac, path_ref, path_h3k27ac, path_out)
+    func_map = partial(map_h3k27ac, path_ref, path_h3k27ac, path_out_h3k27ac)
     pool.map(func_map, df_merge.to_dict('records'))
     pool.close()
 
     # integrate H3K27ac by term and suborgan
-    if os.path.exists(path_combine):
-        os.system(f"rm -rf {path_combine}")
-    os.mkdir(path_combine)
+    if os.path.exists(path_cre):
+        os.system(f"rm -rf {path_cre}")
+    os.mkdir(path_cre)
     os.system(f"cp {os.path.join(path_h3k27ac, 'metadata.simple.tsv')} "
-              f"{os.path.join(path_combine, 'metadata.simple.tsv')}")
+              f"{os.path.join(path_cre, 'metadata.simple.tsv')}")
     os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
-              f"{os.path.join(path_combine, 'meta.reference.tsv')}")
+              f"{os.path.join(path_cre, 'meta.reference.tsv')}")
     organs = list(
         set([organ for organ in df_ref_histone['Biosample organ'].tolist()])
     )
@@ -314,7 +336,7 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
         sub_ref_histone = df_ref_histone.loc[
             df_ref_histone['Biosample organ'] == organ, :
         ]
-        path_organ = os.path.join(path_combine, organ.replace(' ', '_'))
+        path_organ = os.path.join(path_cre, organ.replace(' ', '_'))
         if not os.path.exists(path_organ):
             os.mkdir(path_organ)
         suborgans = list(
@@ -330,15 +352,16 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
                 os.path.join(path_organ, suborgan.replace(' ', '_'))
             if not os.path.exists(path_suborgan):
                 os.mkdir(path_suborgan)
-            file_ref = os.path.join(
-                path_ref, f"{str_organ}/{str_suborgan}/{str_suborgan}.bed"
+            file_ref_suborgan = os.path.join(
+                path_ref,
+                f"{str_organ}/{str_suborgan}/DHS_promoter_H3K4me3.txt"
             )
             suborgan_h3k27ac = pd.merge(
                 suborgan_histone, df_meta_h3k27ac,
                 on=['Biosample life stage', 'Biosample term name']
             )
             list_input.append(dict(
-                file_ref=file_ref, path_out=path_suborgan,
+                file_ref=file_ref_suborgan, path_out=path_suborgan,
                 sub_h3k27ac=suborgan_h3k27ac)
             )
             for sub_dict in suborgan_histone.to_dict("records"):
@@ -347,6 +370,11 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
                 str_term = sub_dict['Biosample term name'].replace(
                     ' ', '_').replace('/', '+').replace("'", '--')
                 path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
+                file_ref = os.path.join(
+                    path_ref,
+                    f"{str_organ}/{str_suborgan}/{life}_{str_term}/"
+                    f"DHS_promoter_H3K4me3.txt"
+                )
                 if not os.path.exists(path_term):
                     os.mkdir(path_term)
                 sub_h3k27ac = df_meta_h3k27ac.loc[
@@ -358,8 +386,12 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
                 )
 
     pool = Pool(processes=num_process)
-    func_integrate = partial(integrate_h3k27ac, path_out)
+    func_integrate = partial(integrate_h3k27ac, path_out_h3k27ac)
     pool.map(func_integrate, list_input)
+    pool.close()
+
+    pool = Pool(processes=num_process)
+    pool.map(sub_annotate_cre, list_input)
     pool.close()
 
     return
@@ -415,9 +447,9 @@ if __name__ == '__main__':
 
     # map H3K27ac to reference
     path_map_h3k27ac = '/local/zy/PEI/data/DHS/map_H3K27ac'
-    path_combine_h3k27ac = '/local/zy/PEI/data/DHS/combine_H3K27ac'
-    annotate_h3k27ac_ref(path_ref_promoter, file_meta, path_h3k27ac_stan,
-                         path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
+    path_combine_h3k27ac = '/local/zy/PEI/data/DHS/cRE_annotation'
+    annotate_cre(path_ref_promoter, file_meta, path_h3k27ac_stan,
+                 path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
