@@ -111,16 +111,14 @@ def sub_annotate_promoter(dict_in):
     return
 
 
-def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
-                             loc_promoter, ref_dhs, ref_histone, path_out,
-                             num_process):
+def annotate_promoter_to_dhs(path_cluster, path_h3k4me3,
+                             loc_promoter, ref_histone, path_out, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
     df_ref_histone = pd.read_csv(ref_histone, sep='\t')
     df_ref_histone = df_ref_histone.dropna()
-    df_ref_dhs = pd.read_csv(ref_dhs, sep='\t')
     df_meta_h3k4me3 = pd.read_csv(
         os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
     )
@@ -135,7 +133,6 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
         sub_ref_histone = df_ref_histone.loc[
             df_ref_histone['Biosample organ'] == organ, :
         ]
-        sub_ref_dhs = df_ref_dhs.loc[df_ref_dhs['Biosample organ'] == organ, :]
         path_organ = os.path.join(path_out, organ.replace(' ', '_'))
         if not os.path.exists(path_organ):
             os.mkdir(path_organ)
@@ -152,6 +149,19 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
                 os.path.join(path_organ, suborgan.replace(' ', '_'))
             if not os.path.exists(path_suborgan):
                 os.mkdir(path_suborgan)
+            file_dhs = os.path.join(
+                path_cluster,
+                f"{str_organ}/{str_suborgan}/{str_suborgan}.bed"
+            )
+            suborgan_h3k4me3 = pd.merge(
+                suborgan_histone, df_meta_h3k4me3,
+                on=['Biosample life stage', 'Biosample term name']
+            )
+            list_input.append(dict(
+                file_dhs=file_dhs, path_out=path_suborgan,
+                path_h3k4me3=path_h3k4me3, sub_h3k4me3=suborgan_h3k4me3,
+                loc_promoter=loc_promoter)
+            )
             for sub_dict in suborgan_histone.to_dict("records"):
                 term = sub_dict['Biosample term name']
                 life = sub_dict['Biosample life stage']
@@ -160,20 +170,6 @@ def annotate_promoter_to_dhs(path_dhs, path_cluster, path_h3k4me3,
                 path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
                 if not os.path.exists(path_term):
                     os.mkdir(path_term)
-                term_dhs = sub_ref_dhs.loc[
-                    (sub_ref_dhs['Biosample life stage'] == life) &
-                    (sub_ref_dhs['Biosample term name'] == term), :
-                ]
-                if term_dhs.shape[0] == 1:
-                    file_dhs = os.path.join(
-                        path_dhs,
-                        f"{str_organ}/{life}/{str_term}/{str_term}.bed"
-                    )
-                elif term_dhs.shape[0] == 0:
-                    file_dhs = os.path.join(
-                        path_cluster,
-                        f"{str_organ}/{str_suborgan}/{str_suborgan}.bed"
-                    )
                 sub_h3k4me3 = df_meta_h3k4me3.loc[
                     (df_meta_h3k4me3['Biosample life stage'] == life) &
                     (df_meta_h3k4me3['Biosample term name'] == term), :]
@@ -230,11 +226,60 @@ def map_h3k27ac(path_ref, path_h3k27ac, path_out, dict_in):
     return
 
 
+def integrate_h3k27ac(path_h3k27ac_map, dict_in):
+    file_ref = dict_in['file_ref']
+    path_out = dict_in['path_out']
+    sub_h3k27ac = dict_in['sub_h3k27ac']
+    accessions = sub_h3k27ac['File accession'].tolist()
+
+    ref_accession = file_ref
+    for accession in accessions:
+        file_accession = os.path.join(path_h3k27ac_map, accession + '.bed')
+        file_plus = os.path.join(path_out, accession + '.plus')
+
+        col_num = int(
+            check_output("head -n 1 " + ref_accession + " | awk '{print NF}'",
+                         shell=True).strip())
+        use_col_list = list(range(1, col_num + 1))
+        use_col_list.extend([col_num + 7, col_num + 8])
+        use_col = ','.join([str(num) for num in use_col_list])
+        os.system(
+            f"bedtools intersect -a {ref_accession} -b {file_accession} -wao "
+            f"| cut -f {use_col} > {file_plus}")
+        if ref_accession != file_ref:
+            os.remove(ref_accession)
+        ref_accession = file_plus
+
+        # check error
+        len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        len_plus = int(str(check_output(f"wc -l {file_plus}",
+                                        shell=True).strip()).split(' ')[0][2:])
+        assert len_ref == len_plus
+
+    file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3_H3K27ac.origin')
+    os.system(f"mv {file_plus} {file_origin}")
+
+    # adjust p value
+    infer_num = np.sum(sub_h3k27ac['Inferred peak number'])
+    file_num = sub_h3k27ac.shape[0]
+    file_out = os.path.join(
+        path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
+    os.system(f"Rscript adjust_p_value_H3K27ac.R "
+              f"{file_origin} {file_out} {infer_num} {file_num}")
+
+    return
+
+
 def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
-                         path_out, num_process):
+                         path_out, path_combine, num_process):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_h3k27ac, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
+    os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
+              f"{os.path.join(path_out, 'meta.reference.tsv')}")
 
     df_ref_histone = pd.read_csv(ref_histone, sep='\t')
     df_ref_histone = df_ref_histone.dropna()
@@ -245,9 +290,76 @@ def annotate_h3k27ac_ref(path_ref, ref_histone, path_h3k27ac,
         df_ref_histone, df_meta_h3k27ac,
         on=['Biosample organ', 'Biosample life stage', 'Biosample term name'])
 
+    # map H3K27ac to sample
     pool = Pool(processes=num_process)
     func_map = partial(map_h3k27ac, path_ref, path_h3k27ac, path_out)
     pool.map(func_map, df_merge.to_dict('records'))
+    pool.close()
+
+    # integrate H3K27ac by term and suborgan
+    if os.path.exists(path_combine):
+        os.system(f"rm -rf {path_combine}")
+    os.mkdir(path_combine)
+    os.system(f"cp {os.path.join(path_h3k27ac, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_combine, 'metadata.simple.tsv')}")
+    os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
+              f"{os.path.join(path_combine, 'meta.reference.tsv')}")
+    organs = list(
+        set([organ for organ in df_ref_histone['Biosample organ'].tolist()])
+    )
+
+    list_input = []
+    for organ in organs:
+        str_organ = organ.replace(' ', '_')
+        sub_ref_histone = df_ref_histone.loc[
+            df_ref_histone['Biosample organ'] == organ, :
+        ]
+        path_organ = os.path.join(path_combine, organ.replace(' ', '_'))
+        if not os.path.exists(path_organ):
+            os.mkdir(path_organ)
+        suborgans = list(
+            set([suborgan for suborgan in
+                 sub_ref_histone['Biosample suborgan'].tolist()])
+        )
+        for suborgan in suborgans:
+            str_suborgan = suborgan.replace(' ', '_')
+            suborgan_histone = \
+                sub_ref_histone.loc[
+                    sub_ref_histone['Biosample suborgan'] == suborgan, :]
+            path_suborgan = \
+                os.path.join(path_organ, suborgan.replace(' ', '_'))
+            if not os.path.exists(path_suborgan):
+                os.mkdir(path_suborgan)
+            file_ref = os.path.join(
+                path_ref, f"{str_organ}/{str_suborgan}/{str_suborgan}.bed"
+            )
+            suborgan_h3k27ac = pd.merge(
+                suborgan_histone, df_meta_h3k27ac,
+                on=['Biosample life stage', 'Biosample term name']
+            )
+            list_input.append(dict(
+                file_ref=file_ref, path_out=path_suborgan,
+                sub_h3k27ac=suborgan_h3k27ac)
+            )
+            for sub_dict in suborgan_histone.to_dict("records"):
+                term = sub_dict['Biosample term name']
+                life = sub_dict['Biosample life stage']
+                str_term = sub_dict['Biosample term name'].replace(
+                    ' ', '_').replace('/', '+').replace("'", '--')
+                path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
+                if not os.path.exists(path_term):
+                    os.mkdir(path_term)
+                sub_h3k27ac = df_meta_h3k27ac.loc[
+                    (df_meta_h3k27ac['Biosample life stage'] == life) &
+                    (df_meta_h3k27ac['Biosample term name'] == term), :]
+                list_input.append(dict(
+                    file_ref=file_ref, path_out=path_term,
+                    sub_h3k27ac=sub_h3k27ac)
+                )
+
+    pool = Pool(processes=num_process)
+    func_integrate = partial(integrate_h3k27ac, path_out)
+    pool.map(func_integrate, list_input)
     pool.close()
 
     return
@@ -295,17 +407,17 @@ if __name__ == '__main__':
     promoter_file_hg19 = \
         '/local/zy/PEI/data/gene/promoters.up2k.protein.gencode.v19.bed'
     meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
-    path_ref_promoter = '/local/zy/PEI/data/DHS/ref_promoter'
+    path_ref_promoter = '/local/zy/PEI/data/DHS/reference_map'
     annotate_promoter_to_dhs(
-        path_dhs_stan, path_dhs_cluster, path_h3k4me3_stan,
-        promoter_file_hg19, meta_suborgan_dhs, file_meta, path_ref_promoter,
-        num_cpu
+        path_dhs_cluster, path_h3k4me3_stan,
+        promoter_file_hg19, file_meta, path_ref_promoter, num_cpu
     )
 
     # map H3K27ac to reference
-    path_map_h3k27ac = '/local/zy/PEI/data/DHS/map_h3k27ac'
+    path_map_h3k27ac = '/local/zy/PEI/data/DHS/map_H3K27ac'
+    path_combine_h3k27ac = '/local/zy/PEI/data/DHS/combine_H3K27ac'
     annotate_h3k27ac_ref(path_ref_promoter, file_meta, path_h3k27ac_stan,
-                         path_map_h3k27ac, num_cpu)
+                         path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
 
     time_end = time()
     print(time_end - time_start)
