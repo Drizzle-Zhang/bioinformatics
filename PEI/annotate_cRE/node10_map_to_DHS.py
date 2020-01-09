@@ -437,7 +437,8 @@ if __name__ == '__main__':
 
     # promoter reference
     promoter_file_hg19 = \
-        '/local/zy/PEI/data/gene/promoters.up2k.protein.gencode.v19.bed'
+        '/local/zy/PEI/data/gene/' \
+        'promoters.up2k.protein.gencode.v19.merge.bed'
     meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
     path_ref_promoter = '/local/zy/PEI/data/DHS/reference_map'
     annotate_promoter_to_dhs(

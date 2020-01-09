@@ -219,27 +219,14 @@ def sub_stat(egenes, eqtl_file, dict_in):
         with open(file_in, 'r') as r_f:
             for line in r_f:
                 list_line = line.strip().split('\t')
-                line_id = list_line[-1]
                 cres1 = list_line[4].split(',')
                 cres2 = list_line[10].split(',')
                 set_cres1 = set(list_line[4].split(','))
                 set_cres2 = set(list_line[10].split(','))
-                count_add = 0
-                if line_id[0:2] == 'pp':
-                    if ('Promoter' in set_cres1) & \
-                            (('Promoter' in set_cres2) |
-                             ('Enhancer' in set_cres2)):
-                        count_add = 1
-                elif line_id[0:2] == 'po':
-                    if ('Promoter' in set_cres1) & \
-                            (('Promoter' in set_cres2) |
-                             ('Enhancer' in set_cres2)):
-                        count_add = 1
+                if ('.' in set_cres1) | ('.' in set_cres2):
+                    continue
                 else:
-                    if ('.' in set_cres1) | ('.' in set_cres2):
-                        continue
-                    else:
-                        count_add = 1
+                    count_add = 1
                 count_effect = count_effect + count_add
                 if count_add == 1:
                     dhs_ids1 = list_line[3].split(',')
@@ -283,8 +270,7 @@ def sub_stat(egenes, eqtl_file, dict_in):
     df_pair = df_pair.drop_duplicates()
     df_pair.to_csv(file_out, sep='\t', header=None, index=None)
 
-    len_cre_pairs = int(str(check_output(
-        f"wc -l {file_out}", shell=True).strip()).split(' ')[0][2:])
+    len_cre_pairs = df_pair.shape[0]
 
     with open(file_egene, 'w') as w_egene:
         fmt = "{gene}\t{dhs_id}\n"
@@ -300,8 +286,14 @@ def sub_stat(egenes, eqtl_file, dict_in):
     df_egene_pair = pd.read_csv(file_egene, sep='\t', header=None)
     df_egene_pair = df_egene_pair.drop_duplicates()
     df_egene_pair.to_csv(file_egene, sep='\t', header=None, index=None)
-    num_egene = df_egene_pair[0].drop_duplicates().shape[0]
+
     df_eqtl = pd.read_csv(eqtl_file, sep='\t', header=None)
+    set_eqtl_egenes = set(df_eqtl[0].tolist())
+
+    df_eqtl_egene_pair = df_egene_pair.loc[
+        df_egene_pair[0].apply(lambda x: x in set_eqtl_egenes), :]
+    num_egene_pairs = df_eqtl_egene_pair.shape[0]
+    num_egene = df_eqtl_egene_pair[0].drop_duplicates().shape[0]
     df_overlap = pd.merge(df_egene_pair, df_eqtl, on=[0, 1])
     df_overlap.to_csv(file_overlap, sep='\t', header=None, index=None)
     num_overlap_egene = df_overlap[0].drop_duplicates().shape[0]
@@ -309,7 +301,7 @@ def sub_stat(egenes, eqtl_file, dict_in):
     return {'label': dict_in['label'], 'count': count_effect,
             'total': len_file, 'ratio': count_effect/len_file,
             'resolution': resolution, 'num_pairs': len_cre_pairs,
-            'num_egene_pairs': df_egene_pair.shape[0],
+            'num_egene_pairs': num_egene_pairs,
             'overlap_num': df_overlap.shape[0], 'num_egene': num_egene,
             'num_overlap_egene': num_overlap_egene}
 
@@ -372,14 +364,10 @@ def transform_eqtl(file_in, file_out, file_pair_eqtl, file_pair_cre,
                 df_ensg = df_egene.loc[df_egene['gene_id'] == ensg, :]
                 if df_ensg.shape[0] != 1:
                     continue
-                gene_start = df_ensg['gene_start'].iloc[0]
-                gene_end = df_ensg['gene_end'].iloc[0]
-                if (start >= gene_start) & (start <= gene_end):
-                    continue
                 chrom1 = f"chr{pattern_chrom.match(list_line[0]).group()[:-1]}"
                 variant_id = list_line[0]
-                start1 = str(start - 500)
-                end1 = str(start + 500)
+                start1 = str(start - 1000)
+                end1 = str(start + 1000)
                 tss_distance = list_line[2]
                 pval_beta = list_line[-1]
                 gene_symbol = df_ensg['gene_name'].iloc[0]
@@ -460,8 +448,12 @@ def sub_cutoff_3div(file_in, file_cre, egenes, eqtl_file,
 if __name__ == '__main__':
     time_start = time()
     # unify data format and cRE annotation
-    file_cre_braincc = '/local/zy/PEI/data/DHS/cRE_annotation/' \
-                       'brain/adult_cerebral_cortex/cRE.txt '
+    file_cre_braincc_origin = '/local/zy/PEI/data/DHS/cRE_annotation/' \
+                              'brain/adult_cerebral_cortex/cRE.txt'
+    file_cre_braincc = '/local/zy/PEI/compare_DLPFC/cRE.txt'
+    protein_gene = '/local/zy/PEI/data/gene/genes.protein.gencode.v19.bed'
+    os.system(f"bedtools intersect -a {file_cre_braincc_origin} "
+              f"-b {protein_gene} -v > {file_cre_braincc}")
     # promoter capture Hi-C
     ng_pp = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.pp.txt'
     ng_po = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.po.txt'
@@ -548,7 +540,6 @@ if __name__ == '__main__':
     # eGenes
     file_egenes = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
                   'Brain_Cortex.v7.egenes.txt'
-    protein_gene = '/local/zy/PEI/data/gene/genes.protein.gencode.v19.bed'
     df_protein_genes = pd.read_csv(protein_gene, sep='\t', header=None)
     df_protein_genes.columns = ['chrom', 'start', 'end',
                                 'gene_name', 'gene_id', 'strand']
@@ -568,12 +559,12 @@ if __name__ == '__main__':
     file_eqtl = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
                 'Brain_Cortex.v7.signif_variant_gene_pairs.txt'
     file_uniform = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
-                   'uniform_500.txt'
+                   'uniform_1000.txt'
     pairs_eqtl_egene = \
         '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
-        'eQTL_cRE_pairs_500.txt'
+        'eQTL_cRE_pairs_1000.txt'
     pairs_dhs_egene = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
-                      'cRE_pairs_500.txt'
+                      'cRE_pairs_1000.txt'
     transform_eqtl(
         file_eqtl, file_uniform, pairs_eqtl_egene, pairs_dhs_egene,
         file_cre_braincc, df_egenes_pos)
