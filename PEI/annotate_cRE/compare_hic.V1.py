@@ -364,6 +364,10 @@ def transform_eqtl(file_in, file_out, file_pair_eqtl, file_pair_cre,
                 df_ensg = df_egene.loc[df_egene['gene_id'] == ensg, :]
                 if df_ensg.shape[0] != 1:
                     continue
+                gene_start = df_ensg['gene_start'].iloc[0]
+                gene_end = df_ensg['gene_end'].iloc[0]
+                if (start >= gene_start) & (start <= gene_end):
+                    continue
                 chrom1 = f"chr{pattern_chrom.match(list_line[0]).group()[:-1]}"
                 variant_id = list_line[0]
                 start1 = str(start - 1000)
@@ -452,90 +456,90 @@ if __name__ == '__main__':
                        'brain/adult_cerebral_cortex/cRE.txt'
     protein_gene = '/local/zy/PEI/data/gene/genes.protein.gencode.v19.bed'
     # promoter capture Hi-C
-    ng_pp = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.pp.txt'
-    ng_po = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.po.txt'
+    ng_pp = '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/X5628FC.pp.txt'
+    ng_po = '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/X5628FC.po.txt'
 
-    ng_uniform = '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_0.01.txt'
+    ng_uniform = '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/interactions_0.01.txt'
     interaction_annotation_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_0.01.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/interactions_0.01.cRE.txt'
     transform_ng2019(ng_pp, ng_po, ng_uniform, 2)
     annotate_hic(file_cre_braincc, ng_uniform, interaction_annotation_ng)
 
     # 3DIV
     file_origin_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/HiCaptureSeq_DL_cutoff_10.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DIV/HiCaptureSeq_DL_cutoff_10.txt'
 
-    uniform_3div = '/local/zy/PEI/compare_DLPFC/3DIV/interactions_14.txt'
+    uniform_3div = '/local/zy/PEI/compare_DLPFC_V1/3DIV/interactions_14.txt'
     interaction_annotation_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/interactions_14.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DIV/interactions_14.cRE.txt'
     transform_3div(file_origin_3div, uniform_3div, 14)
     annotate_hic(file_cre_braincc, uniform_3div, interaction_annotation_3div)
 
     # 3DGB
-    file_origin_3dgb = '/local/zy/PEI/compare_DLPFC/3DGB/' \
+    file_origin_3dgb = '/local/zy/PEI/compare_DLPFC_V1/3DGB/' \
                        'Schmitt_2016.Cortex_DLPFC.hg19.peakachu-merged.loops'
-    uniform_3dgb = '/local/zy/PEI/compare_DLPFC/3DGB/interactions.txt'
+    uniform_3dgb = '/local/zy/PEI/compare_DLPFC_V1/3DGB/interactions.txt'
     interaction_annotation_3dgb = \
-        '/local/zy/PEI/compare_DLPFC/3DGB/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DGB/interactions.cRE.txt'
     transform_3dgb(file_origin_3dgb, uniform_3dgb)
     annotate_hic(file_cre_braincc, uniform_3dgb, interaction_annotation_3dgb)
 
     # psychENCODE
-    file_origin_psych = '/local/zy/PEI/compare_DLPFC/psychENCODE/' \
+    file_origin_psych = '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/' \
                         'Promoter-anchored_chromatin_loops.bed'
-    uniform_psych = '/local/zy/PEI/compare_DLPFC/psychENCODE/interactions.txt'
+    uniform_psych = '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/interactions.txt'
     interaction_annotation_psych = \
-        '/local/zy/PEI/compare_DLPFC/psychENCODE/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/interactions.cRE.txt'
     transform_psych(file_origin_psych, uniform_psych)
     annotate_hic(file_cre_braincc, uniform_psych, interaction_annotation_psych)
 
     # PLAC-seq microglia
     file_origin_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/microglia_interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/microglia_interactions.txt'
     uniform_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/interactions.txt'
     interaction_annotation_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/interactions.cRE.txt'
     transform_plac(file_origin_microglia, uniform_microglia)
     annotate_hic(file_cre_braincc, uniform_microglia,
                  interaction_annotation_microglia)
 
     # PLAC-seq neuron
     file_origin_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/Neuronal_interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/Neuronal_interactions.txt'
     uniform_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/interactions.txt'
     interaction_annotation_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/interactions.cRE.txt'
     transform_plac(file_origin_neuron, uniform_neuron)
     annotate_hic(file_cre_braincc, uniform_neuron,
                  interaction_annotation_neuron)
 
     # PLAC-seq oligodendrocyte
     file_origin_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/' \
         'oligodendrocyte_interactions.txt'
     uniform_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/interactions.txt'
     interaction_annotation_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/interactions.cRE.txt'
     transform_plac(file_origin_oligodendrocyte, uniform_oligodendrocyte)
     annotate_hic(file_cre_braincc, uniform_oligodendrocyte,
                  interaction_annotation_oligodendrocyte)
 
     # PLAC-seq
     file_origin_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/PLACseq.uniq.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/PLACseq.uniq.txt'
     uniform_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/interactions.txt'
     interaction_annotation_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions.cRE.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/interactions.cRE.txt'
     transform_plac(file_origin_plac, uniform_plac)
     annotate_hic(file_cre_braincc, uniform_plac, interaction_annotation_plac)
 
     # eQTL
     # eGenes
-    file_egenes = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
+    file_egenes = '/local/zy/PEI/compare_DLPFC_V1/eQTL/Cortex/' \
                   'Brain_Cortex.v7.egenes.txt'
     df_protein_genes = pd.read_csv(protein_gene, sep='\t', header=None)
     df_protein_genes.columns = ['chrom', 'start', 'end',
@@ -553,14 +557,14 @@ if __name__ == '__main__':
                         'gene_id', 'strand']
                     ]
 
-    file_eqtl = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
+    file_eqtl = '/local/zy/PEI/compare_DLPFC_V1/eQTL/Cortex/' \
                 'Brain_Cortex.v7.signif_variant_gene_pairs.txt'
-    file_uniform = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
+    file_uniform = '/local/zy/PEI/compare_DLPFC_V1/eQTL/Cortex/' \
                    'uniform_1000.txt'
     pairs_eqtl_egene = \
-        '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
+        '/local/zy/PEI/compare_DLPFC_V1/eQTL/Cortex/' \
         'eQTL_cRE_pairs_1000.txt'
-    pairs_dhs_egene = '/local/zy/PEI/compare_DLPFC/eQTL/Cortex/' \
+    pairs_dhs_egene = '/local/zy/PEI/compare_DLPFC_V1/eQTL/Cortex/' \
                       'cRE_pairs_1000.txt'
     transform_eqtl(
         file_eqtl, file_uniform, pairs_eqtl_egene, pairs_dhs_egene,
@@ -576,82 +580,82 @@ if __name__ == '__main__':
     list_labels = ['pcHi-C', '3DIV', '3DGB', 'psychENCODE', 'microglia',
                    'neuron', 'oligodendrocyte', 'PLAC-seq']
     pairs_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/cRE_pairs_0.01.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/cRE_pairs_0.01.txt'
     pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/cRE_pairs_14.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DIV/cRE_pairs_14.txt'
     pairs_3dgb = \
-        '/local/zy/PEI/compare_DLPFC/3DGB/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DGB/cRE_pairs.txt'
     pairs_psych = \
-        '/local/zy/PEI/compare_DLPFC/psychENCODE/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/cRE_pairs.txt'
     pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/cRE_pairs.txt'
     pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/cRE_pairs.txt'
     pairs_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/cRE_pairs.txt'
     pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/cRE_pairs.txt'
     list_out = [pairs_ng, pairs_3div, pairs_3dgb, pairs_psych, pairs_microglia,
                 pairs_neuron, pairs_oligodendrocyte, pairs_plac]
     egene_pairs_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/egene_cRE_pairs_0.05.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/egene_cRE_pairs_0.05.txt'
     egene_pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/egene_cRE_pairs_11.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DIV/egene_cRE_pairs_11.txt'
     egene_pairs_3dgb = \
-        '/local/zy/PEI/compare_DLPFC/3DGB/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DGB/egene_cRE_pairs.txt'
     egene_pairs_psych = \
-        '/local/zy/PEI/compare_DLPFC/psychENCODE/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/egene_cRE_pairs.txt'
     egene_pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/egene_cRE_pairs.txt'
     egene_pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/egene_cRE_pairs.txt'
     egene_pairs_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/egene_cRE_pairs.txt'
     egene_pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/egene_cRE_pairs.txt'
     list_egene = [egene_pairs_ng, egene_pairs_3div, egene_pairs_3dgb,
                   egene_pairs_psych, egene_pairs_microglia, egene_pairs_neuron,
                   egene_pairs_oligodendrocyte, egene_pairs_plac]
     overlap_pairs_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/' \
+        '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/' \
         'overlap_egene_cRE_pairs_0.05.txt'
     overlap_pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/overlap_egene_cRE_pairs_11.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DIV/overlap_egene_cRE_pairs_11.txt'
     overlap_pairs_3dgb = \
-        '/local/zy/PEI/compare_DLPFC/3DGB/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/3DGB/overlap_egene_cRE_pairs.txt'
     overlap_pairs_psych = \
-        '/local/zy/PEI/compare_DLPFC/psychENCODE/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/psychENCODE/overlap_egene_cRE_pairs.txt'
     overlap_pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/microglia/overlap_egene_cRE_pairs.txt'
     overlap_pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/neuron/overlap_egene_cRE_pairs.txt'
     overlap_pairs_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
+        '/local/zy/PEI/compare_DLPFC_V1/oligodendrocyte/' \
         'overlap_egene_cRE_pairs.txt'
     overlap_pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC_V1/PLACseq/overlap_egene_cRE_pairs.txt'
     list_overlap = [overlap_pairs_ng, overlap_pairs_3div, overlap_pairs_3dgb,
                     overlap_pairs_psych, overlap_pairs_microglia,
                     overlap_pairs_neuron, overlap_pairs_oligodendrocyte,
                     overlap_pairs_plac]
     set_egenes = set(df_egenes_pos['gene_name'].tolist())
-    file_compare = '/local/zy/PEI/compare_DLPFC/compare_results.txt'
+    file_compare = '/local/zy/PEI/compare_DLPFC_V1/compare_results.txt'
     stat_effective_interaction(
         list_files, list_labels, list_out, set_egenes, pairs_dhs_egene,
         list_egene, list_overlap, file_compare)
 
     # overlap of Hi-C from different source
-    file_mat = '/local/zy/PEI/compare_DLPFC/overlap.mtx'
+    file_mat = '/local/zy/PEI/compare_DLPFC_V1/overlap.mtx'
     overlap_matrix(list_labels + ['eQTL'], list_egene + [pairs_dhs_egene],
                    file_mat)
 
-    file_mat_overlap = '/local/zy/PEI/compare_DLPFC/overlap_eqtl.mtx'
+    file_mat_overlap = '/local/zy/PEI/compare_DLPFC_V1/overlap_eqtl.mtx'
     overlap_matrix(list_labels + ['eQTL'], list_overlap + [pairs_dhs_egene],
                    file_mat_overlap)
 
     # # different cutoff
     # range_cutoff_ng = [1, 1.3, 1.6, 2, 2.5, 3, 3.5, 4, 5]
-    # path_cutoff_ng = '/local/zy/PEI/compare_DLPFC/NGpcHiC/cutoff'
+    # path_cutoff_ng = '/local/zy/PEI/compare_DLPFC_V1/NGpcHiC/cutoff'
     # pool = Pool(processes=10)
     # func_cutoff = partial(
     #     sub_cutoff_ng, ng_pp, ng_po, file_cre_braincc, set_egenes,
@@ -663,7 +667,7 @@ if __name__ == '__main__':
     #              sep='\t', index=None)
     #
     # range_cutoff_3div = [11, 12, 14, 16, 18, 20, 23, 26, 30]
-    # path_cutoff_3div = '/local/zy/PEI/compare_DLPFC/3DIV/cutoff'
+    # path_cutoff_3div = '/local/zy/PEI/compare_DLPFC_V1/3DIV/cutoff'
     # pool = Pool(processes=10)
     # func_cutoff = partial(
     #     sub_cutoff_3div, file_origin_3div, file_cre_braincc, set_egenes,
