@@ -1,7 +1,7 @@
 setwd('/home/drizzle_zhang/driver_mutation/cRE_plot/HiC')
 library(ggplot2)
 
-df.compare <- read.delim('./compare_results.Cortex500.txt', 
+df.compare <- read.delim('./compare_results.Cortex1000.txt', 
                          sep = '\t', stringsAsFactors = F)
 
 # interaction level
@@ -106,8 +106,36 @@ plot.heatmap <- ggplot(data = df.heatmap, aes(x, y)) +
         axis.title = element_blank(),
         axis.text.x = element_text(angle = 90)
     ) + 
-    geom_text(aes(label = round(value,2)), family = "Arial", size = 2)
+    geom_text(aes(label = round(value, 2)), family = "Arial", size = 2)
 ggsave(
     plot = plot.heatmap, path = './', filename = "Heatmap_Hi-C_overlap.png",
     units = 'cm', width = 15, height = 10)
 
+
+df.mtx <- read.delim('./overlap_eqtl.mtx', sep = '\t', stringsAsFactors = F, 
+                     row.names = 'X')
+df.heatmap <- data.frame()
+labels <- row.names(df.mtx)
+for (i in 1:length(labels)) {
+    for (j in 1:length(labels)) {
+        df.heatmap <- rbind(
+            df.heatmap, data.frame(x = labels[i], y = labels[j], 
+                                   value = df.mtx[i, j]))
+    }
+}
+plot.heatmap <- ggplot(data = df.heatmap, aes(x, y)) + 
+    geom_tile(aes(fill = value)) + 
+    scale_fill_continuous(low = "#FFFAFA", high = "#FF0000") + 
+    theme_bw() +
+    theme(
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90)
+    ) + 
+    geom_text(aes(label = round(value, 2)), family = "Arial", size = 2)
+ggsave(
+    plot = plot.heatmap, path = './', 
+    filename = "Heatmap_Hi-C_overlap_eqtl.png",
+    units = 'cm', width = 15, height = 10)
