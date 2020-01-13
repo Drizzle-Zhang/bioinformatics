@@ -683,42 +683,42 @@ if __name__ == '__main__':
                    file_mat_overlap)
 
     # different cutoff
-    # range_cutoff_ng = [1, 1.3, 1.6, 2, 2.3, 2.7, 2.8, 2.9, 2.95, 3, 3.5, 4, 5]
-    # path_cutoff_ng = '/local/zy/PEI/compare_DLPFC/NGpcHiC/cutoff'
-    # pool = Pool(processes=15)
-    # func_cutoff = partial(
-    #     sub_cutoff_ng, ng_pp, ng_po, file_cre_braincc, set_egenes,
-    #     pairs_dhs_egene, path_cutoff_ng)
-    # list_dict = pool.map(func_cutoff, range_cutoff_ng)
-    # pool.close()
-    # df_ng = pd.DataFrame(list_dict)
-    # df_ng.to_csv(os.path.join(path_cutoff_ng, 'result.txt'),
-    #              sep='\t', index=None)
+    range_cutoff_ng = [1, 1.3, 1.6, 2, 2.3, 2.7, 2.8, 2.9, 2.95, 3, 3.5, 4, 5]
+    path_cutoff_ng = '/local/zy/PEI/compare_DLPFC/NGpcHiC/cutoff'
+    pool = Pool(processes=15)
+    func_cutoff = partial(
+        sub_cutoff_ng, ng_pp, ng_po, file_cre_braincc, set_egenes,
+        pairs_dhs_egene, path_cutoff_ng)
+    list_dict = pool.map(func_cutoff, range_cutoff_ng)
+    pool.close()
+    df_ng = pd.DataFrame(list_dict)
+    df_ng.to_csv(os.path.join(path_cutoff_ng, 'result.txt'),
+                 sep='\t', index=None)
 
-    # range_cutoff_3div = [10, 11, 12, 14, 16, 18, 20, 23, 26, 30]
-    # path_cutoff_3div = '/local/zy/PEI/compare_DLPFC/3DIV/cutoff'
-    # pool = Pool(processes=10)
-    # func_cutoff = partial(
-    #     sub_cutoff_3div, file_origin_3div, file_cre_braincc, set_egenes,
-    #     pairs_dhs_egene, path_cutoff_3div)
-    # list_dict = pool.map(func_cutoff, range_cutoff_3div)
-    # pool.close()
-    # df_3div = pd.DataFrame(list_dict)
-    # df_3div.to_csv(os.path.join(path_cutoff_3div, 'result.txt'),
-    #                sep='\t', index=None)
+    range_cutoff_3div = [10, 11, 12, 14, 16, 18, 20, 23, 26, 30]
+    path_cutoff_3div = '/local/zy/PEI/compare_DLPFC/3DIV/cutoff'
+    pool = Pool(processes=10)
+    func_cutoff = partial(
+        sub_cutoff_3div, file_origin_3div, file_cre_braincc, set_egenes,
+        pairs_dhs_egene, path_cutoff_3div)
+    list_dict = pool.map(func_cutoff, range_cutoff_3div)
+    pool.close()
+    df_3div = pd.DataFrame(list_dict)
+    df_3div.to_csv(os.path.join(path_cutoff_3div, 'result.txt'),
+                   sep='\t', index=None)
 
-    # range_cutoff_plac = [10**-3, 0.0002, 0.00015, 0.00014, 10**-4, 10**-5,
-    #                      10**-6, 10**-7, 10**-8, 10**-9]
-    # path_cutoff_plac = '/local/zy/PEI/compare_DLPFC/PLACseq/cutoff'
-    # pool = Pool(processes=10)
-    # func_cutoff = partial(
-    #     sub_cutoff_plac, file_origin_plac, file_cre_braincc, set_egenes,
-    #     pairs_dhs_egene, path_cutoff_plac)
-    # list_dict = pool.map(func_cutoff, range_cutoff_plac)
-    # pool.close()
-    # df_plac = pd.DataFrame(list_dict)
-    # df_plac.to_csv(os.path.join(path_cutoff_plac, 'result.txt'),
-    #                sep='\t', index=None)
+    range_cutoff_plac = [10**-3, 0.0002, 0.00015, 0.00014, 10**-4, 10**-5,
+                         10**-6, 10**-7, 10**-8, 10**-9]
+    path_cutoff_plac = '/local/zy/PEI/compare_DLPFC/PLACseq/cutoff'
+    pool = Pool(processes=10)
+    func_cutoff = partial(
+        sub_cutoff_plac, file_origin_plac, file_cre_braincc, set_egenes,
+        pairs_dhs_egene, path_cutoff_plac)
+    list_dict = pool.map(func_cutoff, range_cutoff_plac)
+    pool.close()
+    df_plac = pd.DataFrame(list_dict)
+    df_plac.to_csv(os.path.join(path_cutoff_plac, 'result.txt'),
+                   sep='\t', index=None)
 
     time_end = time()
     print(time_end - time_start)
