@@ -128,7 +128,7 @@ def transform_psych(file_in, file_out):
     return
 
 
-def transform_plac(file_in, file_out):
+def transform_plac(file_in, file_out, cutoff):
     with open(file_out, 'w') as w_out:
         fmt = "{chrom1}\t{start1}\t{end1}\t{chrom2}\t{start2}\t{end2}\t" \
               "{loop_id}\t{score}\n"
@@ -137,6 +137,8 @@ def transform_plac(file_in, file_out):
                 list_line = line.strip().split('\t')
                 if len(list_line) > 6:
                     score = list_line[8]
+                    if float(score) > cutoff:
+                        continue
                 else:
                     score = '.'
                 loop_id = str(i)
@@ -445,6 +447,26 @@ def sub_cutoff_3div(file_in, file_cre, egenes, eqtl_file,
     return dict_out
 
 
+def sub_cutoff_plac(file_in, file_cre, egenes, eqtl_file,
+                    path_out, cutoff):
+    uniform = os.path.join(path_out, 'uniform_' + str(cutoff) + '.txt')
+    transform_plac(file_in, uniform, cutoff)
+    file_annotation = os.path.join(
+        path_out, 'interactions_cRE' + str(cutoff) + '.txt')
+    annotate_hic(file_cre, uniform, file_annotation)
+    file_pair = os.path.join(path_out, 'Gene_cRE_' + str(cutoff) + '.txt')
+    file_egene_pair = os.path.join(
+        path_out, 'eGene_cRE_' + str(cutoff) + '.txt')
+    file_overlap = os.path.join(
+        path_out, 'eGene_cRE_overlap_' + str(cutoff) + '.txt')
+    dict_in = dict(file=file_annotation, label=str(cutoff),
+                   file_out=file_pair, file_egene=file_egene_pair,
+                   file_overlap=file_overlap)
+    dict_out = sub_stat(egenes, eqtl_file, dict_in)
+
+    return dict_out
+
+
 if __name__ == '__main__':
     time_start = time()
     # unify data format and cRE annotation
@@ -458,20 +480,20 @@ if __name__ == '__main__':
     ng_pp = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.pp.txt'
     ng_po = '/local/zy/PEI/compare_DLPFC/NGpcHiC/X5628FC.po.txt'
 
-    ng_uniform = '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_0.01.txt'
+    ng_uniform = '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_2.95.txt'
     interaction_annotation_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_0.01.cRE.txt'
-    transform_ng2019(ng_pp, ng_po, ng_uniform, 2)
+        '/local/zy/PEI/compare_DLPFC/NGpcHiC/interactions_2.95.cRE.txt'
+    transform_ng2019(ng_pp, ng_po, ng_uniform, 2.95)
     annotate_hic(file_cre_braincc, ng_uniform, interaction_annotation_ng)
 
     # 3DIV
     file_origin_3div = \
         '/local/zy/PEI/compare_DLPFC/3DIV/HiCaptureSeq_DL_cutoff_10.txt'
 
-    uniform_3div = '/local/zy/PEI/compare_DLPFC/3DIV/interactions_14.txt'
+    uniform_3div = '/local/zy/PEI/compare_DLPFC/3DIV/interactions_10.txt'
     interaction_annotation_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/interactions_14.cRE.txt'
-    transform_3div(file_origin_3div, uniform_3div, 14)
+        '/local/zy/PEI/compare_DLPFC/3DIV/interactions_10.cRE.txt'
+    transform_3div(file_origin_3div, uniform_3div, 10)
     annotate_hic(file_cre_braincc, uniform_3div, interaction_annotation_3div)
 
     # 3DGB
@@ -496,10 +518,10 @@ if __name__ == '__main__':
     file_origin_microglia = \
         '/local/zy/PEI/compare_DLPFC/microglia/microglia_interactions.txt'
     uniform_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC/microglia/interactions_0.00014.txt'
     interaction_annotation_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/interactions.cRE.txt'
-    transform_plac(file_origin_microglia, uniform_microglia)
+        '/local/zy/PEI/compare_DLPFC/microglia/interactions.cRE_0.00014.txt'
+    transform_plac(file_origin_microglia, uniform_microglia, 0.00014)
     annotate_hic(file_cre_braincc, uniform_microglia,
                  interaction_annotation_microglia)
 
@@ -507,10 +529,10 @@ if __name__ == '__main__':
     file_origin_neuron = \
         '/local/zy/PEI/compare_DLPFC/neuron/Neuronal_interactions.txt'
     uniform_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC/neuron/interactions_0.00014.txt'
     interaction_annotation_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/interactions.cRE.txt'
-    transform_plac(file_origin_neuron, uniform_neuron)
+        '/local/zy/PEI/compare_DLPFC/neuron/interactions.cRE_0.00014.txt'
+    transform_plac(file_origin_neuron, uniform_neuron, 0.00014)
     annotate_hic(file_cre_braincc, uniform_neuron,
                  interaction_annotation_neuron)
 
@@ -519,10 +541,12 @@ if __name__ == '__main__':
         '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
         'oligodendrocyte_interactions.txt'
     uniform_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/interactions_0.00014.txt'
     interaction_annotation_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/interactions.cRE.txt'
-    transform_plac(file_origin_oligodendrocyte, uniform_oligodendrocyte)
+        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
+        'interactions.cRE_0.00014.txt'
+    transform_plac(
+        file_origin_oligodendrocyte, uniform_oligodendrocyte, 0.00014)
     annotate_hic(file_cre_braincc, uniform_oligodendrocyte,
                  interaction_annotation_oligodendrocyte)
 
@@ -530,10 +554,10 @@ if __name__ == '__main__':
     file_origin_plac = \
         '/local/zy/PEI/compare_DLPFC/PLACseq/PLACseq.uniq.txt'
     uniform_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions.txt'
+        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions_0.00014.txt'
     interaction_annotation_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions.cRE.txt'
-    transform_plac(file_origin_plac, uniform_plac)
+        '/local/zy/PEI/compare_DLPFC/PLACseq/interactions.cRE_0.00014.txt'
+    transform_plac(file_origin_plac, uniform_plac, 0.00014)
     annotate_hic(file_cre_braincc, uniform_plac, interaction_annotation_plac)
 
     # eQTL
@@ -580,60 +604,65 @@ if __name__ == '__main__':
     list_labels = ['pcHi-C', '3DIV', '3DGB', 'psychENCODE', 'microglia',
                    'neuron', 'oligodendrocyte', 'PLAC-seq']
     pairs_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/cRE_pairs_0.01.txt'
+        '/local/zy/PEI/compare_DLPFC/NGpcHiC/cRE_pairs_2.95.txt'
     pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/cRE_pairs_14.txt'
+        '/local/zy/PEI/compare_DLPFC/3DIV/cRE_pairs_10.txt'
     pairs_3dgb = \
         '/local/zy/PEI/compare_DLPFC/3DGB/cRE_pairs.txt'
     pairs_psych = \
         '/local/zy/PEI/compare_DLPFC/psychENCODE/cRE_pairs.txt'
     pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/microglia/cRE_pairs_0.00014.txt'
     pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/neuron/cRE_pairs_0.00014.txt'
     pairs_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/cRE_pairs_0.00014.txt'
     pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/PLACseq/cRE_pairs_0.00014.txt'
     list_out = [pairs_ng, pairs_3div, pairs_3dgb, pairs_psych, pairs_microglia,
                 pairs_neuron, pairs_oligodendrocyte, pairs_plac]
     egene_pairs_ng = \
-        '/local/zy/PEI/compare_DLPFC/NGpcHiC/egene_cRE_pairs_0.05.txt'
+        '/local/zy/PEI/compare_DLPFC/NGpcHiC/egene_cRE_pairs_2.95.txt'
     egene_pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/egene_cRE_pairs_11.txt'
+        '/local/zy/PEI/compare_DLPFC/3DIV/egene_cRE_pairs_10.txt'
     egene_pairs_3dgb = \
         '/local/zy/PEI/compare_DLPFC/3DGB/egene_cRE_pairs.txt'
     egene_pairs_psych = \
         '/local/zy/PEI/compare_DLPFC/psychENCODE/egene_cRE_pairs.txt'
     egene_pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/microglia/egene_cRE_pairs_0.00014.txt'
     egene_pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/neuron/egene_cRE_pairs_0.00014.txt'
     egene_pairs_oligodendrocyte = \
-        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
+        'egene_cRE_pairs_0.00014.txt'
     egene_pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/PLACseq/egene_cRE_pairs_0.00014.txt'
     list_egene = [egene_pairs_ng, egene_pairs_3div, egene_pairs_3dgb,
                   egene_pairs_psych, egene_pairs_microglia, egene_pairs_neuron,
                   egene_pairs_oligodendrocyte, egene_pairs_plac]
     overlap_pairs_ng = \
         '/local/zy/PEI/compare_DLPFC/NGpcHiC/' \
-        'overlap_egene_cRE_pairs_0.05.txt'
+        'overlap_egene_cRE_pairs_2.95.txt'
     overlap_pairs_3div = \
-        '/local/zy/PEI/compare_DLPFC/3DIV/overlap_egene_cRE_pairs_11.txt'
+        '/local/zy/PEI/compare_DLPFC/3DIV/overlap_egene_cRE_pairs_10.txt'
     overlap_pairs_3dgb = \
         '/local/zy/PEI/compare_DLPFC/3DGB/overlap_egene_cRE_pairs.txt'
     overlap_pairs_psych = \
-        '/local/zy/PEI/compare_DLPFC/psychENCODE/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/psychENCODE/' \
+        'overlap_egene_cRE_pairs_0.00014.txt'
     overlap_pairs_microglia = \
-        '/local/zy/PEI/compare_DLPFC/microglia/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/microglia/' \
+        'overlap_egene_cRE_pairs_0.00014.txt'
     overlap_pairs_neuron = \
-        '/local/zy/PEI/compare_DLPFC/neuron/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/neuron/' \
+        'overlap_egene_cRE_pairs_0.00014.txt'
     overlap_pairs_oligodendrocyte = \
         '/local/zy/PEI/compare_DLPFC/oligodendrocyte/' \
-        'overlap_egene_cRE_pairs.txt'
+        'overlap_egene_cRE_pairs_0.00014.txt'
     overlap_pairs_plac = \
-        '/local/zy/PEI/compare_DLPFC/PLACseq/overlap_egene_cRE_pairs.txt'
+        '/local/zy/PEI/compare_DLPFC/PLACseq/' \
+        'overlap_egene_cRE_pairs_0.00014.txt'
     list_overlap = [overlap_pairs_ng, overlap_pairs_3div, overlap_pairs_3dgb,
                     overlap_pairs_psych, overlap_pairs_microglia,
                     overlap_pairs_neuron, overlap_pairs_oligodendrocyte,
@@ -653,29 +682,42 @@ if __name__ == '__main__':
     overlap_matrix(list_labels + ['eQTL'], list_overlap + [pairs_dhs_egene],
                    file_mat_overlap)
 
-    # # different cutoff
-    # range_cutoff_ng = [1, 1.3, 1.6, 2, 2.5, 3, 3.5, 4, 5]
+    # different cutoff
+    # range_cutoff_ng = [1, 1.3, 1.6, 2, 2.3, 2.7, 2.8, 2.9, 2.95, 3, 3.5, 4, 5]
     # path_cutoff_ng = '/local/zy/PEI/compare_DLPFC/NGpcHiC/cutoff'
-    # pool = Pool(processes=10)
+    # pool = Pool(processes=15)
     # func_cutoff = partial(
     #     sub_cutoff_ng, ng_pp, ng_po, file_cre_braincc, set_egenes,
-    #     pairs_eqtl, path_cutoff_ng)
+    #     pairs_dhs_egene, path_cutoff_ng)
     # list_dict = pool.map(func_cutoff, range_cutoff_ng)
     # pool.close()
     # df_ng = pd.DataFrame(list_dict)
     # df_ng.to_csv(os.path.join(path_cutoff_ng, 'result.txt'),
     #              sep='\t', index=None)
-    #
-    # range_cutoff_3div = [11, 12, 14, 16, 18, 20, 23, 26, 30]
+
+    # range_cutoff_3div = [10, 11, 12, 14, 16, 18, 20, 23, 26, 30]
     # path_cutoff_3div = '/local/zy/PEI/compare_DLPFC/3DIV/cutoff'
     # pool = Pool(processes=10)
     # func_cutoff = partial(
     #     sub_cutoff_3div, file_origin_3div, file_cre_braincc, set_egenes,
-    #     pairs_eqtl, path_cutoff_3div)
+    #     pairs_dhs_egene, path_cutoff_3div)
     # list_dict = pool.map(func_cutoff, range_cutoff_3div)
     # pool.close()
     # df_3div = pd.DataFrame(list_dict)
     # df_3div.to_csv(os.path.join(path_cutoff_3div, 'result.txt'),
+    #                sep='\t', index=None)
+
+    # range_cutoff_plac = [10**-3, 0.0002, 0.00015, 0.00014, 10**-4, 10**-5,
+    #                      10**-6, 10**-7, 10**-8, 10**-9]
+    # path_cutoff_plac = '/local/zy/PEI/compare_DLPFC/PLACseq/cutoff'
+    # pool = Pool(processes=10)
+    # func_cutoff = partial(
+    #     sub_cutoff_plac, file_origin_plac, file_cre_braincc, set_egenes,
+    #     pairs_dhs_egene, path_cutoff_plac)
+    # list_dict = pool.map(func_cutoff, range_cutoff_plac)
+    # pool.close()
+    # df_plac = pd.DataFrame(list_dict)
+    # df_plac.to_csv(os.path.join(path_cutoff_plac, 'result.txt'),
     #                sep='\t', index=None)
 
     time_end = time()
