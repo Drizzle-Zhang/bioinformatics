@@ -310,7 +310,7 @@ def annotate_cre(path_ref, ref_histone, path_h3k27ac,
     )
     df_merge = pd.merge(
         df_ref_histone, df_meta_h3k27ac,
-        on=['Biosample life stage', 'Biosample term name'])
+        on=['Biosample organ', 'Biosample life stage', 'Biosample term name'])
 
     # map H3K27ac to sample
     pool = Pool(processes=num_process)
