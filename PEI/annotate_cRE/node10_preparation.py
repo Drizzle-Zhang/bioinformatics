@@ -191,9 +191,12 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                     )
                     w_f.write(fmt.format(**dict_hg19))
     if dict_in['Assembly'] == 'GRCh38':
-        label_assess = str(
-            check_output(f"head -1 {file_hg38}", shell=True).strip()
-        ).split('\\t')[3]
+        try:
+            label_assess = str(
+                check_output(f"head -1 {file_hg38}", shell=True).strip()
+            ).split('\\t')[3]
+        except IndexError:
+            print(dict_in['File accession'])
         if label_assess == '.':
             file_hg38_labeled = file_hg38 + '.labeled'
             with open(file_hg38_labeled, 'w') as w_f:
