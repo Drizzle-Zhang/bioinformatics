@@ -191,12 +191,26 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                     )
                     w_f.write(fmt.format(**dict_hg19))
     if dict_in['Assembly'] == 'GRCh38':
+        label_assess = str(
+            check_output(f"head -1 {file_hg38}", shell=True).strip()
+        ).split('\\t')[3]
+        if label_assess == '.':
+            file_hg38_labeled = file_hg38 + '.labeled'
+            with open(file_hg38_labeled, 'w') as w_f:
+                with open(file_hg38, 'r') as r_f:
+                    for i, line in enumerate(r_f):
+                        list_line = line.strip().split('\t')
+                        list_line[3] = 'peak_' + str(i)
+                        w_f.write('\t'.join(list_line) + '\n')
+        else:
+            file_hg38_labeled = file_hg38
+
         file_prefix = file_hg38 + '.prefix'
         file_suffix = file_hg38 + '.suffix'
         file_hg19_prefix = file_hg19 + '.prefix'
         file_hg19_format = file_hg19 + '.format'
-        os.system(f"cut -f 1,2,3,4 {file_hg38} > {file_prefix}")
-        os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38} > {file_suffix}")
+        os.system(f"cut -f 1,2,3,4 {file_hg38_labeled} > {file_prefix}")
+        os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38_labeled} > {file_suffix}")
         os.system(f"/local/zy/tools/liftOver {file_prefix} {file_chain} "
                   f"{file_hg19_prefix} {file_ummap}")
         dict_peak_score = defaultdict(list)
@@ -228,6 +242,9 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
         df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
+
+        if label_assess == '.':
+            os.remove(file_hg38_labeled)
         os.remove(file_ummap)
         os.remove(file_prefix)
         os.remove(file_suffix)
@@ -323,6 +340,7 @@ def merge_bed(path_bed, dict_in):
 
     # split merge file
     split_out = os.path.join(path_out, f"{term_name}.bed.unsort")
+    split_sort_out = os.path.join(path_out, f"{term_name}.bed.split.sort")
     final_out = os.path.join(path_out, f"{term_name}.bed")
     with open(merge_out, 'r') as r_f:
         with open(split_out, 'w') as w_f:
@@ -371,12 +389,25 @@ def merge_bed(path_bed, dict_in):
                     p_value = '|'.join(map(str, select_p_value.tolist()))
                     w_f.write(fmt.format(**locals()))
 
-    os.system(f"bedtools sort -i {split_out} > {final_out}")
+    os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
+    with open(final_out, 'w') as w_final:
+        old_end = 0
+        with open(split_sort_out, 'r') as r_sort:
+            for line in r_sort:
+                list_line = line.strip().split('\t')
+                start = int(list_line[1])
+                if start > old_end:
+                    w_final.write(line)
+                else:
+                    list_line[1] = str(old_end + 1)
+                    w_final.write('\t'.join(list_line) + '\n')
+                old_end = int(list_line[2])
 
     os.remove(cat_out)
     os.remove(sort_out)
     os.remove(merge_out)
     os.remove(split_out)
+    os.remove(split_sort_out)
 
     return
 
@@ -1084,50 +1115,50 @@ if __name__ == '__main__':
     num_cpu = 40
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
-        '/local/zy/PEI/data/ENCODE/gencode.v19.annotation.gtf'
+        '/local/zy/PEI/origin_data/ENCODE/gencode.v19.annotation.gtf'
     protein_file_hg19 = \
-        '/local/zy/PEI/data/gene/genes.protein.gencode.v19.bed'
+        '/local/zy/PEI/origin_data/gene/genes.protein.gencode.v19.bed'
     promoter_file_hg19 = \
-        '/local/zy/PEI/data/gene/' \
+        '/local/zy/PEI/origin_data/gene/' \
         'promoters.up2k.protein.gencode.v19.bed'
     promoter_file_hg19_merge = \
-        '/local/zy/PEI/data/gene/' \
+        '/local/zy/PEI/origin_data/gene/' \
         'promoters.up2k.protein.gencode.v19.merge.bed'
     exon_file_hg19 = \
-        '/local/zy/PEI/data/gene/' \
+        '/local/zy/PEI/origin_data/gene/' \
         'exon.up2k.protein.gencode.v19.bed'
     generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
                        promoter_file_hg19_merge, exon_file_hg19)
 
     # build life stage dictionary
-    path_lifestage = '/local/zy/PEI/data/ENCODE/metadata/life_stage'
+    path_lifestage = '/local/zy/PEI/origin_data/ENCODE/metadata/life_stage'
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_meta_organ = '/local/zy/PEI/data/ENCODE/metadata/organ'
+    path_meta_organ = '/local/zy/PEI/origin_data/ENCODE/metadata/organ'
     dict_organ = build_dict_attr(path_meta_organ)
 
     # build organ dictionary
-    path_meta_cell = '/local/zy/PEI/data/ENCODE/metadata/cell'
+    path_meta_cell = '/local/zy/PEI/origin_data/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_meta_cell)
 
     # build organ dictionary
-    path_meta_lab = '/local/zy/PEI/data/ENCODE/metadata/lab'
+    path_meta_lab = '/local/zy/PEI/origin_data/ENCODE/metadata/lab'
     dict_lab = build_dict_attr(path_meta_lab)
 
     # read reference organ
-    ref_organ = '/local/zy/PEI/data/ENCODE/metadata/organ_ref.txt'
+    ref_organ = '/local/zy/PEI/origin_data/ENCODE/metadata/organ_ref.txt'
     with open(ref_organ, 'r') as r_ref:
         set_organs = set([organ.strip() for organ in r_ref])
     # organ complement
     file_complement = \
-        '/local/zy/PEI/data/ENCODE/metadata/complement_organ.txt'
+        '/local/zy/PEI/origin_data/ENCODE/metadata/complement_organ.txt'
     df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
     # DHS reference
     # metafile
-    path_dhs = '/local/zy/PEI/data/ENCODE/DNase-seq/all'
+    path_dhs = '/local/zy/PEI/origin_data/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
     df_meta_dhs = filter_meta(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
@@ -1141,93 +1172,93 @@ if __name__ == '__main__':
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19'
+        '/local/zy/PEI/mid_data/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
-        '/local/zy/PEI/data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
+        '/local/zy/PEI/mid_data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
-    # build DHS reference
-    path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
-    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
-    print("Integration of files from same term ---- completed")
-
-    # standardization
-    path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
-    standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
-    print('Standardization of DHS completed!')
-
-    # merge and cluster
-    path_dhs_cluster = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
-    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
-    print('Cluster and merge of DHS completed!')
-
-    # merge sub-organ
-    meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
-    merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
-
-    # preparation of bed files of histone and TF
-    # H3K4me3
-    path_h3k4me3 = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K4me3'
-    ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
-    df_meta_h3k4me3 = \
-        add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
-    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
-    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
-    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
-    meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
-    df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
-    print("H3K4me3 metadata ---- completed")
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
-
-    # standardization
-    path_h3k4me3_stan = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K4me3_standard'
-    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
-    print('Standardization of H3K4me3 completed!')
-
-    # H3K27ac
-    path_h3k27ac = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K27ac'
-    ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
-    df_meta_h3k27ac = \
-        add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
-    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
-    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
-    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
-    meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
-    df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
-    print("H3K27ac metadata ---- completed")
-
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K27ac'
-    hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
-
-    # standardization
-    path_h3k27ac_stan = \
-        '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-        'GRCh38tohg19/H3K27ac_standard'
-    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
-    print('Standardization of H3K27ac completed!')
-
-    time_end = time()
-    print(time_end - time_start)
+    # # build DHS reference
+    # path_dhs_hg38tohg19 = '/local/zy/PEI/data/DHS/GRCh38tohg19/'
+    # unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    # print("Integration of files from same term ---- completed")
+    #
+    # # standardization
+    # path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
+    # standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
+    # print('Standardization of DHS completed!')
+    #
+    # # merge and cluster
+    # path_dhs_cluster = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
+    # merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
+    # print('Cluster and merge of DHS completed!')
+    #
+    # # merge sub-organ
+    # meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
+    # merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
+    #
+    # # preparation of bed files of histone and TF
+    # # H3K4me3
+    # path_h3k4me3 = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K4me3'
+    # ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
+    # df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
+    # df_meta_h3k4me3 = \
+    #     add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
+    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
+    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
+    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
+    # df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
+    # meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
+    # df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
+    # print("H3K4me3 metadata ---- completed")
+    #
+    # # hg38 to hg19
+    # path_hg38tohg19 = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+    #     'GRCh38tohg19/H3K4me3'
+    # hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
+    # print("Format conversion: hg38 -> hg19 ---- completed")
+    #
+    # # standardization
+    # path_h3k4me3_stan = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+    #     'GRCh38tohg19/H3K4me3_standard'
+    # standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    # print('Standardization of H3K4me3 completed!')
+    #
+    # # H3K27ac
+    # path_h3k27ac = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K27ac'
+    # ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
+    # df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
+    # df_meta_h3k27ac = \
+    #     add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
+    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
+    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
+    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
+    # df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
+    # meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
+    # df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
+    # print("H3K27ac metadata ---- completed")
+    #
+    # # hg38 to hg19
+    # path_hg38tohg19 = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+    #     'GRCh38tohg19/H3K27ac'
+    # hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
+    # print("Format conversion: hg38 -> hg19 ---- completed")
+    #
+    # # standardization
+    # path_h3k27ac_stan = \
+    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
+    #     'GRCh38tohg19/H3K27ac_standard'
+    # standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    # print('Standardization of H3K27ac completed!')
+    #
+    # time_end = time()
+    # print(time_end - time_start)
