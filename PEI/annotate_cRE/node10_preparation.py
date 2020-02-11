@@ -273,14 +273,14 @@ def calculate_peak_numbers(path_in, dict_in):
             'Peak number': order, 'Inferred peak number': total}
 
 
-def hg38tohg19(path_hg38, path_hg19, num_process):
+def hg38tohg19(path_hg38, path_hg19, path_meta, num_process):
     if os.path.exists(path_hg19):
         os.system(f"rm -rf {path_hg19}")
     os.mkdir(path_hg19)
+    os.system(f"cp {path_meta} "
+              f"{os.path.join(path_hg19, 'metadata.simple.tsv')}")
 
-    df_meta = pd.read_csv(
-        os.path.join(path_hg38, 'metadata.simple.tsv'), sep='\t'
-    )
+    df_meta = pd.read_csv(path_meta, sep='\t')
     list_meta = []
     experiments = set(df_meta['Experiment accession'].tolist())
     for exp in experiments:
@@ -394,9 +394,13 @@ def merge_bed(path_bed, dict_in):
     os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
     with open(final_out, 'w') as w_final:
         old_end = 0
+        old_chrom = '0'
         with open(split_sort_out, 'r') as r_sort:
             for line in r_sort:
                 list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                if chrom != old_chrom:
+                    old_end = 0
                 start = int(list_line[1])
                 if start > old_end:
                     w_final.write(line)
@@ -404,6 +408,7 @@ def merge_bed(path_bed, dict_in):
                     list_line[1] = str(old_end + 1)
                     w_final.write('\t'.join(list_line) + '\n')
                 old_end = int(list_line[2])
+                old_chrom = chrom
 
     os.remove(cat_out)
     os.remove(sort_out)
@@ -634,7 +639,7 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                 accessions = list_line[3]
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
                 score = max([float(num)
-                             for num in list_line[6].strip().split()])
+                             for num in list_line[6].strip().split('|')])
                 if type_bed == 'DHS':
                     w_f.write(fmt_dhs.format(**locals()))
                 else:
@@ -772,9 +777,13 @@ def merge_standard_bed(path_bed, dict_in):
     os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
     with open(final_out, 'w') as w_final:
         old_end = 0
+        old_chrom = '0'
         with open(split_sort_out, 'r') as r_sort:
             for line in r_sort:
                 list_line = line.strip().split('\t')
+                chrom = list_line[0]
+                if chrom != old_chrom:
+                    old_end = 0
                 start = int(list_line[1])
                 if start > old_end:
                     w_final.write(line)
@@ -782,6 +791,7 @@ def merge_standard_bed(path_bed, dict_in):
                     list_line[1] = str(old_end + 1)
                     w_final.write('\t'.join(list_line) + '\n')
                 old_end = int(list_line[2])
+                old_chrom = chrom
 
     os.remove(cat_out)
     os.remove(sort_out)
@@ -965,7 +975,8 @@ def calculate_overlap(df_organ, com):
     return {'Combination': com, 'Jaccard distance': jdist}
 
 
-def merge_organ_cluster(path_in, path_out, num_process, bool_plot=True):
+def merge_organ_cluster(path_in, path_out, num_process,
+                        bool_accession=True, bool_plot=True):
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
@@ -996,7 +1007,7 @@ def merge_organ_cluster(path_in, path_out, num_process, bool_plot=True):
                  sub_meta=sub_meta,
                  path_out=os.path.join(path_out, life_organ.replace(' ', '_')),
                  path_in=os.path.join(path_in, life_organ.replace(' ', '_')),
-                 bool_accession=True, bool_plot=bool_plot))
+                 bool_accession=bool_accession, bool_plot=bool_plot))
 
     pool = Pool(processes=num_process)
     list_df = pool.map(sub_merge, list_input)
@@ -1086,6 +1097,11 @@ def merge_organ_cluster(path_in, path_out, num_process, bool_plot=True):
     if bool_plot:
         os.system(f"Rscript scatter.plot.all.R {mat_label} "
                   f"{os.path.join(path_in, 'metadata.simple.tsv')} {path_out}")
+
+        if bool_accession:
+            os.system(f"Rscript scatter.plot.all.accession.R {mat_accession} "
+                      f"{os.path.join(path_in, 'metadata.simple.tsv')} "
+                      f"{path_out}")
 
     return
 
@@ -1179,39 +1195,41 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    meta_dhs = os.path.join(path_dhs, 'metadata.simple.tsv')
+    meta_dhs = '/local/zy/PEI/mid_data/tissue/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/local/zy/PEI/mid_data/ENCODE/DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19, num_cpu)
+        '/local/zy/PEI/mid_data/tissue/ENCODE/DNase-seq/GRCh38tohg19'
+    hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
-        '/local/zy/PEI/mid_data/ENCODE/DNase-seq/GRCh38tohg19_experiment'
+        '/local/zy/PEI/mid_data/tissue/ENCODE/' \
+        'DNase-seq/GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = '/local/zy/PEI/mid_data/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19/'
     unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
-    path_dhs_stan = '/local/zy/PEI/data/DHS/GRCh38tohg19_standard'
+    path_dhs_stan = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # merge and cluster
-    path_dhs_cluster = '/local/zy/PEI/data/DHS/GRCh38tohg19_cluster'
-    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu)
+    path_dhs_cluster = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu, False, False)
     print('Cluster and merge of DHS completed!')
 
     # merge sub-organ
-    meta_suborgan_dhs = '/local/zy/PEI/data/DHS/meta.reference.tsv'
+    meta_suborgan_dhs = \
+        '/local/zy/PEI/origin_data/meta_file/meta.reference.tsv'
     merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
 
     # # preparation of bed files of histone and TF
