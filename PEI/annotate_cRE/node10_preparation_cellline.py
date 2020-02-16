@@ -19,73 +19,6 @@ import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 
 
-def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge,
-                       exon_file):
-    exon_file_tmp = exon_file + '.tmp'
-    with open(protein_file, 'w') as w_gene:
-        with open(promoter_file, 'w') as w_pro:
-            with open(exon_file_tmp, 'w') as w_exon:
-                fmt_gene = \
-                    "{chrom}\t{start}\t{end}\t{symbol}\t{ensg_id}\t{strand}\n"
-                with open(gtf_file, 'r') as r_gtf:
-                    for line_gene in r_gtf:
-                        if line_gene[0] == '#':
-                            continue
-                        list_line_gene = line_gene.strip().split('\t')
-                        list_attr = list_line_gene[8].strip().split('; ')
-                        gene_name = list_attr[4][11:-1]
-                        ensg_id = list_attr[0][9:-1]
-                        strand = list_line_gene[6]
-                        gene_type = list_attr[2][11:-1]
-                        if gene_type != "protein_coding":
-                            continue
-                        if list_line_gene[2] == 'gene':
-                            dict_gene = dict(chrom=list_line_gene[0],
-                                             start=list_line_gene[3],
-                                             end=list_line_gene[4],
-                                             symbol=gene_name,
-                                             ensg_id=ensg_id,
-                                             strand=strand)
-                            w_gene.write(fmt_gene.format(**dict_gene))
-                            if strand == '+':
-                                pro_start = str(int(list_line_gene[3]) - 2000)
-                                pro_end = str(int(list_line_gene[3]) + 2000)
-                            elif strand == '-':
-                                pro_start = str(int(list_line_gene[4]) - 2000)
-                                pro_end = str(int(list_line_gene[4]) + 2000)
-                            else:
-                                print('Error')
-                                break
-                            dict_promoter = dict(chrom=list_line_gene[0],
-                                                 start=pro_start,
-                                                 end=pro_end,
-                                                 symbol=f"{gene_name}<-"
-                                                        f"{list_line_gene[0]}:"
-                                                        f"{pro_start}-"
-                                                        f"{pro_end}",
-                                                 ensg_id=ensg_id,
-                                                 strand=strand)
-                            w_pro.write(fmt_gene.format(**dict_promoter))
-                        elif list_line_gene[2] == 'exon':
-                            dict_exon = dict(chrom=list_line_gene[0],
-                                             start=list_line_gene[3],
-                                             end=list_line_gene[4],
-                                             symbol=gene_name,
-                                             ensg_id=ensg_id,
-                                             strand=strand)
-                            w_exon.write(fmt_gene.format(**dict_exon))
-
-    promoter_sort = promoter_file + '.sort'
-    os.system(f"bedtools sort -i {promoter_file} > {promoter_sort}")
-    os.system(f"bedtools merge -i {promoter_sort} "
-              f"-c 4,5,6 -o collapse,collapse,collapse > {promoter_merge}")
-    os.system(f"bedtools sort -i {exon_file_tmp} > {exon_file}")
-    os.remove(promoter_sort)
-    os.remove(exon_file_tmp)
-
-    return
-
-
 def filter_meta(meta_in):
     # reserve released data and original(untreated) peak file
     # simplify meta file
@@ -132,8 +65,8 @@ def add_attr(df_meta, dict_attr, column_name):
 
 
 def modify_meta(df_meta, set_ref, df_com):
-    # only select tissue data
-    df_meta = df_meta.loc[df_meta['Biosample type'] == 'tissue', :]
+    # only select cell line data
+    df_meta = df_meta.loc[df_meta['Biosample type'] == 'cell line', :]
     rows1 = df_meta.shape[0]
 
     # reference organs
@@ -1149,22 +1082,6 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 40
-    # get bed file annotating protein-coding genes
-    gtf_file_hg19 = \
-        '/local/zy/PEI/origin_data/ENCODE/gencode.v19.annotation.gtf'
-    protein_file_hg19 = \
-        '/local/zy/PEI/origin_data/gene/genes.protein.gencode.v19.bed'
-    promoter_file_hg19 = \
-        '/local/zy/PEI/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.bed'
-    promoter_file_hg19_merge = \
-        '/local/zy/PEI/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.merge.bed'
-    exon_file_hg19 = \
-        '/local/zy/PEI/origin_data/gene/' \
-        'exon.up2k.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
-    #                    promoter_file_hg19_merge, exon_file_hg19)
 
     # build life stage dictionary
     path_lifestage = '/local/zy/PEI/origin_data/ENCODE/metadata/life_stage'
@@ -1202,7 +1119,7 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    meta_dhs = '/local/zy/PEI/mid_data/tissue/metadata.simple.tsv'
+    meta_dhs = '/local/zy/PEI/mid_data/cell_line/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 

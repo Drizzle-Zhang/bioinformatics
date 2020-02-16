@@ -122,19 +122,20 @@ def annotate_promoter_to_dhs(path_cluster, path_h3k4me3,
         os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
     )
 
-    organs = list(
-        set([organ for organ in df_ref_histone['Biosample organ'].tolist()])
+    life_organs = list(
+        set([organ for organ in
+             df_ref_histone['Biosample life_organ'].tolist()])
     )
 
     list_input = []
-    for organ in organs:
-        str_organ = organ.replace(' ', '_')
+    for life_organ in life_organs:
+        str_organ = life_organ.replace(' ', '_')
         sub_ref_histone = df_ref_histone.loc[
-            df_ref_histone['Biosample organ'] == organ, :
+            df_ref_histone['Biosample life_organ'] == life_organ, :
         ]
-        path_organ = os.path.join(path_out, organ.replace(' ', '_'))
-        if not os.path.exists(path_organ):
-            os.mkdir(path_organ)
+        path_life_organ = os.path.join(path_out, life_organ.replace(' ', '_'))
+        if not os.path.exists(path_life_organ):
+            os.mkdir(path_life_organ)
         suborgans = list(
             set([suborgan for suborgan in
                  sub_ref_histone['Biosample suborgan'].tolist()])
