@@ -15,6 +15,7 @@ from functools import partial
 from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
+from sklearn.preprocessing import StandardScaler
 import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 
@@ -172,6 +173,12 @@ def modify_meta(df_meta, set_ref, df_com):
     # delete 'embryo'
     df_meta = df_meta.loc[df_meta['Biosample organ'] != 'embryo', :]
 
+    # combine life and organ
+    # df_meta['Biosample life_organ'] = df_meta.apply(
+    #     lambda x: x['Biosample life stage'] + '_' + x['Biosample organ'],
+    #     axis=1
+    # )
+
     return df_meta
 
 
@@ -249,6 +256,9 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
+        scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
+        scale_scores = StandardScaler().fit_transform(scores)
+        df_bed.iloc[:, 6] = scale_scores
         df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
 
         os.remove(file_hg38_labeled)
@@ -689,17 +699,18 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
         df_meta = pd.read_csv(
             os.path.join(path_in, 'meta.reference.tsv'), sep='\t'
         )
+        list_input = df_meta.to_dict('records')
+        for sub_dict in list_input:
+            life_organ = sub_dict['Biosample life_organ']
+            folder1 = os.path.join(path_out, f"{life_organ.replace(' ', '_')}")
+            if not os.path.exists(folder1):
+                os.mkdir(folder1)
+
     else:
         df_meta = pd.read_csv(
             os.path.join(path_in, 'metadata.simple.tsv'), sep='\t'
         )
-
-    list_input = df_meta.to_dict('records')
-    for sub_dict in list_input:
-        life_organ = sub_dict['Biosample life_organ']
-        folder1 = os.path.join(path_out, f"{life_organ.replace(' ', '_')}")
-        if not os.path.exists(folder1):
-            os.mkdir(folder1)
+        list_input = df_meta.to_dict('records')
 
     pool = Pool(processes=num_process)
     func_stan = partial(sub_stan, type_bed, path_in, path_out)
@@ -1039,10 +1050,11 @@ def merge_organ_cluster(path_in, path_out, num_process,
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
                      sep='\t', header=None)).to_dict('records')
+    print("Integration of all data ---- completed!")
 
     # label matrix
-    labels = [f"{sub_dict['Biosample organ']}|"
-              f"{sub_dict['Biosample life stage']}|"
+    labels = [f"{sub_dict['Biosample life stage']}_"
+              f"{sub_dict['Biosample organ']}|"
               f"{sub_dict['Biosample term name']}"
               for sub_dict in df_meta_ref.to_dict("records")]
     pool = Pool(processes=num_process)
@@ -1056,6 +1068,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
     # write score matrix to txt file
     mat_label = os.path.join(path_out, 'label_matrix.txt')
     df_label.to_csv(mat_label, sep='\t')
+    print("Label matrix ---- completed!")
 
     # experiment matrix
     accessions = [sub_dict['File accession']
@@ -1072,6 +1085,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
     # write score matrix to txt file
     mat_accession = os.path.join(path_out, 'accession_matrix.txt')
     df_accession.to_csv(mat_accession, sep='\t')
+    print("Experiment matrix ---- completed!")
 
     # organ matrix
     pool = Pool(processes=num_process)
@@ -1085,18 +1099,20 @@ def merge_organ_cluster(path_in, path_out, num_process,
     # write score matrix to txt file
     mat_organ = os.path.join(path_out, 'organ_matrix.txt')
     df_organ.to_csv(mat_organ, sep='\t')
+    print("Organ matrix ---- completed!")
 
-    # calculate overlap ratio
-    list_com = combinations(df_organ.columns, 2)
-    pool = Pool(processes=num_process)
-    func_overlap = partial(calculate_overlap, df_organ)
-    list_out = pool.map(func_overlap, list_com)
-    pool.close()
-
-    df_overlap = pd.DataFrame(list_out)
-    df_overlap.to_csv(
-        os.path.join(path_out, 'all_organs_overlap.txt'), sep='\t', index=None
-    )
+    # calculate overlap ratio(有问题)
+    # list_com = combinations(df_organ.columns, 2)
+    # pool = Pool(processes=num_process)
+    # func_overlap = partial(calculate_overlap, df_organ)
+    # list_out = pool.map(func_overlap, list_com)
+    # pool.close()
+    #
+    # df_overlap = pd.DataFrame(list_out)
+    # df_overlap.to_csv(
+    #     os.path.join(path_out, 'all_organs_overlap.txt'), sep='\t', index=None
+    # )
+    # print("Overlap ratio ---- completed!")
 
     # scatter plot
     if bool_plot:
@@ -1125,8 +1141,7 @@ def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
                    df_meta_ref['Biosample suborgan'] == suborgan, :]
         life_organ = sub_ref_meta['Biosample life_organ'].tolist()[0]
         path_organ = os.path.join(path_out, life_organ.replace(' ', '_'))
-        path_sub_organ = os.path.join(
-            path_organ, f"suborgan/{suborgan.replace(' ', '_')}")
+        path_sub_organ = os.path.join(path_organ, suborgan.replace(' ', '_'))
         list_input.append(
             dict(sub_ref_meta=sub_ref_meta, life_organ=suborgan,
                  sub_meta=sub_ref_meta,
@@ -1202,7 +1217,8 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    meta_dhs = '/local/zy/PEI/mid_data/tissue/metadata.simple.tsv'
+    meta_dhs = '/local/zy/PEI/mid_data/tissue/ENCODE/' \
+               'DNase-seq/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
@@ -1239,64 +1255,64 @@ if __name__ == '__main__':
         '/local/zy/PEI/origin_data/meta_file/meta.reference.tsv'
     merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
 
-    # # preparation of bed files of histone and TF
-    # # H3K4me3
-    # path_h3k4me3 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K4me3'
-    # ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    # df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
-    # df_meta_h3k4me3 = \
-    #     add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
-    # df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
-    # meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
-    # df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
-    # print("H3K4me3 metadata ---- completed")
-    #
-    # # hg38 to hg19
-    # path_hg38tohg19 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K4me3'
-    # hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
-    # print("Format conversion: hg38 -> hg19 ---- completed")
-    #
-    # # standardization
-    # path_h3k4me3_stan = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K4me3_standard'
-    # standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
-    # print('Standardization of H3K4me3 completed!')
-    #
-    # # H3K27ac
-    # path_h3k27ac = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K27ac'
-    # ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    # df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
-    # df_meta_h3k27ac = \
-    #     add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
-    # df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
-    # meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
-    # df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
-    # print("H3K27ac metadata ---- completed")
-    #
-    # # hg38 to hg19
-    # path_hg38tohg19 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K27ac'
-    # hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
-    # print("Format conversion: hg38 -> hg19 ---- completed")
-    #
-    # # standardization
-    # path_h3k27ac_stan = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K27ac_standard'
-    # standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
-    # print('Standardization of H3K27ac completed!')
-    #
-    # time_end = time()
-    # print(time_end - time_start)
+    # preparation of bed files of histone and TF
+    # H3K4me3
+    path_h3k4me3 = \
+        '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K4me3'
+    ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
+    df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
+    df_meta_h3k4me3 = \
+        add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
+    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
+    meta_h3k4me3 = '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
+                   'metadata.simple.H3K4me3.tsv'
+    df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
+    print("H3K4me3 metadata ---- completed")
+
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K4me3'
+    hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_h3k4me3_stan = \
+        '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
+        'H3K4me3_standard'
+    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    print('Standardization of H3K4me3 completed!')
+
+    # H3K27ac
+    path_h3k27ac = \
+        '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K27ac'
+    ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
+    df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
+    df_meta_h3k27ac = \
+        add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
+    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
+    meta_h3k27ac = '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
+                   'metadata.simple.H3K27ac.tsv'
+    df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
+    print("H3K27ac metadata ---- completed")
+
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K27ac'
+    hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_h3k27ac_stan = \
+        '/local/zy/PEI/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
+        'H3K27ac_standard'
+    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    print('Standardization of H3K27ac completed!')
+
+    time_end = time()
+    print(time_end - time_start)

@@ -37,7 +37,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     }
     # calculate cutoff
     df.pvalue <- unique(df.pvalue[df.pvalue$Label != '.',])
-    print(df.pvalue[1:5,])
+    # print(df.pvalue[1:5,])
     list.lgp <- as.numeric(df.pvalue$P.value)
     vec.pvalue <- 10 ^ -(list.lgp)
     vec.qvalue <- p.adjust(vec.pvalue, 'BH', n = as.numeric(peak.num))
@@ -45,7 +45,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     cutoff.lgp <- -log10(max(filter.pvalue))
     # combine p value
     df.pvalue <- df.bed[, col.pvalue]
-    print(cutoff.lgp)
+    # print(cutoff.lgp)
     vec.combine.lgp <- 
         unlist(alply(.data = df.pvalue, .margins = 1, .fun = fisher.combine, 
                       cutoff.lgp = cutoff.lgp))

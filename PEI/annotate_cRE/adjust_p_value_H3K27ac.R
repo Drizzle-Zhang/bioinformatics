@@ -24,20 +24,18 @@ max.score <- function(vec.score) {
 Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     df.bed <- read.delim(path.in, sep = '\t', stringsAsFactors = F, header = F)
     df.pvalue <- data.frame()
-    col.pvalue <- c()
     col.score <- c()
     for (i in 1:file.num) {
         col.pvalue <- c(col.pvalue, paste0('V', as.character(6 + 4*i)))
         col.score <- c(col.score, paste0('V', as.character(5 + 4*i)))
-        col.use <- c(paste0('V', as.character(4 + 4*i)),
-                     paste0('V', as.character(6 + 4*i)))
+        col.use <- c(paste0('V', as.character(5 + 2*i)),
+                     paste0('V', as.character(6 + 2*i)))
         sub.df.pvalue <- df.bed[, col.use]
         names(sub.df.pvalue) <- c('Label', 'P.value')
         df.pvalue <- rbind(df.pvalue, sub.df.pvalue)
     }
     # calculate cutoff
     df.pvalue <- unique(df.pvalue[df.pvalue$Label != '.',])
-    print(df.pvalue[1:5,])
     list.lgp <- as.numeric(df.pvalue$P.value)
     vec.pvalue <- 10 ^ -(list.lgp)
     vec.qvalue <- p.adjust(vec.pvalue, 'BH', n = as.numeric(peak.num))
@@ -45,7 +43,6 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     cutoff.lgp <- -log10(max(filter.pvalue))
     # combine p value
     df.pvalue <- df.bed[, col.pvalue]
-    print(cutoff.lgp)
     vec.combine.lgp <- 
         unlist(alply(.data = df.pvalue, .margins = 1, .fun = fisher.combine, 
                       cutoff.lgp = cutoff.lgp))
@@ -58,6 +55,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     
     df.out <- df.bed[, c('V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'score.combine', 
                          'p.combine')]
+    
     write.table(df.out, path.out, sep = '\t', quote = F, row.names = F,
                 col.names = F)
 }

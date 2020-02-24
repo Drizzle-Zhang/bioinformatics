@@ -15,6 +15,7 @@ from functools import partial
 from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
+from sklearn.preprocessing import StandardScaler
 import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 
@@ -64,46 +65,9 @@ def add_attr(df_meta, dict_attr, column_name):
     return df_out
 
 
-def modify_meta(df_meta, set_ref, df_com):
+def modify_meta(df_meta):
     # only select cell line data
     df_meta = df_meta.loc[df_meta['Biosample type'] == 'cell line', :]
-    rows1 = df_meta.shape[0]
-
-    # reference organs
-    df_meta_nan = df_meta.loc[df_meta['Biosample organ'] == '', :]
-    df_meta_nan = df_meta_nan.drop(['Biosample organ'], 1)
-    df_meta_nan = pd.merge(df_meta_nan, df_com,
-                           on=['Biosample term id', 'Biosample term name'])
-    df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
-    df_meta = pd.concat([df_meta, df_meta_nan], sort=False)
-    rows2 = df_meta.shape[0]
-    assert rows1 == rows2
-    organs = df_meta['Biosample organ'].tolist()
-    new_organs = []
-    for organ in organs:
-        list_organ = \
-            [val for val in organ.strip().split(',') if val in set_ref]
-        new_organs.append(','.join(list_organ))
-
-    df_meta = df_meta.drop('Biosample organ', 1)
-    df_meta['Biosample organ'] = new_organs
-
-    # correct fuzzy life stage labels to 'unknown'
-    life_stages = df_meta['Biosample life stage'].tolist()
-    new_life_stages = []
-    for life_stage in life_stages:
-        if life_stage in ['adult', 'embryonic', 'unknown', 'newborn', 'child']:
-            new_life_stages.append(life_stage)
-        else:
-            new_life_stages.append('unknown')
-    df_meta = df_meta.drop('Biosample life stage', 1)
-    df_meta['Biosample life stage'] = new_life_stages
-    df_meta.loc[df_meta['Biosample organ'] == 'extraembryonic component',
-                'Biosample life stage'] = 'embryonic'
-    df_meta = df_meta.loc[df_meta['Biosample life stage'] != 'unknown', :]
-
-    # delete 'embryo'
-    df_meta = df_meta.loc[df_meta['Biosample organ'] != 'embryo', :]
 
     return df_meta
 
@@ -131,6 +95,12 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                         q_value=list_line[8], peak_location=list_line[9]
                     )
                     w_f.write(fmt.format(**dict_hg19))
+        df_bed = pd.read_csv(file_hg19, sep='\t', header=None)
+        scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
+        scale_scores = StandardScaler().fit_transform(scores)
+        df_bed.iloc[:, 6] = scale_scores
+        df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
+
     if dict_in['Assembly'] == 'GRCh38':
         file_hg38_labeled = file_hg38 + '.labeled'
         label_assess = str(
@@ -182,6 +152,9 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
+        scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
+        scale_scores = StandardScaler().fit_transform(scores)
+        df_bed.iloc[:, 6] = scale_scores
         df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
 
         os.remove(file_hg38_labeled)
@@ -227,7 +200,9 @@ def hg38tohg19(path_hg38, path_hg19, path_meta, num_process):
         hg38 = df_exp.loc[df_exp['Assembly'] == 'GRCh38', :]
         if hg19.shape[0] == hg38.shape[0]:
             list_meta.append(hg19)
-        else:
+        elif hg19.shape[0] > hg38.shape[0]:
+            list_meta.append(hg19)
+        elif hg19.shape[0] < hg38.shape[0]:
             list_meta.append(hg38)
     new_meta = pd.concat(list_meta, sort=False)
     list_dict = new_meta.to_dict('records')
@@ -472,59 +447,28 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
 
     meta_out = df_meta.loc[
                :, ['Biosample term name', 'Biosample life stage',
-                   'Biosample organ']]
+                   'Biosample organ', 'Biosample cell']]
     meta_out = meta_out.drop_duplicates()
-    dict_meta = []
-    for sub_dict in meta_out.to_dict('records'):
-        organs = sub_dict['Biosample organ'].split(',')
-        for organ in organs:
-            term_name = sub_dict['Biosample term name']
-            life_stage = sub_dict['Biosample life stage']
-            dict_meta.append(
-                {'Biosample term name': term_name,
-                 'Biosample life stage': life_stage,
-                 'Biosample organ': organ,
-                 'Biosample life_organ': life_stage + '_' + organ})
-    meta_out = pd.DataFrame(dict_meta)
     meta_out.to_csv(os.path.join(path_out, 'meta.reference.tsv'),
                     sep='\t', index=None)
 
     list_input = []
-    life_organs = set(meta_out['Biosample life_organ'].tolist())
-    for life_organ in life_organs:
-        organ = pd.unique(
-            meta_out.loc[
-                meta_out['Biosample life_organ'] == life_organ,
-                'Biosample organ'])[0]
-        life_stage = pd.unique(
-            meta_out.loc[
-                meta_out['Biosample life_organ'] == life_organ,
-                'Biosample life stage'])[0]
-        organ_meta = df_meta.loc[
-                     (df_meta['Biosample organ'].apply(
-                         lambda x: organ in x.strip().split(','))) &
-                     (df_meta['Biosample life stage'] == life_stage), :]
-        organ_path = \
-            os.path.join(path_out, life_organ.replace(' ', '_'))
-        if not os.path.exists(organ_path):
-            os.makedirs(organ_path)
-        terms = set(organ_meta['Biosample term name'].tolist())
-        for term in terms:
-            term_meta = \
-                organ_meta.loc[organ_meta['Biosample term name'] == term, :]
-            accession_ids = \
-                list(set(term_meta['Experiment accession'].tolist()))
-            path_term = \
-                os.path.join(organ_path, term.replace(
-                    ' ', '_').replace('/', '+').replace("'", '--'))
-            if not os.path.exists(path_term):
-                os.makedirs(path_term)
-            list_input.append(
-                dict(path=path_term,
-                     term_name=term.replace(' ', '_').replace(
-                         '/', '+').replace("'", '--'),
-                     accession_ids=accession_ids,
-                     flank_percent=flank_percent))
+    terms = set(df_meta['Biosample term name'].tolist())
+    for term in terms:
+        term_meta = \
+            df_meta.loc[df_meta['Biosample term name'] == term, :]
+        accession_ids = \
+            list(set(term_meta['Experiment accession'].tolist()))
+        path_term = \
+            os.path.join(path_out, term.replace(' ', '_').replace('/', '+'))
+        if not os.path.exists(path_term):
+            os.makedirs(path_term)
+        list_input.append(
+            dict(path=path_term,
+                 term_name=term.replace(' ', '_').replace(
+                     '/', '+').replace("'", '--'),
+                 accession_ids=accession_ids,
+                 flank_percent=flank_percent))
 
     pool = Pool(processes=num_process)
     func_merge = partial(merge_bed, path_in)
@@ -546,14 +490,11 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
 
 def sub_stan(type_bed, path_in, path_out, dict_in):
     if type_bed == 'DHS':
-        life_organ = dict_in['Biosample life_organ']
         term = dict_in['Biosample term name']
         term_name = term.replace(' ', '_').replace('/', '+').replace("'", "--")
-        file_label = f"{life_organ}|{term}"
-        file = f"{life_organ.replace(' ', '_')}/{term_name}/{term_name}.bed"
-        folder3 = os.path.join(
-            path_out, f"{life_organ.replace(' ', '_')}/{term_name}"
-        )
+        file_label = term
+        file = f"{term_name}/{term_name}.bed"
+        folder3 = os.path.join(path_out, term_name)
         file_in = os.path.join(path_in, file)
         file_out = os.path.join(path_out, file)
         # make folder
@@ -601,20 +542,8 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
             os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
         meta_out = df_meta.loc[
                    :, ['Biosample term name', 'Biosample life stage',
-                       'Biosample organ']]
+                       'Biosample organ', 'Biosample cell']]
         meta_out = meta_out.drop_duplicates()
-        dict_meta = []
-        for sub_dict in meta_out.to_dict('records'):
-            organs = sub_dict['Biosample organ'].split(',')
-            for organ in organs:
-                term_name = sub_dict['Biosample term name']
-                life_stage = sub_dict['Biosample life stage']
-                dict_meta.append(
-                    {'Biosample term name': term_name,
-                     'Biosample life stage': life_stage,
-                     'Biosample organ': organ,
-                     'Biosample life_organ': life_stage + '_' + organ})
-        meta_out = pd.DataFrame(dict_meta)
         meta_out.to_csv(os.path.join(path_out, 'meta.reference.tsv'),
                         sep='\t', index=None)
 
@@ -622,458 +551,26 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
         df_meta = pd.read_csv(
             os.path.join(path_in, 'meta.reference.tsv'), sep='\t'
         )
+        df_meta = df_meta['Biosample term name'].drop_duplicates()
+        list_input = []
+        list_term = df_meta.tolist()
+        for term in list_term:
+            list_input.append({'Biosample term name': term})
+            folder1 = os.path.join(
+                path_out, f"{term.replace(' ', '_').replace('/', '+')}")
+            if not os.path.exists(folder1):
+                os.mkdir(folder1)
+
     else:
         df_meta = pd.read_csv(
             os.path.join(path_in, 'metadata.simple.tsv'), sep='\t'
         )
-
-    list_input = df_meta.to_dict('records')
-    for sub_dict in list_input:
-        life_organ = sub_dict['Biosample life_organ']
-        folder1 = os.path.join(path_out, f"{life_organ.replace(' ', '_')}")
-        if not os.path.exists(folder1):
-            os.mkdir(folder1)
+        list_input = df_meta.to_dict('records')
 
     pool = Pool(processes=num_process)
     func_stan = partial(sub_stan, type_bed, path_in, path_out)
     pool.map(func_stan, list_input)
     pool.close()
-
-    return
-
-
-def merge_standard_bed(path_bed, dict_in):
-    flank_percent = dict_in['flank_percent']
-    term_name = dict_in['term_name']
-    path_out = dict_in['path']
-    col_collapse = '2,3,5,7,8'
-    str_collapse = \
-        ','.join([val for val in ['collapse']
-                  for i in range(len(col_collapse.split(',')))])
-    cat_out = os.path.join(path_out, f"{term_name}.bed.cat")
-    sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
-    merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
-    cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
-                       for acce_id in dict_in['accession_ids']])
-    os.system(f"cat {cat_in} > {cat_out}")
-    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
-    # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
-    os.system(f"bedtools merge -i {sort_out} "
-              f"-c {col_collapse} -o {str_collapse} > {merge_out}")
-
-    # split merge file
-    split_out = os.path.join(path_out, f"{term_name}.bed.unsort")
-    split_sort_out = os.path.join(path_out, f"{term_name}.bed.split.sort")
-    final_out = os.path.join(path_out, f"{term_name}.bed")
-    with open(merge_out, 'r') as r_f:
-        with open(split_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{dhs_id}\t{score}\t.\t" \
-                  "{label}\t{accessions}\n"
-            for line in r_f:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                array_start = np.array(
-                    [int(num) for num in list_line[3].strip().split(',')])
-                array_end = np.array(
-                    [int(num) for num in list_line[4].strip().split(',')])
-                array_label = np.array(
-                    [num for num in list_line[6].strip().split(',')])
-                array_score = np.array(
-                    [num for num in list_line[5].strip().split(',')])
-                array_accessions = np.array(
-                    [num for num in list_line[7].strip().split(',')])
-                array_length = array_end - array_start
-                while array_length.shape[0] > 0:
-                    idx = np.argmax(array_length)
-                    start_idx = array_start[idx]
-                    end_idx = array_end[idx]
-                    flank = array_length[idx] * flank_percent
-                    select_bool = (array_start >= start_idx - flank) & \
-                                  (array_end <= end_idx + flank)
-                    select_start = array_start[select_bool]
-                    select_end = array_end[select_bool]
-                    select_label = array_label[select_bool]
-                    select_p_value = array_score[select_bool]
-                    select_accessions = array_accessions[select_bool]
-                    # reset arrays
-                    array_start = array_start[~select_bool]
-                    array_end = array_end[~select_bool]
-                    array_label = array_label[~select_bool]
-                    array_score = array_score[~select_bool]
-                    array_accessions = array_accessions[~select_bool]
-                    array_length = array_end - array_start
-                    # write new rows
-                    start = str(np.min(select_start))
-                    end = str(np.max(select_end))
-                    dhs_id = f"DHS<-{chrom}:{start}-{end}"
-                    label = \
-                        '/'.join(map(str, select_label.tolist()))
-                    score = '/'.join(map(str, select_p_value.tolist()))
-                    accessions = '|'.join(map(str, select_accessions.tolist()))
-                    w_f.write(fmt.format(**locals()))
-
-    os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
-    with open(final_out, 'w') as w_final:
-        old_end = 0
-        old_chrom = '0'
-        with open(split_sort_out, 'r') as r_sort:
-            for line in r_sort:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                if chrom != old_chrom:
-                    old_end = 0
-                start = int(list_line[1])
-                if start > old_end:
-                    w_final.write(line)
-                else:
-                    list_line[1] = str(old_end + 1)
-                    w_final.write('\t'.join(list_line) + '\n')
-                old_end = int(list_line[2])
-                old_chrom = chrom
-
-    os.remove(cat_out)
-    os.remove(sort_out)
-    os.remove(merge_out)
-    os.remove(split_out)
-    os.remove(split_sort_out)
-
-    return
-
-
-def label_mat(labels, dict_in):
-    dict_label = dict()
-    dict_label['peak_id'] = \
-        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
-    set_label = set(dict_in[6].strip().split('/'))
-    for label in labels:
-        if label in set_label:
-            dict_label[label] = 1
-        else:
-            dict_label[label] = 0
-
-    return dict_label
-
-
-def accession_mat(accessions, dict_in):
-    dict_accession = dict()
-    dict_accession['peak_id'] = \
-        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
-    set_accession = set(dict_in[7].strip().split('|'))
-    for accession in accessions:
-        if accession in set_accession:
-            dict_accession[accession] = 1
-        else:
-            dict_accession[accession] = 0
-
-    return dict_accession
-
-
-def sub_merge(dict_in):
-    sub_ref_meta = dict_in['sub_ref_meta']
-    sub_meta = dict_in['sub_meta']
-    sub_path_in = dict_in['path_in']
-    sub_path_out = dict_in['path_out']
-    life_organ = dict_in['life_organ']
-    bool_accession = dict_in['bool_accession']
-    bool_plot = dict_in['bool_plot']
-    file_out = \
-        os.path.join(sub_path_out, life_organ.replace(' ', '_') + '.bed')
-    if not os.path.exists(sub_path_out):
-        os.mkdir(sub_path_out)
-    list_meta = sub_ref_meta.to_dict("records")
-    accession_ids = [
-        '/'.join([sub_dict['Biosample term name'].replace(
-                        ' ', '_').replace('/', '+').replace("'", '--'),
-                  sub_dict['Biosample term name'].replace(
-                        ' ', '_').replace('/', '+').replace("'", '--')])
-        for sub_dict in list_meta]
-    if sub_ref_meta.shape[0] == 1:
-        os.system(
-            f"cp {os.path.join(sub_path_in, accession_ids[0] + '.bed')} "
-            f"{file_out}"
-        )
-        with open(file_out, 'w') as w_f:
-            fmt = "{chrom}\t{start}\t{end}\t{dhs_id}\t{score}\t.\t{label}\t" \
-                  "{accessions}\n"
-            with open(os.path.join(sub_path_in, accession_ids[0] + '.bed'),
-                      'r') as r_f:
-                for line in r_f:
-                    list_line = line.strip().split('\t')
-                    dict_out = dict(
-                        chrom=list_line[0], start=list_line[1],
-                        end=list_line[2], label=list_line[6],
-                        dhs_id=f"DHS<-{list_line[0]}:"
-                               f"{list_line[1]}-{list_line[2]}",
-                        score=list_line[4], accessions=list_line[7]
-                    )
-                    w_f.write(fmt.format(**dict_out))
-        return
-    elif sub_ref_meta.shape[0] > 1:
-        dict_merge = dict(
-            path=sub_path_out,
-            term_name=life_organ.replace(' ', '_'),
-            accession_ids=accession_ids,
-            flank_percent=0.6)
-        merge_standard_bed(sub_path_in, dict_merge)
-        labels = [f"{sub_dict['Biosample organ']}|"
-                  f"{sub_dict['Biosample life stage']}|"
-                  f"{sub_dict['Biosample term name']}"
-                  for sub_dict in list_meta]
-        list_bed = \
-            (pd.read_csv(file_out, sep='\t', header=None)).to_dict('records')
-
-        # label matrix
-        func_label = partial(label_mat, labels)
-        list_label = [func_label(sub_dict) for sub_dict in list_bed]
-        df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
-        df_label.index = df_label['peak_id']
-        df_label = df_label.drop('peak_id', 1)
-        # write score matrix to txt file
-        mat_label = os.path.join(sub_path_out, 'label_matrix.txt')
-        df_label.to_csv(mat_label, sep='\t')
-
-        # Jaccard distance
-        list_out = []
-        list_com = combinations(df_label.columns, 2)
-        for com in list_com:
-            jdist = pdist(
-                (df_label.loc[
-                    (df_label.loc[:, com[0]] != 0) |
-                    (df_label.loc[:, com[1]] != 0), com]).T,
-                'jaccard')[0]
-            list_out.append({'Name': life_organ, 'Combination': com,
-                             'Jaccard distance': jdist})
-
-        df_out = pd.DataFrame(list_out)
-
-        if bool_plot:
-            # scatter plot
-            os.system(
-                f"Rscript scatter.plot.organ.R {mat_label} {sub_path_out}")
-
-        # accession matrix
-        if bool_accession:
-            accessions = [sub_dict['File accession']
-                          for sub_dict in sub_meta.to_dict("records")]
-            func_accession = partial(accession_mat, accessions)
-            list_accession = \
-                [func_accession(sub_dict) for sub_dict in list_bed]
-            df_accession = \
-                pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
-            df_accession.index = df_accession['peak_id']
-            df_accession = df_accession.drop('peak_id', 1)
-            # write score matrix to txt file
-            mat_accession = os.path.join(sub_path_out, 'accession_matrix.txt')
-            df_accession.to_csv(mat_accession, sep='\t')
-
-            if bool_plot:
-                # scatter plot
-                path_in = '/'.join(sub_path_in.split('/')[:-1])
-                os.system(
-                    f"Rscript scatter.plot.organ.accession.R {mat_accession} "
-                    f"{os.path.join(path_in, 'metadata.simple.tsv')} "
-                    f"{sub_path_out}")
-
-        return df_out
-
-
-def organ_mat(organs, dict_in):
-    organ_dict = dict()
-    organ_dict['peak_id'] = \
-        f"{dict_in[0]}:{str(dict_in[1])}-{str(dict_in[2])}"
-    list_organ = set([val.split('|')[0]
-                      for val in dict_in[6].strip().split('/')])
-    for organ in organs:
-        if organ in list_organ:
-            organ_dict[organ] = 1
-        else:
-            organ_dict[organ] = 0
-
-    return organ_dict
-
-
-def calculate_overlap(df_organ, com):
-    # Overlap ratio
-    # len_list1 = (df_organ.loc[
-    #              df_organ.loc[:, com[0]] != 0, :]).shape[0]
-    # len_list2 = (df_organ.loc[
-    #              df_organ.loc[:, com[1]] != 0, :]).shape[0]
-    # total = min(len_list1, len_list2)
-    # len_overlap = (df_organ.loc[
-    #                (df_organ.loc[:, com[0]] != 0) &
-    #                (df_organ.loc[:, com[1]] != 0), :]).shape[0]
-
-    # Jaccard distance
-    jdist = pdist(
-        (df_organ.loc[
-            (df_organ.loc[:, com[0]] != 0) |
-            (df_organ.loc[:, com[1]] != 0), com]).T,
-        'jaccard')[0]
-
-    return {'Combination': com, 'Jaccard distance': jdist}
-
-
-def merge_organ_cluster(path_in, path_out, num_process,
-                        bool_accession=True, bool_plot=True):
-    if os.path.exists(path_out):
-        os.system(f"rm -rf {path_out}")
-    os.mkdir(path_out)
-    os.system(f"cp {os.path.join(path_in, 'meta.reference.tsv')} "
-              f"{os.path.join(path_out, 'meta.reference.tsv')}")
-    os.system(f"cp {os.path.join(path_in, 'metadata.simple.tsv')} "
-              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
-
-    df_meta_ref = \
-        pd.read_csv(os.path.join(path_in, 'meta.reference.tsv'), sep='\t')
-    df_meta = \
-        pd.read_csv(os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
-
-    life_organs = list(set(df_meta_ref['Biosample life_organ'].tolist()))
-
-    list_input = []
-    for life_organ in life_organs:
-        sub_ref_meta = df_meta_ref.loc[
-                   df_meta_ref['Biosample life_organ'] == life_organ, :]
-        organ = pd.unique(sub_ref_meta['Biosample organ'])[0]
-        life_stage = pd.unique(sub_ref_meta['Biosample life stage'])[0]
-        sub_meta = df_meta.loc[
-                   (df_meta['Biosample organ'].apply(
-                       lambda x: organ in x.strip().split(','))) &
-                   (df_meta['Biosample life stage'] == life_stage), :]
-        list_input.append(
-            dict(sub_ref_meta=sub_ref_meta, life_organ=life_organ,
-                 sub_meta=sub_meta,
-                 path_out=os.path.join(path_out, life_organ.replace(' ', '_')),
-                 path_in=os.path.join(path_in, life_organ.replace(' ', '_')),
-                 bool_accession=bool_accession, bool_plot=bool_plot))
-
-    pool = Pool(processes=num_process)
-    list_df = pool.map(sub_merge, list_input)
-    pool.close()
-
-    df_overlap = pd.concat(list_df, sort=False)
-    df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
-    print("Integration of organ ---- completed!")
-
-    # merge all organ
-    organ_folders = os.listdir(path_out)
-    accession_ids = []
-    for organ_folder in organ_folders:
-        path_organ = os.path.join(path_out, organ_folder)
-        if (os.path.isdir(path_organ)) & (organ_folder != 'flank'):
-            accession_ids.append(os.path.join(path_organ, organ_folder))
-
-    dict_merge = dict(
-        path=path_out,
-        term_name='all_organs',
-        accession_ids=accession_ids,
-        flank_percent=0.8)
-    merge_standard_bed(path_out, dict_merge)
-    list_bed = \
-        (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
-                     sep='\t', header=None)).to_dict('records')
-
-    # label matrix
-    labels = [f"{sub_dict['Biosample organ']}|"
-              f"{sub_dict['Biosample life stage']}|"
-              f"{sub_dict['Biosample term name']}"
-              for sub_dict in df_meta_ref.to_dict("records")]
-    pool = Pool(processes=num_process)
-    func_label = partial(label_mat, labels)
-    list_label = pool.map(func_label, list_bed)
-    pool.close()
-
-    df_label = pd.DataFrame(list_label, columns=['peak_id'] + labels)
-    df_label.index = df_label['peak_id']
-    df_label = df_label.drop('peak_id', 1)
-    # write score matrix to txt file
-    mat_label = os.path.join(path_out, 'label_matrix.txt')
-    df_label.to_csv(mat_label, sep='\t')
-
-    # experiment matrix
-    accessions = [sub_dict['File accession']
-                  for sub_dict in df_meta.to_dict("records")]
-    pool = Pool(processes=num_process)
-    func_accession = partial(accession_mat, accessions)
-    list_accession = pool.map(func_accession, list_bed)
-    pool.close()
-
-    df_accession = \
-        pd.DataFrame(list_accession, columns=['peak_id'] + accessions)
-    df_accession.index = df_accession['peak_id']
-    df_accession = df_accession.drop('peak_id', 1)
-    # write score matrix to txt file
-    mat_accession = os.path.join(path_out, 'accession_matrix.txt')
-    df_accession.to_csv(mat_accession, sep='\t')
-
-    # organ matrix
-    pool = Pool(processes=num_process)
-    func_organ = partial(organ_mat, life_organs)
-    list_organ = pool.map(func_organ, list_bed)
-    pool.close()
-
-    df_organ = pd.DataFrame(list_organ, columns=['peak_id'] + life_organs)
-    df_organ.index = df_organ['peak_id']
-    df_organ = df_organ.drop('peak_id', 1)
-    # write score matrix to txt file
-    mat_organ = os.path.join(path_out, 'organ_matrix.txt')
-    df_organ.to_csv(mat_organ, sep='\t')
-
-    # calculate overlap ratio
-    list_com = combinations(df_organ.columns, 2)
-    pool = Pool(processes=num_process)
-    func_overlap = partial(calculate_overlap, df_organ)
-    list_out = pool.map(func_overlap, list_com)
-    pool.close()
-
-    df_overlap = pd.DataFrame(list_out)
-    df_overlap.to_csv(
-        os.path.join(path_out, 'all_organs_overlap.txt'), sep='\t', index=None
-    )
-
-    # scatter plot
-    if bool_plot:
-        os.system(f"Rscript scatter.plot.all.R {mat_label} "
-                  f"{os.path.join(path_in, 'metadata.simple.tsv')} {path_out}")
-
-        if bool_accession:
-            os.system(f"Rscript scatter.plot.all.accession.R {mat_accession} "
-                      f"{os.path.join(path_in, 'metadata.simple.tsv')} "
-                      f"{path_out}")
-
-    return
-
-
-def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
-    df_meta_ref = pd.read_csv(meta_suborgan, sep='\t')
-    df_ref_filter = df_meta_ref.dropna()
-
-    suborgans = list(
-        set([organ for organ in df_ref_filter['Biosample suborgan'].tolist()])
-    )
-
-    list_input = []
-    for suborgan in suborgans:
-        sub_ref_meta = df_meta_ref.loc[
-                   df_meta_ref['Biosample suborgan'] == suborgan, :]
-        life_organ = sub_ref_meta['Biosample life_organ'].tolist()[0]
-        path_organ = os.path.join(path_out, life_organ.replace(' ', '_'))
-        path_sub_organ = os.path.join(
-            path_organ, f"suborgan/{suborgan.replace(' ', '_')}")
-        list_input.append(
-            dict(sub_ref_meta=sub_ref_meta, life_organ=suborgan,
-                 sub_meta=sub_ref_meta,
-                 path_out=path_sub_organ,
-                 path_in=os.path.join(path_in, life_organ.replace(' ', '_')),
-                 bool_accession=False, bool_plot=False))
-
-    pool = Pool(processes=num_process)
-    list_df = pool.map(sub_merge, list_input)
-    pool.close()
-
-    df_overlap = pd.concat(list_df, sort=False)
-    df_overlap.to_csv(os.path.join(path_out, 'overlap.suborgan.txt'), sep='\t')
-    print("Integration of suborgan ---- completed!")
 
     return
 
@@ -1098,15 +595,6 @@ if __name__ == '__main__':
     # build organ dictionary
     path_meta_lab = '/local/zy/PEI/origin_data/ENCODE/metadata/lab'
     dict_lab = build_dict_attr(path_meta_lab)
-
-    # read reference organ
-    ref_organ = '/local/zy/PEI/origin_data/ENCODE/metadata/organ_ref.txt'
-    with open(ref_organ, 'r') as r_ref:
-        set_organs = set([organ.strip() for organ in r_ref])
-    # organ complement
-    file_complement = \
-        '/local/zy/PEI/origin_data/ENCODE/metadata/complement_organ.txt'
-    df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
     # DHS reference
@@ -1118,102 +606,93 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_organ, 'Biosample organ')
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
-    df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
+    df_meta_dhs = modify_meta(df_meta_dhs)
     meta_dhs = '/local/zy/PEI/mid_data/cell_line/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        '/local/zy/PEI/mid_data/tissue/ENCODE/DNase-seq/GRCh38tohg19'
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
-        '/local/zy/PEI/mid_data/tissue/ENCODE/' \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19/'
     unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
-    path_dhs_stan = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_standard'
+    path_dhs_stan = \
+        '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
-    # merge and cluster
-    path_dhs_cluster = '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_cluster'
-    merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu, False, False)
-    print('Cluster and merge of DHS completed!')
+    # preparation of bed files of histone and TF
+    # H3K4me3
+    path_h3k4me3 = \
+        '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K4me3'
+    ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
+    df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
+    df_meta_h3k4me3 = \
+        add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
+    df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
+    df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3)
+    meta_h3k4me3 = '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
+                   'histone_ChIP-seq/metadata.simple.H3K4me3.tsv'
+    df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
+    print("H3K4me3 metadata ---- completed")
 
-    # merge sub-organ
-    meta_suborgan_dhs = \
-        '/local/zy/PEI/origin_data/meta_file/meta.reference.tsv'
-    merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K4me3'
+    hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
 
-    # # preparation of bed files of histone and TF
-    # # H3K4me3
-    # path_h3k4me3 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K4me3'
-    # ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    # df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
-    # df_meta_h3k4me3 = \
-    #     add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
-    # df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
-    # df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
-    # meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.simple.tsv')
-    # df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
-    # print("H3K4me3 metadata ---- completed")
-    #
-    # # hg38 to hg19
-    # path_hg38tohg19 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K4me3'
-    # hg38tohg19(path_h3k4me3, path_hg38tohg19, num_cpu)
-    # print("Format conversion: hg38 -> hg19 ---- completed")
-    #
-    # # standardization
-    # path_h3k4me3_stan = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K4me3_standard'
-    # standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
-    # print('Standardization of H3K4me3 completed!')
-    #
-    # # H3K27ac
-    # path_h3k27ac = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/H3K27ac'
-    # ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    # df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
-    # df_meta_h3k27ac = \
-    #     add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
-    # df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
-    # df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
-    # meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.simple.tsv')
-    # df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
-    # print("H3K27ac metadata ---- completed")
-    #
-    # # hg38 to hg19
-    # path_hg38tohg19 = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K27ac'
-    # hg38tohg19(path_h3k27ac, path_hg38tohg19, num_cpu)
-    # print("Format conversion: hg38 -> hg19 ---- completed")
-    #
-    # # standardization
-    # path_h3k27ac_stan = \
-    #     '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-    #     'GRCh38tohg19/H3K27ac_standard'
-    # standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
-    # print('Standardization of H3K27ac completed!')
-    #
-    # time_end = time()
-    # print(time_end - time_start)
+    # standardization
+    path_h3k4me3_stan = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
+        'H3K4me3_standard'
+    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    print('Standardization of H3K4me3 completed!')
+
+    # H3K27ac
+    path_h3k27ac = \
+        '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K27ac'
+    ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
+    df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
+    df_meta_h3k27ac = \
+        add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
+    df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
+    df_meta_h3k27ac = modify_meta(df_meta_h3k27ac)
+    meta_h3k27ac = '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
+                   'histone_ChIP-seq/metadata.simple.H3K27ac.tsv'
+    df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
+    print("H3K27ac metadata ---- completed")
+
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K27ac'
+    hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_h3k27ac_stan = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
+        'H3K27ac_standard'
+    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    print('Standardization of H3K27ac completed!')
+
+    time_end = time()
+    print(time_end - time_start)
