@@ -15,7 +15,7 @@ fisher.combine <- function(vec.lgp, cutoff.lgp) {
 
 
 max.score <- function(vec.score) {
-    vec.score[vec.score == '.'] <- '0'
+    vec.score[vec.score == '.'] <- '-10000'
     vec.score.num <- as.numeric(vec.score)
     score.combine <- max(vec.score.num)
 }
@@ -54,6 +54,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     df.score <- df.bed[, col.score]
     vec.combine.score <- 
         unlist(alply(.data = df.score, .margins = 1, .fun = max.score))
+    vec.combine.score[vec.combine.lgp == 0] <- -10000
     df.bed$score.combine <- vec.combine.score
     
     df.out <- df.bed[, c('V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'score.combine', 

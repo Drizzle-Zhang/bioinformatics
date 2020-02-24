@@ -47,8 +47,8 @@ def sub_annotate_promoter(dict_in):
         file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
         file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
         df_plus = pd.read_csv(file_promoter, sep='\t', header=None)
-        df_0 = df_plus.loc[df_plus[-1] == 0, :]
-        df_pn = df_plus.loc[df_plus[-1] > 0, :]
+        df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+        df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
         df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
         df_uniq = pd.concat([df_0, df_pn_uniq])
@@ -118,16 +118,9 @@ def annotate_promoter_to_dhs(path_dhs, path_h3k4me3,
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
 
-    df_meta_dhs = pd.read_csv(
-        os.path.join(path_dhs, 'metadata.simple.tsv'), sep='\t'
-    )
     df_meta_h3k4me3 = pd.read_csv(
         os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
     )
-    list_terms = list(
-        set(df_meta_dhs['Biosample term name'].tolist()).intersection(
-            set(df_meta_h3k4me3['Biosample term name'].tolist())
-        ))
 
     list_input = []
     for term in list_terms:
@@ -154,14 +147,10 @@ def annotate_promoter_to_dhs(path_dhs, path_h3k4me3,
 def map_h3k27ac(path_ref, path_h3k27ac, path_out, dict_in):
     accession_ids = dict_in['File accession']
     file_in = os.path.join(path_h3k27ac, accession_ids + '.bed')
-    str_organ = dict_in['Biosample organ'].replace(' ', '_')
-    str_suborgan = dict_in['Biosample suborgan'].replace(' ', '_')
     str_term = dict_in['Biosample term name'].replace(
-                    ' ', '_').replace('/', '+').replace("'", '--')
+                    ' ', '_').replace('/', '+')
     file_ref = os.path.join(
-        path_ref,
-        f"{str_organ}/{str_suborgan}/{dict_in['Biosample life stage']}_"
-        f"{str_term}/DHS_promoter_H3K4me3.txt"
+        path_ref, f"{str_term}/DHS_promoter_H3K4me3.txt"
     )
 
     # map H3K4me3 to DHS
@@ -171,7 +160,7 @@ def map_h3k27ac(path_ref, path_h3k27ac, path_out, dict_in):
 
     os.system(
         f"bedtools intersect -a {file_ref} -b {file_in} -wao "
-        f"| cut -f 1,2,3,4,5,6,10,11,14 > {file_plus}")
+        f"| cut -f 1,2,3,4,5,6,7,8,12,13,14,16 > {file_plus}")
     # drop duplicates
     df_plus = pd.read_csv(file_plus, sep='\t', header=None)
     df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
@@ -259,7 +248,7 @@ def sub_annotate_cre(dict_in):
     return
 
 
-def annotate_cre(path_ref, ref_histone, path_h3k27ac,
+def annotate_cre(path_ref, path_h3k27ac,
                  path_out_h3k27ac, path_cre, num_process):
     if os.path.exists(path_out_h3k27ac):
         os.system(f"rm -rf {path_out_h3k27ac}")
@@ -269,14 +258,12 @@ def annotate_cre(path_ref, ref_histone, path_h3k27ac,
     os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
               f"{os.path.join(path_out_h3k27ac, 'meta.reference.tsv')}")
 
-    df_ref_histone = pd.read_csv(ref_histone, sep='\t')
-    df_ref_histone = df_ref_histone.dropna()
     df_meta_h3k27ac = pd.read_csv(
         os.path.join(path_h3k27ac, 'metadata.simple.tsv'), sep='\t'
     )
-    df_merge = pd.merge(
-        df_ref_histone, df_meta_h3k27ac,
-        on=['Biosample organ', 'Biosample life stage', 'Biosample term name'])
+    df_merge = df_meta_h3k27ac.loc[
+        df_meta_h3k27ac['Biosample term name'].apply(
+            lambda x: x in set(list_terms)), :]
 
     # map H3K27ac to sample
     pool = Pool(processes=num_process)
@@ -292,64 +279,22 @@ def annotate_cre(path_ref, ref_histone, path_h3k27ac,
               f"{os.path.join(path_cre, 'metadata.simple.tsv')}")
     os.system(f"cp {os.path.join(path_h3k27ac, 'meta.reference.tsv')} "
               f"{os.path.join(path_cre, 'meta.reference.tsv')}")
-    organs = list(
-        set([organ for organ in df_ref_histone['Biosample organ'].tolist()])
-    )
 
     list_input = []
-    for organ in organs:
-        str_organ = organ.replace(' ', '_')
-        sub_ref_histone = df_ref_histone.loc[
-            df_ref_histone['Biosample organ'] == organ, :
-        ]
-        path_organ = os.path.join(path_cre, organ.replace(' ', '_'))
-        if not os.path.exists(path_organ):
-            os.mkdir(path_organ)
-        suborgans = list(
-            set([suborgan for suborgan in
-                 sub_ref_histone['Biosample suborgan'].tolist()])
+    for term in list_terms:
+        str_term = term.replace(' ', '_').replace('/', '+')
+        path_term = os.path.join(path_cre, str_term)
+        if not os.path.exists(path_term):
+            os.mkdir(path_term)
+        file_ref = os.path.join(
+            path_ref, f"{str_term}/DHS_promoter_H3K4me3.txt"
         )
-        for suborgan in suborgans:
-            str_suborgan = suborgan.replace(' ', '_')
-            suborgan_histone = \
-                sub_ref_histone.loc[
-                    sub_ref_histone['Biosample suborgan'] == suborgan, :]
-            path_suborgan = \
-                os.path.join(path_organ, suborgan.replace(' ', '_'))
-            if not os.path.exists(path_suborgan):
-                os.mkdir(path_suborgan)
-            file_ref_suborgan = os.path.join(
-                path_ref,
-                f"{str_organ}/{str_suborgan}/DHS_promoter_H3K4me3.txt"
-            )
-            suborgan_h3k27ac = pd.merge(
-                suborgan_histone, df_meta_h3k27ac,
-                on=['Biosample life stage', 'Biosample term name']
-            )
-            list_input.append(dict(
-                file_ref=file_ref_suborgan, path_out=path_suborgan,
-                sub_h3k27ac=suborgan_h3k27ac)
-            )
-            for sub_dict in suborgan_histone.to_dict("records"):
-                term = sub_dict['Biosample term name']
-                life = sub_dict['Biosample life stage']
-                str_term = sub_dict['Biosample term name'].replace(
-                    ' ', '_').replace('/', '+').replace("'", '--')
-                path_term = os.path.join(path_suborgan, f"{life}_{str_term}")
-                file_ref = os.path.join(
-                    path_ref,
-                    f"{str_organ}/{str_suborgan}/{life}_{str_term}/"
-                    f"DHS_promoter_H3K4me3.txt"
-                )
-                if not os.path.exists(path_term):
-                    os.mkdir(path_term)
-                sub_h3k27ac = df_meta_h3k27ac.loc[
-                    (df_meta_h3k27ac['Biosample life stage'] == life) &
-                    (df_meta_h3k27ac['Biosample term name'] == term), :]
-                list_input.append(dict(
-                    file_ref=file_ref, path_out=path_term,
-                    sub_h3k27ac=sub_h3k27ac)
-                )
+        sub_h3k27ac = df_meta_h3k27ac.loc[
+                      df_meta_h3k27ac['Biosample term name'] == term, :]
+        list_input.append(dict(
+            file_ref=file_ref, path_out=path_term,
+            sub_h3k27ac=sub_h3k27ac)
+        )
 
     pool = Pool(processes=num_process)
     func_integrate = partial(integrate_h3k27ac, path_out_h3k27ac)
@@ -378,28 +323,21 @@ if __name__ == '__main__':
         '/local/zy/PEI/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
         'H3K27ac_standard'
     # select data having H3K4me3 and H3K27ac
-    file_meta = '/local/zy/PEI/data/ENCODE/histone_ChIP-seq/' \
-                'meta.reference.histone.tsv'
+    df_dhs = pd.read_csv(
+        os.path.join(path_dhs_stan, 'metadata.simple.tsv'), sep='\t'
+    )
     df_h3k4me3 = pd.read_csv(
-        os.path.join(path_h3k4me3_stan, 'meta.reference.tsv'), sep='\t'
+        os.path.join(path_h3k4me3_stan, 'metadata.simple.tsv'), sep='\t'
     )
     df_h3k27ac = pd.read_csv(
-        os.path.join(path_h3k27ac_stan, 'meta.reference.tsv'), sep='\t'
+        os.path.join(path_h3k27ac_stan, 'metadata.simple.tsv'), sep='\t'
     )
-    df_intersect = pd.merge(
-        df_h3k4me3, df_h3k27ac,
-        on=['Biosample organ', 'Biosample life stage', 'Biosample term name']
-    )
-    set_h3k27ac = set([
-        f"{sub_dict['Biosample life stage']}_{sub_dict['Biosample term name']}"
-        for sub_dict in df_h3k27ac.to_dict('records')
-    ])
-    set_intersect = set([
-        f"{sub_dict['Biosample life stage']}_{sub_dict['Biosample term name']}"
-        for sub_dict in df_intersect.to_dict('records')
-    ])
-    set_diff = set_h3k27ac.difference(set_intersect)
-    # df_intersect.to_csv(file_meta, sep='\t', index=None)
+    list_terms = list(
+        (set(df_dhs['Biosample term name'].tolist()).intersection(
+            set(df_h3k4me3['Biosample term name'].tolist())
+        )).intersection(
+            set(df_h3k27ac['Biosample term name'].tolist())
+        ))
 
     # promoter reference
     promoter_file_hg19 = \
@@ -414,9 +352,10 @@ if __name__ == '__main__':
     )
 
     # map H3K27ac to reference
-    path_map_h3k27ac = '/local/zy/PEI/data/DHS/map_H3K27ac'
-    path_combine_h3k27ac = '/local/zy/PEI/data/DHS/cRE_annotation'
-    annotate_cre(path_ref_promoter, file_meta, path_h3k27ac_stan,
+    path_map_h3k27ac = '/local/zy/PEI/mid_data/cell_line/DHS/map_H3K27ac'
+    path_combine_h3k27ac = \
+        '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
+    annotate_cre(path_ref_promoter, path_h3k27ac_stan,
                  path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
 
     time_end = time()
