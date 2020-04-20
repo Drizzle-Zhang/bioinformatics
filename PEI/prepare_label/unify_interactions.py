@@ -9,6 +9,12 @@ from time import time
 import os
 import pandas as pd
 
+
+def encode_chiapet():
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
     path_origin = '/local/zy/PEI/origin_data/Chromatin_interactions/'
