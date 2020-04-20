@@ -48,11 +48,12 @@ def get_links_3div_and_download(url, path_out, num_process):
     html = etree.HTML(web_html_str)
     text = html.xpath("//*/text()")
     list_text = text[0].split('\\n')
-    file_pattern = re.compile(r":[0-9][0-9] .+\\")
+    # file_pattern = re.compile(r":[0-9][0-9] .+\\")
     ftp_links = []
     for line in list_text:
-        if file_pattern.search(line):
-            file = file_pattern.search(line).group()[4:-1]
+        file_tmp = line.split(' ')[-1]
+        if file_tmp[-1] == 'r':
+            file = file_tmp[:-3]
             if file == 'IMR90_fibroblast,_TNF-\\xa5\\xe1_treated':
                 # file = 'IMR90_fibroblast,_TNF-%A5%E1_treated'
                 continue
@@ -79,7 +80,7 @@ def get_links_3div_and_download(url, path_out, num_process):
             for sub_process in subprocesses:
                 sub_process.wait()
             subprocesses = []
-        if link[-6:] == '10.zip':
+        if link[-5:] == '2.zip':
             subprocesses.append(
                 subprocess.Popen(
                     "wget -P " + folder.replace('(', '\(').replace(')', '\)') +
@@ -165,6 +166,33 @@ def decompress(path, num_process=20):
     return
 
 
+def get_links_hapmap_and_download(url, path_out, num_process):
+    web_html = urllib.request.urlopen(url)
+    web_html_str = str(web_html.read())
+    html = etree.HTML(web_html_str)
+    text = html.xpath("/html/body/pre/a/text()")
+    list_file = text[1:]
+
+    subprocesses = []
+    for i, file_name in enumerate(list_file):
+        if i % num_process == 0:
+            for sub_process in subprocesses:
+                sub_process.wait()
+            subprocesses = []
+        subprocesses.append(
+            subprocess.Popen(f"wget -P {path_out} {url}{file_name}",
+                             shell=True))
+        random_sleep = random.randint(1, 3)
+        time.sleep(random_sleep)
+        # if i == 6:
+        #     break
+
+    for sub_process in subprocesses:
+        sub_process.wait()
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time.time()
     # simulated browser
@@ -242,6 +270,14 @@ if __name__ == '__main__':
     # Segway
 
     # 3DIV
+    url_3div = 'ftp://ftp.kobic.re.kr/'
+    path_3div = '/home/zy/driver_mutation/data/Chromatin_interactions/3DIV'
+    get_links_3div_and_download(url_3div, path_3div, num_process=40)
+
+    # hapmap LD
+    # url_ld = 'https://ftp.ncbi.nlm.nih.gov/hapmap/ld_data/latest/'
+    # path_out_ld = '/local/zy/PEI/origin_data/HapMap/LD_data'
+    # get_links_hapmap_and_download(url_ld, path_out_ld, 10)
 
     time_end = time.time()
     print(time_end - time_start)

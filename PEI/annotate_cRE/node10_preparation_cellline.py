@@ -16,8 +16,6 @@ from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import StandardScaler
-import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 
 
 def filter_meta(meta_in):
@@ -32,7 +30,7 @@ def filter_meta(meta_in):
         )),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
-         'Biosample genetic modifications methods', 'Assembly',
+         'Biosample genetic modifications methods', 'Output type', 'Assembly',
          'Biological replicate(s)', 'File Status']]
     df_meta_released.index = df_meta_released['File accession']
 
@@ -188,8 +186,6 @@ def hg38tohg19(path_hg38, path_hg19, path_meta, num_process):
     if os.path.exists(path_hg19):
         os.system(f"rm -rf {path_hg19}")
     os.mkdir(path_hg19)
-    os.system(f"cp {path_meta} "
-              f"{os.path.join(path_hg19, 'metadata.simple.tsv')}")
 
     df_meta = pd.read_csv(path_meta, sep='\t')
     list_meta = []
@@ -508,8 +504,8 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         with open(file_out, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\t" \
                       "{file_label}\t{accessions}\n"
-            fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
-                          "{score}\t{pvalue}\t{accessions}\n"
+            fmt_chip = "{chrom}\t{start}\t{end}\t{label}\t" \
+                       "{score}\t{pvalue}\t{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -521,9 +517,12 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                              for num in list_line[6].strip().split('|')])
                 if type_bed == 'DHS':
                     w_f.write(fmt_dhs.format(**locals()))
-                else:
+                elif type_bed in {'H3K4me3', 'H3K27ac'}:
                     pvalue = list_line[7]
-                    w_f.write(fmt_histone.format(**locals()))
+                    w_f.write(fmt_chip.format(**locals()))
+                elif type_bed == 'CTCF':
+                    pvalue = list_line[8]
+                    w_f.write(fmt_chip.format(**locals()))
 
     return
 
@@ -640,7 +639,16 @@ if __name__ == '__main__':
     path_h3k4me3 = \
         '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
-    df_meta_h3k4me3 = filter_meta(ori_meta_h3k4me3)
+    df_meta_h3k4me3 = pd.read_csv(ori_meta_h3k4me3, sep='\t')
+    df_meta_h3k4me3 = df_meta_h3k4me3.loc[
+        (df_meta_h3k4me3['File Status'] == 'released') &
+        ((df_meta_h3k4me3['Output type'] == 'replicated peaks') |
+         (df_meta_h3k4me3['Output type'] == 'stable peaks')),
+        ['File accession', 'Experiment accession', 'Biosample term id',
+         'Biosample term name', 'Biosample type', 'Biosample treatments',
+         'Biosample genetic modifications methods', 'Output type', 'Assembly',
+         'Biological replicate(s)', 'File Status']]
+    df_meta_h3k4me3.index = df_meta_h3k4me3['File accession']
     df_meta_h3k4me3 = \
         add_attr(df_meta_h3k4me3, dict_lifestage, 'Biosample life stage')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_organ, 'Biosample organ')
@@ -669,7 +677,16 @@ if __name__ == '__main__':
     path_h3k27ac = \
         '/local/zy/PEI/origin_data/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
-    df_meta_h3k27ac = filter_meta(ori_meta_h3k27ac)
+    df_meta_h3k27ac = pd.read_csv(ori_meta_h3k27ac, sep='\t')
+    df_meta_h3k27ac = df_meta_h3k27ac.loc[
+        (df_meta_h3k27ac['File Status'] == 'released') &
+        ((df_meta_h3k27ac['Output type'] == 'replicated peaks') |
+         (df_meta_h3k27ac['Output type'] == 'stable peaks')),
+        ['File accession', 'Experiment accession', 'Biosample term id',
+         'Biosample term name', 'Biosample type', 'Biosample treatments',
+         'Biosample genetic modifications methods', 'Output type', 'Assembly',
+         'Biological replicate(s)', 'File Status']]
+    df_meta_h3k27ac.index = df_meta_h3k27ac['File accession']
     df_meta_h3k27ac = \
         add_attr(df_meta_h3k27ac, dict_lifestage, 'Biosample life stage')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_organ, 'Biosample organ')
@@ -693,6 +710,44 @@ if __name__ == '__main__':
         'H3K27ac_standard'
     standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
+
+    # CTCF
+    path_ctcf = \
+        '/local/zy/PEI/origin_data/ENCODE/TF_ChIP-seq/CTCF'
+    ori_meta_ctcf = os.path.join(path_ctcf, 'metadata.tsv')
+    df_meta_ctcf = pd.read_csv(ori_meta_ctcf, sep='\t')
+    df_meta_ctcf = df_meta_ctcf.loc[
+        (df_meta_ctcf['File Status'] == 'released') &
+        ((df_meta_ctcf['Output type'] == 'optimal IDR thresholded peaks') |
+         (df_meta_ctcf['Output type'] ==
+          'pseudoreplicated IDR thresholded peaks')),
+        ['File accession', 'Experiment accession', 'Biosample term id',
+         'Biosample term name', 'Biosample type', 'Biosample treatments',
+         'Biosample genetic modifications methods', 'Output type', 'Assembly',
+         'Biological replicate(s)', 'File Status']]
+    df_meta_ctcf.index = df_meta_ctcf['File accession']
+    df_meta_ctcf = \
+        add_attr(df_meta_ctcf, dict_lifestage, 'Biosample life stage')
+    df_meta_ctcf = add_attr(df_meta_ctcf, dict_organ, 'Biosample organ')
+    df_meta_ctcf = add_attr(df_meta_ctcf, dict_cell, 'Biosample cell')
+    df_meta_ctcf = add_attr(df_meta_ctcf, dict_lab, 'Lab')
+    df_meta_ctcf = modify_meta(df_meta_ctcf)
+    meta_ctcf = '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
+                'TF_ChIP-seq/metadata.simple.CTCF.tsv'
+    df_meta_ctcf.to_csv(meta_ctcf, sep='\t', index=None)
+    print("CTCF metadata ---- completed")
+
+    # hg38 to hg19
+    path_hg38tohg19 = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF'
+    hg38tohg19(path_ctcf, path_hg38tohg19, meta_ctcf, num_cpu)
+    print("Format conversion: hg38 -> hg19 ---- completed")
+
+    # standardization
+    path_ctcf_stan = \
+        '/local/zy/PEI/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
+    standardize_bed(path_hg38tohg19, path_ctcf_stan, 'CTCF', num_cpu)
+    print('Standardization of CTCF completed!')
 
     time_end = time()
     print(time_end - time_start)

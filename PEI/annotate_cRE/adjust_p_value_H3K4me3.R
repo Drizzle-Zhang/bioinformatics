@@ -2,7 +2,7 @@ library(plyr)
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
     vec.lgp[vec.lgp == '.'] <- '0'
     vec.lgp.num <- as.numeric(vec.lgp)
-    vec.lgp.num[vec.lgp <= cutoff.lgp] <- 0
+    vec.lgp.num[vec.lgp.num <= cutoff.lgp] <- 0
     vec.lnp <- vec.lgp.num * log(10)
     chisq <- sum(2 * vec.lnp)
     df <- 2 * length(vec.lgp)
@@ -44,10 +44,10 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     filter.pvalue <- vec.pvalue[vec.qvalue < 0.05]
     cutoff.lgp <- -log10(max(filter.pvalue))
     # combine p value
-    df.pvalue <- df.bed[, col.pvalue]
+    df.col.pvalue <- df.bed[, col.pvalue]
     # print(cutoff.lgp)
     vec.combine.lgp <- 
-        unlist(alply(.data = df.pvalue, .margins = 1, .fun = fisher.combine, 
+        unlist(alply(.data = df.col.pvalue, .margins = 1, .fun = fisher.combine, 
                       cutoff.lgp = cutoff.lgp))
     df.bed$p.combine <- vec.combine.lgp
     # combine score

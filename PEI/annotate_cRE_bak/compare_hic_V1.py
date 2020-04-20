@@ -169,7 +169,7 @@ def annotate_hic(file_cre, file_hic, file_out):
               f"grep -w 'Promoter\\|Enhancer' | "
               f"bedtools sort -i > {file_intersect_bin2}")
 
-    def merge_bin(df_in):
+    def _merge_bin(df_in):
         dhs_ids = ','.join(df_in[4].tolist())
         cres = ','.join(df_in[5].tolist())
         promoters = ','.join(df_in[6].tolist())
@@ -182,10 +182,10 @@ def annotate_hic(file_cre, file_hic, file_out):
 
     df_intersect_bin1 = pd.read_csv(file_intersect_bin1, sep='\t', header=None)
     df_intersect_bin1 = df_intersect_bin1.rename(columns={3: 'key'})
-    df_merge_bin1 = df_intersect_bin1.groupby('key').apply(merge_bin)
+    df_merge_bin1 = df_intersect_bin1.groupby('key').apply(_merge_bin)
     df_intersect_bin2 = pd.read_csv(file_intersect_bin2, sep='\t', header=None)
     df_intersect_bin2 = df_intersect_bin2.rename(columns={3: 'key'})
-    df_merge_bin2 = df_intersect_bin2.groupby('key').apply(merge_bin)
+    df_merge_bin2 = df_intersect_bin2.groupby('key').apply(_merge_bin)
     df_bin1 = pd.read_csv(file_bin1, sep='\t', header=None)
     df_bin2 = pd.read_csv(file_bin2, sep='\t', header=None)
     df_res_bin1 = pd.merge(df_bin1, df_merge_bin1,
@@ -243,11 +243,11 @@ def sub_stat(egenes, eqtl_file, dict_in):
                             [pattern_gene.search(val).group()[:-2]
                              for val in promoters2 if val != '.'])
                         for i, dhs_id in enumerate(dhs_ids1):
-                            dict_pro1 = dict(gene=genes1, dhs_id=dhs_id,
+                            dict_pro1 = dict(gene=genes2, dhs_id=dhs_id,
                                              cre_type=cres1[i])
                             w_out.write(fmt.format(**dict_pro1))
                         for i, dhs_id in enumerate(dhs_ids2):
-                            dict_pro2 = dict(gene=genes2, dhs_id=dhs_id,
+                            dict_pro2 = dict(gene=genes1, dhs_id=dhs_id,
                                              cre_type=cres2[i])
                             w_out.write(fmt.format(**dict_pro2))
                     elif ('Promoter' in set_cres1) & ('Enhancer' in set_cres2):
