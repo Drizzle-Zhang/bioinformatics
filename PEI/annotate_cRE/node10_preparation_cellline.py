@@ -27,7 +27,11 @@ def filter_meta(meta_in):
         (df_meta['Output type'] == 'peaks') &
         (df_meta['Biological replicate(s)'].apply(
             lambda x: len(str(x).split(', ')) == 1
-        )),
+        )) &
+        (df_meta['Biosample treatments'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)) &
+        (df_meta['Biosample genetic modifications methods'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
          'Biosample genetic modifications methods', 'Output type', 'Assembly',
@@ -643,7 +647,11 @@ if __name__ == '__main__':
     df_meta_h3k4me3 = df_meta_h3k4me3.loc[
         (df_meta_h3k4me3['File Status'] == 'released') &
         ((df_meta_h3k4me3['Output type'] == 'replicated peaks') |
-         (df_meta_h3k4me3['Output type'] == 'stable peaks')),
+         (df_meta_h3k4me3['Output type'] == 'stable peaks')) &
+        (df_meta_h3k4me3['Biosample treatments'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)) &
+        (df_meta_h3k4me3['Biosample genetic modifications methods'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
          'Biosample genetic modifications methods', 'Output type', 'Assembly',
@@ -681,7 +689,11 @@ if __name__ == '__main__':
     df_meta_h3k27ac = df_meta_h3k27ac.loc[
         (df_meta_h3k27ac['File Status'] == 'released') &
         ((df_meta_h3k27ac['Output type'] == 'replicated peaks') |
-         (df_meta_h3k27ac['Output type'] == 'stable peaks')),
+         (df_meta_h3k27ac['Output type'] == 'stable peaks')) &
+        (df_meta_h3k27ac['Biosample treatments'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)) &
+        (df_meta_h3k27ac['Biosample genetic modifications methods'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
          'Biosample genetic modifications methods', 'Output type', 'Assembly',
@@ -720,7 +732,11 @@ if __name__ == '__main__':
         (df_meta_ctcf['File Status'] == 'released') &
         ((df_meta_ctcf['Output type'] == 'optimal IDR thresholded peaks') |
          (df_meta_ctcf['Output type'] ==
-          'pseudoreplicated IDR thresholded peaks')),
+          'pseudoreplicated IDR thresholded peaks')) &
+        (df_meta_ctcf['Biosample treatments'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)) &
+        (df_meta_ctcf['Biosample genetic modifications methods'].apply(
+            lambda x: np.isnan(x) if isinstance(x, float) else False)),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
          'Biosample genetic modifications methods', 'Output type', 'Assembly',

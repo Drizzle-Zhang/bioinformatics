@@ -41,15 +41,31 @@ def sub_annotate_promoter(dict_in):
                                    shell=True).strip()).split(' ')[0][2:])
     len_pro = int(str(check_output(f"wc -l {file_promoter}",
                                    shell=True).strip()).split(' ')[0][2:])
+
+    def drop_dup_promoter(x):
+        if x.shape[0] == 1:
+            return x
+        else:
+            row_out = x.iloc[0, 0:5]
+            row_out[5] = ','.join([x.iloc[i, 5] for i in range(x.shape[0])])
+            row_out[6] = \
+                ','.join([str(x.iloc[i, 6]) for i in range(x.shape[0])])
+            dict_out = row_out.to_dict()
+            row_out = pd.DataFrame(dict_out, index=[row_out[3]])
+            return row_out
+
     if len_ref == len_pro:
         file_ref = file_promoter
     else:
         file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
         file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
-        df_plus = pd.read_csv(file_promoter, sep='\t', header=None)
-        df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
-        df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
-        df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+        df_plus = pd.read_csv(file_promoter, sep='\t', header=None,
+                              dtype={6: 'str'})
+        df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == '0', :]
+        df_pn = (df_plus.loc[df_plus[df_plus.shape[1] - 1] != '0', :]).copy()
+        df_pn['key'] = df_pn[3]
+        df_pn_uniq = df_pn.groupby('key').apply(drop_dup_promoter)
+        df_pn_uniq = df_pn_uniq.drop('key', axis=1)
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
         df_uniq = pd.concat([df_0, df_pn_uniq])
         df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
@@ -85,7 +101,8 @@ def sub_annotate_promoter(dict_in):
         if len_ref == len_pro:
             file_ref = file_plus
         else:
-            df_plus = pd.read_csv(file_plus, sep='\t', header=None)
+            df_plus = pd.read_csv(file_plus, sep='\t', header=None,
+                                  dtype={6: 'str'})
             df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
             df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
             df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
@@ -408,6 +425,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
     func_integrate = partial(integrate_h3k27ac, path_out_h3k27ac)
     pool.map(func_integrate, list_input)
     pool.close()
+    print('Annotation of H3K27ac is completed!')
 
     # integrate CTCF
     os.system(f"cp {os.path.join(path_ctcf, 'metadata.simple.tsv')} "
@@ -440,6 +458,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
     func_integrate = partial(integrate_ctcf, path_ctcf)
     pool.map(func_integrate, list_input_ctcf)
     pool.close()
+    print('Annotation of CTCF is completed!')
 
     pool = Pool(processes=num_process)
     pool.map(sub_annotate_cre, list_input)
@@ -481,8 +500,7 @@ if __name__ == '__main__':
 
     # promoter reference
     promoter_file_hg19 = \
-        '/local/zy/PEI/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.merge.bed'
+        '/local/zy/PEI/origin_data/gene/promoters.up2k.protein.gencode.v19.bed'
     meta_suborgan_dhs = \
         '/local/zy/PEI/mid_data/cell_line/DHS/meta.reference.tsv'
     path_ref_promoter = '/local/zy/PEI/mid_data/cell_line/DHS/reference_map'
@@ -490,6 +508,7 @@ if __name__ == '__main__':
         path_dhs_stan, path_h3k4me3_stan,
         promoter_file_hg19, path_ref_promoter, num_cpu
     )
+    print('Annotation of promoters and H3K4me3 is completed!')
 
     # map H3K27ac to reference
     path_ctcf_stan = \
@@ -501,6 +520,7 @@ if __name__ == '__main__':
         '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
     annotate_cre(path_ref_promoter, path_h3k27ac_stan, path_ctcf_stan,
                  path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
+    print('Annotation of H3K27ac and CTCF is completed!')
 
     time_end = time()
     print(time_end - time_start)

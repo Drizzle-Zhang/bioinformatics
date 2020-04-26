@@ -47,3 +47,24 @@ plot.heatmap <- ggplot(data = df.heatmap, aes(x, y)) +
 ggsave(
     plot = plot.heatmap, path = './', filename = "Heatmap_features.png",
     units = 'cm', width = 15, height = 10)
+
+
+#################################################
+df.mtx <- read.delim('./heatmap_label4.txt', sep = '\t', stringsAsFactors = F)
+
+plot.heatmap <- ggplot(data = df.mtx, aes(label1, label2)) + 
+    geom_tile(aes(fill = score)) + 
+    scale_fill_continuous(low = "#FFFAFA", high = "#FF0000") + 
+    theme_bw() +
+    theme(
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90)
+    ) + 
+    geom_text(aes(label = round(score, 2)), size = 2)
+
+ggsave(
+    plot = plot.heatmap, path = './', filename = "Heatmap_label4.png",
+    units = 'cm', width = 35, height = 25)
