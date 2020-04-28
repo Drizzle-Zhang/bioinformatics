@@ -16,6 +16,9 @@ from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import StandardScaler
+import sys
+sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+from node10_preparation import merge_standard_bed
 
 
 def filter_meta(meta_in):
@@ -578,6 +581,24 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     return
 
 
+def merge_all_cells(path_stan):
+    df_meta = pd.read_csv(
+        os.path.join(path_stan, 'meta.reference.tsv'), sep='\t', usecols=[0])
+    accession_ids = \
+        [f"{term.replace(' ', '_').replace('/', '+')}/"
+         f"{term.replace(' ', '_').replace('/', '+')}"
+         for term in (df_meta['Biosample term name'].unique()).tolist()]
+
+    dict_merge = dict(
+        path=path_stan,
+        term_name='all_celllines',
+        accession_ids=accession_ids,
+        flank_percent=0.8)
+    merge_standard_bed(path_stan, dict_merge)
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
     # parameters
@@ -637,6 +658,10 @@ if __name__ == '__main__':
         '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
+
+    # merge dhs files from all cell lines
+    merge_all_cells(path_dhs_stan)
+    print('Merge of DHS completed!')
 
     # preparation of bed files of histone and TF
     # H3K4me3
