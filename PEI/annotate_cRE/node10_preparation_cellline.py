@@ -15,7 +15,7 @@ import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 from node10_preparation import \
     filter_meta, build_dict_attr, add_attr, hg38tohg19, \
-    merge_bed, overlap_matrix, merge_experiment, merge_standard_bed
+    merge_peak_bed, overlap_matrix, merge_experiment, merge_standard_bed
 
 
 def modify_meta(df_meta):
@@ -61,11 +61,8 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
 
-    pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in)
-    pool.map(func_merge, list_input)
-    pool.close()
-
+    merge_peak_bed(path_in, list_input)
+    
     pool = Pool(processes=num_process)
     func_overlap = partial(overlap_matrix, path_in)
     list_df = pool.map(func_overlap, list_input)
@@ -177,11 +174,11 @@ def merge_all_cells(path_stan):
          f"{term.replace(' ', '_').replace('/', '+')}"
          for term in (df_meta['Biosample term name'].unique()).tolist()]
 
-    dict_merge = dict(
+    dict_merge = [dict(
         path=path_stan,
         term_name='all_celllines',
         accession_ids=accession_ids,
-        flank_percent=0.8)
+        flank_percent=0.5)]
     merge_standard_bed(path_stan, dict_merge)
 
     return
@@ -233,7 +230,7 @@ if __name__ == '__main__':
     path_exp_dhs = \
         '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
