@@ -16,6 +16,7 @@ from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import StandardScaler
+import glob
 import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 
@@ -103,7 +104,7 @@ def filter_meta(meta_in):
             lambda x: np.isnan(x) if isinstance(x, float) else False)),
         ['File accession', 'Experiment accession', 'Biosample term id',
          'Biosample term name', 'Biosample type', 'Biosample treatments',
-         'Biosample genetic modifications methods', 'Assembly',
+         'Biosample genetic modifications methods', 'Output type', 'Assembly',
          'Biological replicate(s)', 'File Status']]
     df_meta_released.index = df_meta_released['File accession']
 
@@ -338,39 +339,15 @@ def hg38tohg19(path_hg38, path_hg19, path_meta, num_process):
     return
 
 
-def merge_bed(path_bed, dict_in):
-    flank_percent = dict_in['flank_percent']
-    term_name = dict_in['term_name']
-    path_out = dict_in['path']
-    accession_ids = dict_in['accession_ids']
-    if len(accession_ids) == 1:
-        file_in = os.path.join(path_bed, accession_ids[0] + '.bed')
-        file_out = os.path.join(path_out, f"{term_name}.bed")
-        os.system(f"cp {file_in} {file_out}")
-
-        return
-
-    # merge bed files from same term
-    col_collapse = '2,3,4,5,6,7,8,9'
-    str_collapse = \
-        ','.join([val for val in ['collapse']
-                  for i in range(len(col_collapse.split(',')))])
-    cat_out = os.path.join(path_out, f"{term_name}.bed.cat")
-    sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
-    merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
-    cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
-                       for acce_id in accession_ids])
-    os.system(f"cat {cat_in} > {cat_out}")
-    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
-    os.system(f"bedtools merge -i {sort_out} "
-              f"-c {col_collapse} -o {str_collapse} > {merge_out}")
-
+def split_merge_bed(sub_path_out, flank_percent, subfile):
     # split merge file
-    split_out = os.path.join(path_out, f"{term_name}.bed.unsort")
-    split_sort_out = os.path.join(path_out, f"{term_name}.bed.split.sort")
-    final_out = os.path.join(path_out, f"{term_name}.bed")
-    with open(merge_out, 'r') as r_f:
-        with open(split_out, 'w') as w_f:
+    _, subfile_name = os.path.split(subfile)
+    sub_split_out = os.path.join(sub_path_out, f"{subfile_name}.bed.unsort")
+    sub_split_sort_out = \
+        os.path.join(sub_path_out, f"{subfile_name}.bed.split.sort")
+    sub_final_out = os.path.join(sub_path_out, f"{subfile_name}.bed")
+    with open(subfile, 'r') as r_f:
+        with open(sub_split_out, 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{access}\t0\t.\t" \
                   "{fold_change}\t{p_value}\t-1\t0\n"
             for line in r_f:
@@ -416,11 +393,11 @@ def merge_bed(path_bed, dict_in):
                     p_value = '|'.join(map(str, select_p_value.tolist()))
                     w_f.write(fmt.format(**locals()))
 
-    os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
-    with open(final_out, 'w') as w_final:
+    os.system(f"bedtools sort -i {sub_split_out} > {sub_split_sort_out}")
+    with open(sub_final_out, 'w') as w_final:
         old_end = 0
         old_chrom = '0'
-        with open(split_sort_out, 'r') as r_sort:
+        with open(sub_split_sort_out, 'r') as r_sort:
             for line in r_sort:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -435,11 +412,153 @@ def merge_bed(path_bed, dict_in):
                 old_end = int(list_line[2])
                 old_chrom = chrom
 
+    df_final = pd.read_csv(sub_final_out, sep='\t', header=None,
+                           names=['chrom', 'start', 'end', 'access',
+                                  'score', 'strand', 'fold_change',
+                                  'p_value', 'q_value', 'center'])
+    len_df = df_final.shape[0]
+    region_length = df_final['end'] - df_final['start']
+    df_narrow = df_final.loc[region_length <= 80, :]
+    set_index = set(df_narrow.index)
+    for i in df_narrow.index:
+        if (i - 1) in set_index:
+            continue
+        if i + 1 == len_df:
+            if df_final.loc[i, 'start'] == df_final.loc[i-1, 'end'] + 1:
+                df_final.loc[i-1, 'end'] = df_final.loc[i, 'end']
+            df_final.loc[i-1, 'access'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'access']).tolist())
+            df_final.loc[i-1, 'fold_change'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'fold_change']).tolist())
+            df_final.loc[i-1, 'p_value'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'p_value']).tolist())
+            df_final = df_final.drop(i)
+            continue
+        # try:
+        #     a = (df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1)
+        # except KeyError:
+        #     print(sub_final_out)
+        #     print(i + 1 == df_final.shape[0])
+        #     print(i + 1)
+        #     print(df_final.shape[0])
+        if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
+            df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
+            df_final.loc[i+1, 'access'] = \
+                '|'.join((df_final.loc[i:i+2, 'access']).tolist())
+            df_final.loc[i+1, 'fold_change'] = \
+                '|'.join((df_final.loc[i:i+2, 'fold_change']).tolist())
+            df_final.loc[i+1, 'p_value'] = \
+                '|'.join((df_final.loc[i:i+2, 'p_value']).tolist())
+            df_final = df_final.drop(i)
+            continue
+        elif df_final.loc[i, 'start'] == df_final.loc[i-1, 'end'] + 1:
+            df_final.loc[i-1, 'end'] = df_final.loc[i, 'end']
+            df_final.loc[i-1, 'access'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'access']).tolist())
+            df_final.loc[i-1, 'fold_change'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'fold_change']).tolist())
+            df_final.loc[i-1, 'p_value'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'p_value']).tolist())
+            df_final = df_final.drop(i)
+
+    df_final.to_csv(sub_final_out, sep='\t', index=None, header=None)
+
+    return
+
+
+def pre_merge_bed(path_bed, dict_in):
+    term_name = dict_in['term_name']
+    path_out = dict_in['path']
+    accession_ids = dict_in['accession_ids']
+    if len(accession_ids) == 1:
+        file_in = os.path.join(path_bed, accession_ids[0] + '.bed')
+        file_out = os.path.join(path_out, f"{term_name}.bed")
+        os.system(f"cp {file_in} {file_out}")
+
+        return
+
+    # merge bed files from same term
+    col_collapse = '2,3,4,5,6,7,8,9'
+    str_collapse = \
+        ','.join([val for val in ['collapse']
+                  for i in range(len(col_collapse.split(',')))])
+    cat_out = os.path.join(path_out, f"{term_name}.bed.cat")
+    sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
+    merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
+    cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
+                       for acce_id in accession_ids])
+    os.system(f"cat {cat_in} > {cat_out}")
+    os.system(f"bedtools sort -i {cat_out} > {sort_out}")
+    os.system(f"bedtools merge -i {sort_out} "
+              f"-c {col_collapse} -o {str_collapse} > {merge_out}")
+
     os.remove(cat_out)
     os.remove(sort_out)
-    os.remove(merge_out)
+
+    return
+
+
+def concat_subfiles(dict_in):
+    term_name = dict_in['term_name']
+    sub_path_out = dict_in['path']
+    path_subfile_in = dict_in['path_subfile_in']
+    path_subfile_out = dict_in['path_subfile_out']
+    split_out = os.path.join(sub_path_out, f"{term_name}.bed.unsort")
+    split_sort_out = os.path.join(sub_path_out, f"{term_name}.bed")
+    cat_in = ' '.join([subfile_out for subfile_out in
+                       glob.glob(path_subfile_out + '/*.bed')])
+    os.system(f"cat {cat_in} > {split_out}")
+    os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
+
     os.remove(split_out)
-    os.remove(split_sort_out)
+    os.system(f"rm -rf {path_subfile_in} {path_subfile_out}")
+
+    return
+
+
+def merge_peak_bed(path_in, list_input):
+    pool = Pool(processes=num_cpu)
+    func_merge = partial(pre_merge_bed, path_in)
+    pool.map(func_merge, list_input)
+    pool.close()
+    print("Preparing merge bed is completed!")
+
+    list_path_subout = []
+    for dict_in in list_input:
+        accession_ids = dict_in['accession_ids']
+        if len(accession_ids) == 1:
+            continue
+        flank_percent = dict_in['flank_percent']
+        term_name = dict_in['term_name']
+        sub_path_out = dict_in['path']
+        merge_out = os.path.join(sub_path_out, f"{term_name}.bed.merge")
+
+        path_subfile_in = \
+            os.path.join(sub_path_out, f'{term_name}_subfiles_in')
+        if not os.path.exists(path_subfile_in):
+            os.mkdir(path_subfile_in)
+        path_subfile_out = \
+            os.path.join(sub_path_out, f'{term_name}_subfiles_out')
+        if not os.path.exists(path_subfile_out):
+            os.mkdir(path_subfile_out)
+        dict_in['path_subfile_in'] = path_subfile_in
+        dict_in['path_subfile_out'] = path_subfile_out
+        list_path_subout.append(dict_in)
+        os.system(f"split -a 4 -d -l 10000 {merge_out} "
+                  f"{path_subfile_in}/subfile")
+        os.remove(merge_out)
+
+        subfiles_in = glob.glob(path_subfile_in + '/*')
+        pool = Pool(processes=num_cpu)
+        func_split = partial(split_merge_bed, path_subfile_out, flank_percent)
+        pool.map(func_split, subfiles_in)
+        pool.close()
+    print("Spliting merge bed is completed!")
+
+    pool = Pool(processes=num_cpu)
+    pool.map(concat_subfiles, list_path_subout)
+    pool.close()
+    print("Concating is completed!")
 
     return
 
@@ -505,7 +624,7 @@ def overlap_matrix(path_in, dict_in):
         return df_out
 
 
-def merge_experiment(path_in, path_out, flank_percent, num_process):
+def merge_experiment(path_in, path_out, flank_percent):
     # integrate accession files from same experiment to a single file
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
@@ -528,12 +647,9 @@ def merge_experiment(path_in, path_out, flank_percent, num_process):
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
 
-    pool = Pool(processes=num_process)
-    func_merge = partial(merge_bed, path_in)
-    pool.map(func_merge, list_input)
-    pool.close()
+    merge_peak_bed(path_in, list_input)
 
-    pool = Pool(processes=num_process)
+    pool = Pool(processes=num_cpu)
     func_overlap = partial(overlap_matrix, path_in)
     list_df = pool.map(func_overlap, list_input)
     pool.close()
@@ -771,6 +887,7 @@ def merge_standard_bed(path_bed, dict_in):
                 array_accessions = np.array(
                     [num for num in list_line[7].strip().split(',')])
                 array_length = array_end - array_start
+                list_dict = []
                 while array_length.shape[0] > 0:
                     idx = np.argmax(array_length)
                     start_idx = array_start[idx]
@@ -794,30 +911,67 @@ def merge_standard_bed(path_bed, dict_in):
                     start = str(np.min(select_start))
                     end = str(np.max(select_end))
                     dhs_id = f"DHS<-{chrom}:{start}-{end}"
-                    label = \
-                        '/'.join(map(str, select_label.tolist()))
+                    label = '/'.join(map(str, select_label.tolist()))
                     score = str(np.max(select_p_value.tolist()))
                     accessions = '|'.join(map(str, select_accessions.tolist()))
                     w_f.write(fmt.format(**locals()))
 
     os.system(f"bedtools sort -i {split_out} > {split_sort_out}")
-    with open(final_out, 'w') as w_final:
-        old_end = 0
-        old_chrom = '0'
-        with open(split_sort_out, 'r') as r_sort:
-            for line in r_sort:
-                list_line = line.strip().split('\t')
-                chrom = list_line[0]
-                if chrom != old_chrom:
-                    old_end = 0
-                start = int(list_line[1])
-                if start > old_end:
-                    w_final.write(line)
-                else:
-                    list_line[1] = str(old_end + 1)
-                    w_final.write('\t'.join(list_line) + '\n')
-                old_end = int(list_line[2])
-                old_chrom = chrom
+
+    old_end = 0
+    old_chrom = '0'
+    w_final = open(final_out, 'w')
+    with open(split_sort_out, 'r') as r_sort:
+        for line in r_sort:
+            list_line = line.strip().split('\t')
+            chrom = list_line[0]
+            if chrom != old_chrom:
+                old_end = 0
+            start = int(list_line[1])
+            if start > old_end:
+                w_final.write(line)
+            else:
+                list_line[1] = str(old_end + 1)
+                list_line[3] = \
+                    f"DHS<-{chrom}:{list_line[1]}-{list_line[2]}"
+                w_final.write('\t'.join(list_line) + '\n')
+            old_end = int(list_line[2])
+            old_chrom = chrom
+
+    df_final = pd.read_csv(final_out, sep='\t', header=None,
+                           names=['chrom', 'start', 'end', 'dhs_id', 'score',
+                                  'strand', 'label', 'accessions'])
+    region_length = df_final['end'] - df_final['start']
+    df_narrow = df_final.loc[region_length <= 120, :]
+    set_index = set(df_narrow.index)
+    for i in df_narrow.index:
+        if (i - 1) in set_index:
+            continue
+        if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
+            df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
+            df_final.loc[i+1, 'dhs_id'] = \
+                f"DHS<-{df_final.loc[i, 'chrom']}:" \
+                f"{df_final.loc[i+1, 'start']}-{df_final.loc[i+1, 'end']}"
+            df_final.loc[i+1, 'score'] = np.max(df_final.loc[i:i+2, 'score'])
+            df_final.loc[i+1, 'label'] = \
+                '/'.join((df_final.loc[i:i+2, 'label']).tolist())
+            df_final.loc[i+1, 'accessions'] = \
+                '|'.join((df_final.loc[i:i+2, 'accessions']).tolist())
+            df_final = df_final.drop(i)
+            continue
+        elif df_final.loc[i, 'start'] == df_final.loc[i-1, 'end'] + 1:
+            df_final.loc[i-1, 'end'] = df_final.loc[i, 'end']
+            df_final.loc[i-1, 'dhs_id'] = \
+                f"DHS<-{df_final.loc[i, 'chrom']}:" \
+                f"{df_final.loc[i-1, 'start']}-{df_final.loc[i-1, 'end']}"
+            df_final.loc[i-1, 'score'] = np.max(df_final.loc[i-1:i+1, 'score'])
+            df_final.loc[i-1, 'label'] = \
+                '/'.join((df_final.loc[i-1:i+1, 'label']).tolist())
+            df_final.loc[i-1, 'accessions'] = \
+                '|'.join((df_final.loc[i-1:i+1, 'accessions']).tolist())
+            df_final = df_final.drop(i)
+
+    df_final.to_csv(final_out, sep='\t', index=None, header=None)
 
     os.remove(cat_out)
     os.remove(sort_out)
@@ -902,7 +1056,7 @@ def sub_merge(dict_in):
             path=sub_path_out,
             term_name=life_organ.replace(' ', '_'),
             accession_ids=accession_ids,
-            flank_percent=0.6)
+            flank_percent=0.5)
         merge_standard_bed(sub_path_in, dict_merge)
         labels = [f"{sub_dict['Biosample organ']}|"
                   f"{sub_dict['Biosample life stage']}|"
@@ -1056,7 +1210,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
         path=path_out,
         term_name='all_organs',
         accession_ids=accession_ids,
-        flank_percent=0.8)
+        flank_percent=0.5)
     merge_standard_bed(path_out, dict_merge)
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
@@ -1185,7 +1339,7 @@ def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    num_cpu = 40
+    num_cpu = 60
     # get bed file annotating protein-coding genes
     gtf_file_hg19 = \
         '/local/zy/PEI/origin_data/ENCODE/gencode.v19.annotation.gtf'
@@ -1253,7 +1407,7 @@ if __name__ == '__main__':
     path_exp_dhs = \
         '/local/zy/PEI/mid_data/tissue/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.4, num_cpu)
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
