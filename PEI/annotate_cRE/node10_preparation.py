@@ -516,8 +516,8 @@ def concat_subfiles(dict_in):
     return
 
 
-def merge_peak_bed(path_in, list_input):
-    pool = Pool(processes=num_cpu)
+def merge_peak_bed(path_in, list_input, num_process):
+    pool = Pool(processes=num_process)
     func_merge = partial(pre_merge_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
@@ -549,13 +549,13 @@ def merge_peak_bed(path_in, list_input):
         os.remove(merge_out)
 
         subfiles_in = glob.glob(path_subfile_in + '/*')
-        pool = Pool(processes=num_cpu)
+        pool = Pool(processes=num_process)
         func_split = partial(split_merge_bed, path_subfile_out, flank_percent)
         pool.map(func_split, subfiles_in)
         pool.close()
     print("Spliting merge bed is completed!")
 
-    pool = Pool(processes=num_cpu)
+    pool = Pool(processes=num_process)
     pool.map(concat_subfiles, list_path_subout)
     pool.close()
     print("Concating is completed!")
@@ -624,7 +624,7 @@ def overlap_matrix(path_in, dict_in):
         return df_out
 
 
-def merge_experiment(path_in, path_out, flank_percent):
+def merge_experiment(path_in, path_out, flank_percent, num_process):
     # integrate accession files from same experiment to a single file
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
@@ -647,9 +647,9 @@ def merge_experiment(path_in, path_out, flank_percent):
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
 
-    merge_peak_bed(path_in, list_input)
+    merge_peak_bed(path_in, list_input, num_process)
 
-    pool = Pool(processes=num_cpu)
+    pool = Pool(processes=num_process)
     func_overlap = partial(overlap_matrix, path_in)
     list_df = pool.map(func_overlap, list_input)
     pool.close()
@@ -729,7 +729,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                      accession_ids=accession_ids,
                      flank_percent=flank_percent))
 
-    merge_peak_bed(path_in, list_input)
+    merge_peak_bed(path_in, list_input, num_process)
 
     pool = Pool(processes=num_process)
     func_overlap = partial(overlap_matrix, path_in)
@@ -857,7 +857,7 @@ def pre_merge_stan_bed(path_bed, dict_in):
     sort_out = os.path.join(path_out, f"{term_name}.bed.sort")
     merge_out = os.path.join(path_out, f"{term_name}.bed.merge")
     cat_in = ' '.join([os.path.join(path_bed, acce_id + '.bed')
-                       for acce_id in dict_in['accession_ids']])
+                       for acce_id in accession_ids])
     os.system(f"cat {cat_in} > {cat_out}")
     os.system(f"bedtools sort -i {cat_out} > {sort_out}")
     # os.system(f"sort -k 1,1 -k2,2n {cat_out} > {sort_out}")
@@ -1005,8 +1005,8 @@ def split_merge_stan_bed(sub_path_out, flank_percent, subfile):
     return
 
 
-def merge_standard_bed(path_in, list_input):
-    pool = Pool(processes=num_cpu)
+def merge_standard_bed(path_in, list_input, num_process):
+    pool = Pool(processes=num_process)
     func_merge = partial(pre_merge_stan_bed, path_in)
     pool.map(func_merge, list_input)
     pool.close()
@@ -1038,14 +1038,14 @@ def merge_standard_bed(path_in, list_input):
         os.remove(merge_out)
 
         subfiles_in = glob.glob(path_subfile_in + '/*')
-        pool = Pool(processes=num_cpu)
+        pool = Pool(processes=num_process)
         func_split = partial(
             split_merge_stan_bed, path_subfile_out, flank_percent)
         pool.map(func_split, subfiles_in)
         pool.close()
     print("Spliting merge bed is completed!")
 
-    pool = Pool(processes=num_cpu)
+    pool = Pool(processes=num_process)
     pool.map(concat_subfiles, list_path_subout)
     pool.close()
     print("Concating is completed!")
@@ -1089,6 +1089,7 @@ def sub_merge(dict_in):
     life_organ = dict_in['life_organ']
     bool_accession = dict_in['bool_accession']
     bool_plot = dict_in['bool_plot']
+    num_process = dict_in['num_process']
     file_out = \
         os.path.join(sub_path_out, life_organ.replace(' ', '_') + '.bed')
     if os.path.exists(sub_path_out):
@@ -1128,7 +1129,7 @@ def sub_merge(dict_in):
             term_name=life_organ.replace(' ', '_'),
             accession_ids=accession_ids,
             flank_percent=0.5)]
-        merge_standard_bed(sub_path_in, dict_merge)
+        merge_standard_bed(sub_path_in, dict_merge, num_process)
         labels = [f"{sub_dict['Biosample organ']}|"
                   f"{sub_dict['Biosample life stage']}|"
                   f"{sub_dict['Biosample term name']}"
@@ -1244,7 +1245,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
 
     life_organs = list(set(df_meta_ref['Biosample life_organ'].tolist()))
 
-    list_input = []
+    list_df = []
     for life_organ in life_organs:
         sub_ref_meta = df_meta_ref.loc[
                    df_meta_ref['Biosample life_organ'] == life_organ, :]
@@ -1254,16 +1255,14 @@ def merge_organ_cluster(path_in, path_out, num_process,
                    (df_meta['Biosample organ'].apply(
                        lambda x: organ in x.strip().split(','))) &
                    (df_meta['Biosample life stage'] == life_stage), :]
-        list_input.append(
+        dict_in = \
             dict(sub_ref_meta=sub_ref_meta, life_organ=life_organ,
-                 sub_meta=sub_meta,
+                 sub_meta=sub_meta, num_process=num_process,
                  path_out=os.path.join(path_out, life_organ.replace(' ', '_')),
                  path_in=os.path.join(path_in, life_organ.replace(' ', '_')),
-                 bool_accession=bool_accession, bool_plot=bool_plot))
-
-    pool = Pool(processes=num_process)
-    list_df = pool.map(sub_merge, list_input)
-    pool.close()
+                 bool_accession=bool_accession, bool_plot=bool_plot)
+        sub_df = sub_merge(dict_in)
+        list_df.append(sub_df)
 
     df_overlap = pd.concat(list_df, sort=False)
     df_overlap.to_csv(os.path.join(path_out, 'overlap.txt'), sep='\t')
@@ -1282,7 +1281,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
         term_name='all_organs',
         accession_ids=accession_ids,
         flank_percent=0.5)]
-    merge_standard_bed(path_out, dict_merge)
+    merge_standard_bed(path_out, dict_merge, num_process)
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
                      sep='\t', header=None)).to_dict('records')
@@ -1377,7 +1376,7 @@ def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
     )
     life_organs = list(set(df_ref_filter['Biosample life_organ'].tolist()))
 
-    list_input = []
+    list_df = []
     for life_organ in life_organs:
         for suborgan in suborgans:
             sub_ref_meta = df_meta_ref.loc[
@@ -1388,17 +1387,15 @@ def merge_suborgan(path_in, path_out, meta_suborgan, num_process):
             path_organ = os.path.join(path_out, life_organ.replace(' ', '_'))
             path_sub_organ = os.path.join(path_organ,
                                           suborgan.replace(' ', '_'))
-            list_input.append(
+            dict_in = \
                 dict(sub_ref_meta=sub_ref_meta, life_organ=suborgan,
-                     sub_meta=sub_ref_meta,
+                     sub_meta=sub_ref_meta, num_process=num_process,
                      path_out=path_sub_organ,
                      path_in=os.path.join(path_in,
                                           life_organ.replace(' ', '_')),
-                     bool_accession=False, bool_plot=False))
-
-    pool = Pool(processes=num_process)
-    list_df = pool.map(sub_merge, list_input)
-    pool.close()
+                     bool_accession=False, bool_plot=False)
+            sub_df = sub_merge(dict_in)
+            list_df.append(sub_df)
 
     df_overlap = pd.concat(list_df, sort=False)
     df_overlap.to_csv(os.path.join(path_out, 'overlap.suborgan.txt'), sep='\t')
@@ -1478,7 +1475,7 @@ if __name__ == '__main__':
     path_exp_dhs = \
         '/local/zy/PEI/mid_data/tissue/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5)
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
