@@ -140,7 +140,7 @@ def add_attr(df_meta, dict_attr, column_name):
 def modify_meta(df_meta, set_ref, df_com):
     # only select tissue data
     df_meta = df_meta.loc[df_meta['Biosample type'] == 'tissue', :]
-    rows1 = df_meta.shape[0]
+    # rows1 = df_meta.shape[0]
 
     # reference organs
     df_meta_nan = df_meta.loc[df_meta['Biosample organ'] == '', :]
@@ -149,7 +149,7 @@ def modify_meta(df_meta, set_ref, df_com):
                            on=['Biosample term id', 'Biosample term name'])
     df_meta = df_meta.loc[df_meta['Biosample organ'] != '', :]
     df_meta = pd.concat([df_meta, df_meta_nan], sort=False)
-    rows2 = df_meta.shape[0]
+    # rows2 = df_meta.shape[0]
     # assert rows1 == rows2
     organs = df_meta['Biosample organ'].tolist()
     new_organs = []
@@ -1345,7 +1345,8 @@ def merge_organ_cluster(path_in, path_out, num_process,
     #
     # df_overlap = pd.DataFrame(list_out)
     # df_overlap.to_csv(
-    #     os.path.join(path_out, 'all_organs_overlap.txt'), sep='\t', index=None
+    #     os.path.join(path_out, 'all_organs_overlap.txt'),
+    #     sep='\t', index=None
     # )
     # print("Overlap ratio ---- completed!")
 

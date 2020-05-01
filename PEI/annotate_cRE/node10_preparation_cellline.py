@@ -61,7 +61,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
 
-    merge_peak_bed(path_in, list_input)
+    merge_peak_bed(path_in, list_input, num_process)
     
     pool = Pool(processes=num_process)
     func_overlap = partial(overlap_matrix, path_in)
@@ -166,7 +166,7 @@ def standardize_bed(path_in, path_out, type_bed, num_process):
     return
 
 
-def merge_all_cells(path_stan):
+def merge_all_cells(path_stan, num_process):
     df_meta = pd.read_csv(
         os.path.join(path_stan, 'meta.reference.tsv'), sep='\t', usecols=[0])
     accession_ids = \
@@ -179,7 +179,7 @@ def merge_all_cells(path_stan):
         term_name='all_celllines',
         accession_ids=accession_ids,
         flank_percent=0.5)]
-    merge_standard_bed(path_stan, dict_merge)
+    merge_standard_bed(path_stan, dict_merge, num_process)
 
     return
 
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     path_exp_dhs = \
         '/local/zy/PEI/mid_data/cell_line/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5)
+    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     print('Standardization of DHS completed!')
 
     # merge dhs files from all cell lines
-    merge_all_cells(path_dhs_stan)
+    merge_all_cells(path_dhs_stan, num_cpu)
     print('Merge of DHS completed!')
 
     # preparation of bed files of histone and TF
