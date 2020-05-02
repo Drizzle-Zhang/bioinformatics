@@ -189,6 +189,8 @@ def modify_meta(df_meta, set_ref, df_com):
 
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
+    file_hg19_unsort = \
+        os.path.join(path_hg19, dict_in['File accession'] + '.unsort.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
     set_chroms = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
                   'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
@@ -200,7 +202,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
-        with open(file_hg19, 'w') as w_f:
+        with open(file_hg19_unsort, 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
                   "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
             with open(file_hg38, 'r') as r_hg38:
@@ -217,11 +219,12 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                         q_value=list_line[8], peak_location=list_line[9]
                     )
                     w_f.write(fmt.format(**dict_hg19))
-        df_bed = pd.read_csv(file_hg19, sep='\t', header=None)
+        df_bed = pd.read_csv(file_hg19_unsort, sep='\t', header=None)
         scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
         scale_scores = StandardScaler().fit_transform(scores)
         df_bed.iloc[:, 6] = scale_scores
-        df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
+        df_bed = df_bed.drop_duplicates([0, 1, 2])
+        df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
 
     if dict_in['Assembly'] == 'GRCh38':
         file_hg38_labeled = file_hg38 + '.labeled'
@@ -280,7 +283,8 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
         scale_scores = StandardScaler().fit_transform(scores)
         df_bed.iloc[:, 6] = scale_scores
-        df_bed.to_csv(file_hg19, sep='\t', index=None, header=None)
+        df_bed = df_bed.drop_duplicates([0, 1, 2])
+        df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
 
         os.remove(file_hg38_labeled)
         os.remove(file_ummap)
@@ -288,6 +292,9 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         os.remove(file_suffix)
         os.remove(file_hg19_prefix)
         os.remove(file_hg19_format)
+
+    os.remove(file_hg19_unsort)
+    os.system(f"bedtools sort -i {file_hg19_unsort} > {file_hg19}")
 
     return
 
@@ -776,16 +783,19 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
             path_out, f"{life_organ.replace(' ', '_')}/{term_name}"
         )
         file_in = os.path.join(path_in, file)
+        file_out_unsort = os.path.join(path_out, file + '.unsort')
         file_out = os.path.join(path_out, file)
         # make folder
         if not os.path.exists(folder3):
             os.mkdir(folder3)
     else:
         file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+        file_out_unsort = \
+            os.path.join(path_out, dict_in['File accession'] + '.unsort.bed')
         file_out = os.path.join(path_out, dict_in['File accession'] + '.bed')
 
     with open(file_in, 'r') as r_f:
-        with open(file_out, 'w') as w_f:
+        with open(file_out_unsort, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\t" \
                       "{file_label}\t{accessions}\n"
             fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
@@ -804,6 +814,8 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                 else:
                     pvalue = list_line[7]
                     w_f.write(fmt_histone.format(**locals()))
+
+    os.system(f"bedtools sort -i {file_out_unsort} {file_out}")
 
     return
 
