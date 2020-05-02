@@ -18,14 +18,14 @@ from node10_preparation import merge_standard_bed
 
 
 def merge_cell_tissue():
-    dict_merge = dict(
+    dict_merge = [dict(
         path=path_dhs_merge,
         term_name='all_cellline_tissue',
         accession_ids=
         ['cell_line/DHS/GRCh38tohg19_standard/all_celllines',
          'tissue/DHS/GRCh38tohg19_cluster/all_organs'],
-        flank_percent=1.0)
-    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge)
+        flank_percent=1.0)]
+    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, 20)
 
     file_merge = os.path.join(path_dhs_merge, 'all_cellline_tissue.bed')
     file_merge_index = os.path.join(path_dhs_merge, 'all_index.txt')

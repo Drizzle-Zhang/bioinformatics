@@ -426,13 +426,13 @@ def split_merge_bed(sub_path_out, flank_percent, subfile):
         if i + 1 == len_df:
             if df_final.loc[i, 'start'] == df_final.loc[i-1, 'end'] + 1:
                 df_final.loc[i-1, 'end'] = df_final.loc[i, 'end']
-            df_final.loc[i-1, 'access'] = \
-                '|'.join((df_final.loc[i-1:i+1, 'access']).tolist())
-            df_final.loc[i-1, 'fold_change'] = \
-                '|'.join((df_final.loc[i-1:i+1, 'fold_change']).tolist())
-            df_final.loc[i-1, 'p_value'] = \
-                '|'.join((df_final.loc[i-1:i+1, 'p_value']).tolist())
-            df_final = df_final.drop(i)
+                df_final.loc[i-1, 'access'] = \
+                    '|'.join((df_final.loc[i-1:i+1, 'access']).tolist())
+                df_final.loc[i-1, 'fold_change'] = \
+                    '|'.join((df_final.loc[i-1:i+1, 'fold_change']).tolist())
+                df_final.loc[i-1, 'p_value'] = \
+                    '|'.join((df_final.loc[i-1:i+1, 'p_value']).tolist())
+                df_final = df_final.drop(i)
             continue
         # try:
         #     a = (df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1)
@@ -441,6 +441,17 @@ def split_merge_bed(sub_path_out, flank_percent, subfile):
         #     print(i + 1 == df_final.shape[0])
         #     print(i + 1)
         #     print(df_final.shape[0])
+        if i == 0:
+            if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
+                df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
+                df_final.loc[i+1, 'access'] = \
+                    '|'.join((df_final.loc[i:i+2, 'access']).tolist())
+                df_final.loc[i+1, 'fold_change'] = \
+                    '|'.join((df_final.loc[i:i+2, 'fold_change']).tolist())
+                df_final.loc[i+1, 'p_value'] = \
+                    '|'.join((df_final.loc[i:i+2, 'p_value']).tolist())
+                df_final = df_final.drop(i)
+            continue
         if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
             df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
             df_final.loc[i+1, 'access'] = \
@@ -959,15 +970,15 @@ def split_merge_stan_bed(sub_path_out, flank_percent, subfile):
         if i + 1 == len_df:
             if df_final.loc[i, 'start'] == df_final.loc[i-1, 'end'] + 1:
                 df_final.loc[i-1, 'end'] = df_final.loc[i, 'end']
-            df_final.loc[i-1, 'dhs_id'] = \
-                f"DHS<-{df_final.loc[i, 'chrom']}:" \
-                f"{df_final.loc[i-1, 'start']}-{df_final.loc[i-1, 'end']}"
-            df_final.loc[i-1, 'score'] = np.max(df_final.loc[i-1:i+1, 'score'])
-            df_final.loc[i-1, 'label'] = \
-                '/'.join((df_final.loc[i-1:i+1, 'label']).tolist())
-            df_final.loc[i-1, 'accessions'] = \
-                '|'.join((df_final.loc[i-1:i+1, 'accessions']).tolist())
-            df_final = df_final.drop(i)
+                df_final.loc[i-1, 'dhs_id'] = \
+                    f"DHS<-{df_final.loc[i, 'chrom']}:" \
+                    f"{df_final.loc[i-1, 'start']}-{df_final.loc[i-1, 'end']}"
+                df_final.loc[i-1, 'score'] = np.max(df_final.loc[i-1:i+1, 'score'])
+                df_final.loc[i-1, 'label'] = \
+                    '/'.join((df_final.loc[i-1:i+1, 'label']).tolist())
+                df_final.loc[i-1, 'accessions'] = \
+                    '|'.join((df_final.loc[i-1:i+1, 'accessions']).tolist())
+                df_final = df_final.drop(i)
             continue
         # try:
         #     a = (df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1)
@@ -976,6 +987,19 @@ def split_merge_stan_bed(sub_path_out, flank_percent, subfile):
         #     print(i + 1 == df_final.shape[0])
         #     print(i + 1)
         #     print(df_final.shape[0])
+        if i == 0:
+            if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
+                df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
+                df_final.loc[i+1, 'dhs_id'] = \
+                    f"DHS<-{df_final.loc[i, 'chrom']}:" \
+                    f"{df_final.loc[i+1, 'start']}-{df_final.loc[i+1, 'end']}"
+                df_final.loc[i+1, 'score'] = np.max(df_final.loc[i:i+2, 'score'])
+                df_final.loc[i+1, 'label'] = \
+                    '/'.join((df_final.loc[i:i+2, 'label']).tolist())
+                df_final.loc[i+1, 'accessions'] = \
+                    '|'.join((df_final.loc[i:i+2, 'accessions']).tolist())
+                df_final = df_final.drop(i)
+            continue
         if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
             df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
             df_final.loc[i+1, 'dhs_id'] = \
@@ -1281,7 +1305,7 @@ def merge_organ_cluster(path_in, path_out, num_process,
         term_name='all_organs',
         accession_ids=accession_ids,
         flank_percent=0.5)]
-    merge_standard_bed(path_out, dict_merge, num_process)
+    merge_standard_bed(path_out, dict_merge, num_process=20)
     list_bed = \
         (pd.read_csv(os.path.join(path_out, 'all_organs.bed'),
                      sep='\t', header=None)).to_dict('records')
