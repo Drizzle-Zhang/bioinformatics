@@ -293,8 +293,8 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         os.remove(file_hg19_prefix)
         os.remove(file_hg19_format)
 
-    os.remove(file_hg19_unsort)
     os.system(f"bedtools sort -i {file_hg19_unsort} > {file_hg19}")
+    os.remove(file_hg19_unsort)
 
     return
 
