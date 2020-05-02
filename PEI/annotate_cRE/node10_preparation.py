@@ -819,7 +819,8 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                     pvalue = list_line[7]
                     w_f.write(fmt_histone.format(**locals()))
 
-    os.system(f"bedtools sort -i {file_out_unsort} {file_out}")
+    os.system(f"bedtools sort -i {file_out_unsort} > {file_out}")
+    os.remove(file_out_unsort)
 
     return
 
