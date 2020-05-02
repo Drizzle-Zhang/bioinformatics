@@ -187,7 +187,7 @@ def merge_all_cells(path_stan, num_process):
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    num_cpu = 10
+    num_cpu = 40
 
     # build life stage dictionary
     path_lifestage = '/local/zy/PEI/origin_data/ENCODE/metadata/life_stage'

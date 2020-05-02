@@ -283,11 +283,11 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
         scale_scores = StandardScaler().fit_transform(scores)
         df_bed.iloc[:, 6] = scale_scores
-        if dict_in['File accession'] == 'ENCFF742USA':
-            print(df_bed.shape[0])
+        # if dict_in['File accession'] == 'ENCFF742USA':
+        #     print(df_bed.shape[0])
         df_bed = df_bed.drop_duplicates([0, 1, 2])
-        if dict_in['File accession'] == 'ENCFF742USA':
-            print(df_bed.shape[0])
+        # if dict_in['File accession'] == 'ENCFF742USA':
+        #     print(df_bed.shape[0])
         df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
 
         os.remove(file_hg38_labeled)
