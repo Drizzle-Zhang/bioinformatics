@@ -190,6 +190,10 @@ def modify_meta(df_meta, set_ref, df_com):
 def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
     file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
     file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
+    set_chroms = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
+                  'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
+                  'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19',
+                  'chr20', 'chr21', 'chr22', 'chrX', 'chrY'}
     # Download from UCSC
     file_chain = \
         '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
@@ -202,6 +206,9 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
             with open(file_hg38, 'r') as r_hg38:
                 for line in r_hg38:
                     list_line = line.strip().split('\t')
+                    chrom=list_line[0]
+                    if chrom not in set_chroms:
+                        continue
                     dict_hg19 = dict(
                         chrom=list_line[0], start=list_line[1],
                         end=list_line[2], peak_id=dict_in['File accession'],
@@ -250,6 +257,8 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
             with open(file_hg19_prefix, 'r') as r_hg19:
                 for line in r_hg19:
                     list_line = line.strip().split('\t')
+                    if chrom not in set_chroms:
+                        continue
                     list_suffix = dict_peak_score[list_line[3]][0]
                     dict_hg19 = dict(
                         chrom=list_line[0], start=list_line[1],

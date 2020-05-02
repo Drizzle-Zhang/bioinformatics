@@ -60,6 +60,8 @@ def sub_generate_index(dict_in):
     file_term = os.path.join(path_term, str_term + '.bed')
     file_intersect = os.path.join(path_term, 'intersect.txt')
     file_index = os.path.join(path_term, 'index.txt')
+    if os.path.isfile(file_index):
+        return
 
     os.system(f"bedtools intersect -a {file_term} -b {file_ref} -wao | "
               f"cut -f 4,12,13,14 > {file_intersect}")
@@ -79,10 +81,19 @@ def sub_generate_index(dict_in):
         df_pn_uniq = df_pn.groupby('key').apply(drop_dup)
         df_pn_uniq = df_pn_uniq.drop(['key', 3], axis=1)
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=0)
-        assert df_pn_uniq.shape[0] == len_term
+        # assert df_pn_uniq.shape[0] == len_term
+        if df_pn_uniq.shape[0] != len_term:
+            print(path_term)
+            df_bed = pd.read_csv(file_term, sep='\t', header=None)
+            list_bed = df_bed[3].tolist()
+            set_bed=set(df_bed[3].tolist())
+            for dhs_id in set_bed:
+                count_id = list_bed.count(dhs_id)
+                if count_id > 1:
+                    print(dhs_id)
         df_pn_uniq.to_csv(file_index, sep='\t', header=None, index=None)
 
-    os.remove(file_intersect)
+    # os.remove(file_intersect)
 
     return
 
@@ -151,6 +162,8 @@ if __name__ == '__main__':
     meta_suborgan = '/local/zy/PEI/origin_data/meta_file/meta.reference.tsv'
 
     merge_cell_tissue()
+    print(
+        'Bed file incorperating cell line and tissue data has been generated')
 
     generate_index_file()
 
