@@ -206,7 +206,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
             with open(file_hg38, 'r') as r_hg38:
                 for line in r_hg38:
                     list_line = line.strip().split('\t')
-                    chrom=list_line[0]
+                    chrom = list_line[0]
                     if chrom not in set_chroms:
                         continue
                     dict_hg19 = dict(
@@ -257,6 +257,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
             with open(file_hg19_prefix, 'r') as r_hg19:
                 for line in r_hg19:
                     list_line = line.strip().split('\t')
+                    chrom = list_line[0]
                     if chrom not in set_chroms:
                         continue
                     list_suffix = dict_peak_score[list_line[3]][0]
