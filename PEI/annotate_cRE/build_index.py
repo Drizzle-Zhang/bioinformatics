@@ -25,7 +25,7 @@ def merge_cell_tissue():
         ['cell_line/DHS/GRCh38tohg19_standard/all_celllines',
          'tissue/DHS/GRCh38tohg19_cluster/all_organs'],
         flank_percent=1.0)]
-    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, 20)
+    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, 40)
 
     file_merge = os.path.join(path_dhs_merge, 'all_cellline_tissue.bed')
     file_merge_index = os.path.join(path_dhs_merge, 'all_index.txt')

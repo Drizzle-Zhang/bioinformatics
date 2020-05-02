@@ -988,6 +988,13 @@ def split_merge_stan_bed(sub_path_out, flank_percent, subfile):
         #     print(i + 1)
         #     print(df_final.shape[0])
         if i == 0:
+            try:
+                a = (df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1)
+            except KeyError:
+                print(sub_final_out)
+                print(i)
+                print(i + 1)
+                # print(df_final.shape[0])
             if df_final.loc[i, 'end'] == df_final.loc[i+1, 'start'] - 1:
                 df_final.loc[i+1, 'start'] = df_final.loc[i, 'start']
                 df_final.loc[i+1, 'dhs_id'] = \
