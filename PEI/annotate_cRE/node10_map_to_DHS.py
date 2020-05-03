@@ -135,6 +135,8 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_h3k4me3, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
 
     df_ref_histone = pd.read_csv(ref_histone, sep='\t')
     df_ref_histone = df_ref_histone.fillna('single')
@@ -156,6 +158,7 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
     life_organs = list(set(df_ref_histone['Biosample life_organ'].tolist()))
 
     list_input = []
+    list_ref = []
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
         sub_ref_histone = df_ref_histone.loc[
@@ -201,6 +204,11 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
                     path_h3k4me3=path_h3k4me3, sub_h3k4me3=suborgan_h3k4me3,
                     loc_promoter=loc_promoter)
                 )
+                list_ref.append(
+                    {'Biosample life_organ': life_organ,
+                     'Biosample suborgan': suborgan,
+                     'Biosample term name': 'empty',
+                     'file_ref_dhs': file_dhs_suborgan, 'Level': 'suborgan'})
             else:
                 path_suborgan = path_life_organ
             if not os.path.exists(path_suborgan):
@@ -241,6 +249,15 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
                     path_h3k4me3=path_h3k4me3, sub_h3k4me3=term_h3k4me3,
                     loc_promoter=loc_promoter)
                 )
+                list_ref.append(
+                    {'Biosample life_organ': life_organ,
+                     'Biosample suborgan': suborgan,
+                     'Biosample term name': term,
+                     'file_ref_dhs': file_dhs_term, 'Level': 'term'})
+
+    df_ref_h3k4me3 = pd.DataFrame(list_ref)
+    df_ref_h3k4me3.to_csv(
+        os.path.join(path_out, 'meta.reference.tsv'), sep='\t', index=None)
 
     pool = Pool(processes=num_process)
     pool.map(sub_annotate_promoter, list_input)
@@ -584,6 +601,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     life_organs = list(set(df_merge['Biosample life_organ'].tolist()))
 
     list_input = []
+    list_ref = []
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
         sub_ref_histone = \
@@ -619,6 +637,12 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                         path_out=path_suborgan,
                         sub_h3k27ac=suborgan_h3k27ac)
                     )
+                    list_ref.append(
+                        {'Biosample life_organ': life_organ,
+                         'Biosample suborgan': suborgan,
+                         'Biosample term name': 'empty',
+                         'file_ref_h3k4me3': file_ref_suborgan,
+                         'Level': 'suborgan'})
                 else:
                     print(life_organ, suborgan)
             else:
@@ -658,6 +682,15 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                     file_ref=file_ref, path_out=path_term,
                     sub_h3k27ac=term_h3k27ac)
                 )
+                list_ref.append(
+                    {'Biosample life_organ': life_organ,
+                     'Biosample suborgan': suborgan,
+                     'Biosample term name': term,
+                     'file_ref_h3k4me3': file_ref, 'Level': 'term'})
+
+    df_ref_h3k27ac = pd.DataFrame(list_ref)
+    df_ref_h3k27ac.to_csv(
+        os.path.join(path_cre, 'meta.reference.tsv'), sep='\t', index=None)
 
     pool = Pool(processes=num_process)
     func_integrate = partial(integrate_h3k27ac, path_h3k27ac)

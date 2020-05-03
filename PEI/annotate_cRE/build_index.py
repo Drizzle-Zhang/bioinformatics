@@ -84,16 +84,16 @@ def sub_generate_index(dict_in):
         # assert df_pn_uniq.shape[0] == len_term
         if df_pn_uniq.shape[0] != len_term:
             print(path_term)
-            df_bed = pd.read_csv(file_term, sep='\t', header=None)
-            list_bed = df_bed[3].tolist()
-            set_bed=set(df_bed[3].tolist())
-            for dhs_id in set_bed:
-                count_id = list_bed.count(dhs_id)
-                if count_id > 1:
-                    print(dhs_id)
+            # df_bed = pd.read_csv(file_term, sep='\t', header=None)
+            # list_bed = df_bed[3].tolist()
+            # set_bed=set(df_bed[3].tolist())
+            # for dhs_id in set_bed:
+            #     count_id = list_bed.count(dhs_id)
+            #     if count_id > 1:
+            #         print(dhs_id)
         df_pn_uniq.to_csv(file_index, sep='\t', header=None, index=None)
 
-    # os.remove(file_intersect)
+    os.remove(file_intersect)
 
     return
 
