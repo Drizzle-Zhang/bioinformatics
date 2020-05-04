@@ -9,7 +9,6 @@ from time import time
 import pandas as pd
 import numpy as np
 import os
-from collections import defaultdict
 from multiprocessing import Pool
 from subprocess import check_output
 import sys
@@ -25,7 +24,7 @@ def merge_cell_tissue():
         ['cell_line/DHS/GRCh38tohg19_standard/all_celllines',
          'tissue/DHS/GRCh38tohg19_cluster/all_organs'],
         flank_percent=1.0)]
-    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, 40)
+    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, num_cpu)
 
     file_merge = os.path.join(path_dhs_merge, 'all_cellline_tissue.bed')
     file_merge_index = os.path.join(path_dhs_merge, 'all_index.txt')
@@ -52,6 +51,15 @@ def drop_dup(x):
         return row_out
 
 
+def calculate_score(df_in):
+    if df_in.shape[0] == 1:
+        return df_in
+    else:
+        max_score = np.max(df_in.loc[:, 1])
+        row_out = df_in.loc[df_in.loc[:, 1] == max_score, :]
+        return row_out
+
+
 def sub_generate_index(dict_in):
     str_term = dict_in['str_term']
     path_term = dict_in['path_term']
@@ -60,26 +68,27 @@ def sub_generate_index(dict_in):
     file_term = os.path.join(path_term, str_term + '.bed')
     file_intersect = os.path.join(path_term, 'intersect.txt')
     file_index = os.path.join(path_term, 'index.txt')
-    if os.path.isfile(file_index):
-        return
+    file_ref_index = os.path.join(path_term, 'ref_index.txt')
+    # if os.path.isfile(file_index):
+    #     return
 
     os.system(f"bedtools intersect -a {file_term} -b {file_ref} -wao | "
-              f"cut -f 4,12,13,14 > {file_intersect}")
+              f"cut -f 4,5,12,13,14 > {file_intersect}")
     len_term = int(str(check_output(f"wc -l {file_term}",
                                     shell=True).strip()).split(' ')[0][2:])
     len_intersect = int(str(check_output(
         f"wc -l {file_intersect}", shell=True).strip()).split(' ')[0][2:])
     if len_term == len_intersect:
-        os.system(f"cut -f 1,2,3 {file_intersect} > {file_index}")
+        os.system(f"cut -f 1,2,3,4,5 {file_intersect} > {file_index}")
     else:
         df_intersect = pd.read_csv(file_intersect, sep='\t', header=None)
-        df_0 = df_intersect.loc[df_intersect[3] == 0, :]
+        df_0 = df_intersect.loc[df_intersect[4] == 0, :]
         if df_0.shape[0] > 0:
             print('Error: ' + str_term)
-        df_pn = (df_intersect.loc[df_intersect[3] > 0, :]).copy()
+        df_pn = (df_intersect.loc[df_intersect[4] > 0, :]).copy()
         df_pn['key'] = df_pn[0]
         df_pn_uniq = df_pn.groupby('key').apply(drop_dup)
-        df_pn_uniq = df_pn_uniq.drop(['key', 3], axis=1)
+        df_pn_uniq = df_pn_uniq.drop(['key'], axis=1)
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=0)
         # assert df_pn_uniq.shape[0] == len_term
         if df_pn_uniq.shape[0] != len_term:
@@ -92,6 +101,13 @@ def sub_generate_index(dict_in):
             #     if count_id > 1:
             #         print(dhs_id)
         df_pn_uniq.to_csv(file_index, sep='\t', header=None, index=None)
+
+        df_pn_uniq = df_pn_uniq.iloc[:, 1:].copy()
+        df_pn_uniq['key1'] = df_pn_uniq[2]
+        df_ref_uniq = df_pn_uniq.groupby('key1').apply(calculate_score)
+        df_ref_uniq = df_ref_uniq.drop(['key1', 4], axis=1)
+        df_ref_uniq = df_ref_uniq.drop_duplicates()
+        df_ref_uniq.to_csv(file_ref_index, sep='\t', header=None, index=None)
 
     os.remove(file_intersect)
 
@@ -143,7 +159,7 @@ def generate_index_file():
             {'str_term': str_term, 'path_term': path_term,
              'file_ref': file_ref})
 
-    pool = Pool(processes=40)
+    pool = Pool(processes=num_cpu)
     pool.map(sub_generate_index, list_input)
     pool.close()
 
@@ -152,6 +168,7 @@ def generate_index_file():
 
 if __name__ == '__main__':
     time_start = time()
+    num_cpu = 40
     path_dhs_cell = \
         '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_cluster = \
@@ -161,7 +178,7 @@ if __name__ == '__main__':
     path_dhs_merge = '/local/zy/PEI/mid_data/database_feature/DHS_index'
     meta_suborgan = '/local/zy/PEI/origin_data/meta_file/meta.reference.tsv'
 
-    merge_cell_tissue()
+    # merge_cell_tissue()
     print(
         'Bed file incorperating cell line and tissue data has been generated')
 

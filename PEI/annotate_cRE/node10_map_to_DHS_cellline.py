@@ -25,6 +25,10 @@ def annotate_promoter_to_dhs(path_dhs, path_h3k4me3,
     if os.path.exists(path_out):
         os.system(f"rm -rf {path_out}")
     os.mkdir(path_out)
+    os.system(f"cp {os.path.join(path_h3k4me3, 'metadata.simple.tsv')} "
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
+    os.system(f"cp {os.path.join(path_h3k4me3, 'meta.reference.tsv')} "
+              f"{os.path.join(path_out, 'meta.reference.tsv')}")
 
     df_meta_h3k4me3 = pd.read_csv(
         os.path.join(path_h3k4me3, 'metadata.simple.tsv'), sep='\t'
