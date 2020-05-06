@@ -480,14 +480,16 @@ def sub_annotate_cre(dict_in):
                 p_h3k4me3 = list_line[7]
                 score_h3k27ac = list_line[8]
                 p_h3k27ac = list_line[9]
-                if (promoter_id != '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
+                if (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
+                    cre = 'Protein-Promoter(Enhancer)'
+                elif (promoter_id == '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
+                    cre = 'Other-Promoter(Enhancer)'
+                elif (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac == 0):
                     cre = 'Protein-Promoter'
-                elif (promoter_id == '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
-                    cre = 'Other-Promoter'
-                elif (promoter_id == '.') & (p_h3k4me3 == '0') & \
-                        (p_h3k27ac != '0'):
+                elif (p_h3k4me3 == 0) & (p_h3k27ac != 0):
                     cre = 'Enhancer'
                 else:
                     cre = '.'

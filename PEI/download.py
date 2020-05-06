@@ -48,7 +48,7 @@ def get_links_3div_and_download(url, path_out, num_process):
     html = etree.HTML(web_html_str)
     text = html.xpath("//*/text()")
     list_text = text[0].split('\\n')
-    # file_pattern = re.compile(r":[0-9][0-9] .+\\")
+    file_pattern = re.compile(r":[0-9][0-9] .+\\")
     ftp_links = []
     for line in list_text:
         file_tmp = line.split(' ')[-1]

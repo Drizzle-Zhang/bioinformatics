@@ -1480,8 +1480,8 @@ if __name__ == '__main__':
         'promoters.up2k.protein.gencode.v19.merge.bed'
     exon_file_hg19 = \
         '/local/zy/PEI/origin_data/gene/exon.protein.gencode.v19.bed'
-    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
-    #                    promoter_file_hg19_merge, exon_file_hg19)
+    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
+                       promoter_file_hg19_merge, exon_file_hg19)
 
     # build life stage dictionary
     path_lifestage = '/local/zy/PEI/origin_data/ENCODE/metadata/life_stage'

@@ -72,8 +72,8 @@ def sub_generate_index(dict_in):
     # if os.path.isfile(file_index):
     #     return
 
-    os.system(f"bedtools intersect -a {file_term} -b {file_ref} -wao | "
-              f"cut -f 4,5,12,13,14 > {file_intersect}")
+    os.system(f"bedtools intersect -a {file_term} -b {file_ref} -wao "
+              f"-sorted | cut -f 4,5,12,13,14 > {file_intersect}")
     len_term = int(str(check_output(f"wc -l {file_term}",
                                     shell=True).strip()).split(' ')[0][2:])
     len_intersect = int(str(check_output(
