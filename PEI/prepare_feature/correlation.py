@@ -210,9 +210,19 @@ def correlation(mat_promoter, mat_dhs, path_out):
 
     corr_files = \
         [os.path.join(path_gene, f"{gene}_corr.txt") for gene in genes]
-    cat_in = ' '.join(corr_files)
+    list_cat = []
+    for idx in range(len(corr_files)//200):
+        if idx < len(corr_files)//200:
+            sub_cat_in = ' '.join(corr_files[200*idx:200*(idx+1)])
+        else:
+            sub_cat_in = ' '.join(corr_files[200*idx:len(corr_files)])
+        sub_cat_out = os.path.join(path_out, f'sub_{i}.txt')
+        os.system(f"cat {sub_cat_in} > {sub_cat_out}")
+        list_cat.append(sub_cat_out)
+    cat_in = ' '.join(list_cat)
     cat_out = os.path.join(path_out, 'correlation.txt')
     os.system(f"cat {cat_in} > {cat_out}")
+    os.system(f"rm {' '.join(list_cat)}")
 
     return
 
