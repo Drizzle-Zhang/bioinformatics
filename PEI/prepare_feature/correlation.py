@@ -263,7 +263,7 @@ if __name__ == '__main__':
                 path_correlation, f"{name_gene}_{name_dhs}")
             if not os.path.exists(sub_path_out):
                 os.mkdir(sub_path_out)
-            # correlation(file_gene, file_dhs, sub_path_out)
+            correlation(file_gene, file_dhs, sub_path_out)
             if j == 0:
                 break
         if i == 0:
