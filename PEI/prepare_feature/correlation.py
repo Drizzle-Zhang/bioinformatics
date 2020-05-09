@@ -9,7 +9,7 @@ from time import time
 import pandas as pd
 import os
 import numpy as np
-from multiprocessing import Pool, Process
+from multiprocessing import Pool
 from functools import partial
 from scipy.stats import spearmanr, pearsonr, kendalltau
 
@@ -195,7 +195,7 @@ def correlation(mat_promoter, mat_dhs, path_out):
     df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
     list_dict = df_tmp.to_dict('records')
 
-    subprocesses = []
+    list_input = []
     for idx, dict_in in enumerate(list_dict):
         gene = dict_in['gene']
         list_dhs = dict_in['list_dhs']
@@ -205,17 +205,19 @@ def correlation(mat_promoter, mat_dhs, path_out):
         mat_dhs = df_mat_dhs.loc[list_dhs, :].T
         dict_in['vec_gene'] = vec_gene
         dict_in['mat_dhs'] = mat_dhs
-        if len(subprocesses) % num_cpu == 0:
-            for process in subprocesses:
-                process.join()
-            subprocesses = []
-        process = Process(target=calculate_corr, args=(path_gene, dict_in))
-        process.start()
+        list_input.append(dict_in)
         print(idx, gene)
-        subprocesses.append(process)
+        if len(list_input) % 200 == 0:
+            pool = Pool(num_cpu)
+            func_calc = partial(calculate_corr, path_gene)
+            pool.map(func_calc, list_input)
+            pool.close()
+            list_input = []
 
-    for process in subprocesses:
-        process.join()
+    pool = Pool(num_cpu)
+    func_calc = partial(calculate_corr, path_gene)
+    pool.map(func_calc, list_input)
+    pool.close()
 
     corr_files = \
         [os.path.join(path_gene, f"{gene}_corr.txt") for gene in genes]
@@ -263,7 +265,7 @@ if __name__ == '__main__':
                 path_correlation, f"{name_gene}_{name_dhs}")
             if not os.path.exists(sub_path_out):
                 os.mkdir(sub_path_out)
-            correlation(file_gene, file_dhs, sub_path_out)
+            # correlation(file_gene, file_dhs, sub_path_out)
             if j == 0:
                 break
         if i == 0:

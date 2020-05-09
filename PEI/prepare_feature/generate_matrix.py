@@ -20,11 +20,12 @@ def generate_promoter_file():
     df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
     df_promoter['idx'] = df_promoter.index
     df_promoter = df_promoter.loc[:, [3, 'idx']]
-    df_dhs_promoter = pd.read_csv(file_dhs_promoter, sep='\t', header=None)
-    df_dhs_promoter['gene'] = df_dhs_promoter[2].apply(
+    df_promoter['gene'] = df_promoter[3].apply(
         lambda x: x.split('<-')[0])
+    df_promoter = df_promoter.drop_duplicates(subset='gene')
+    df_dhs_promoter = pd.read_csv(file_dhs_promoter, sep='\t', header=None)
     # print(df_dhs_promoter.shape[0])
-    df_dhs_promoter = df_dhs_promoter.drop_duplicates(subset=[0, 1, 'gene'])
+    # df_dhs_promoter = df_dhs_promoter.drop_duplicates(subset=[0, 1, 'gene'])
     df_dhs_promoter = pd.merge(df_dhs_promoter, df_promoter,
                                left_on=2, right_on=3)
     # print(df_dhs_promoter.shape[0])
@@ -117,6 +118,7 @@ def dhs_matrix():
 
     df_dhs = pd.read_csv(file_matrix_dhs, sep='\t', index_col=0)
     df_dhs_promoter = pd.read_csv(file_dhs_promoter, sep='\t')
+    df_dhs_promoter = df_dhs_promoter.drop_duplicates('gene')
     df_dhs_promoter = pd.merge(
         df_dhs_promoter, df_dhs, left_on='dhs_id', right_index=True)
     df_gene_dhs = df_dhs_promoter.groupby('idx').apply(calculate_score)
