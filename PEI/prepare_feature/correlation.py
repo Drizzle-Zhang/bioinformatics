@@ -184,28 +184,29 @@ def correlation(mat_promoter, mat_dhs, path_out):
     if not os.path.exists(path_gene):
         os.mkdir(path_gene)
 
-    # pool = Pool(num_cpu)
-    # func_get_dhs = partial(get_dhs, path_gene)
-    # list_dict = pool.map(func_get_dhs, genes)
-    # pool.close()
+    pool = Pool(num_cpu)
+    func_get_dhs = partial(get_dhs, path_gene)
+    list_dict = pool.map(func_get_dhs, genes)
+    pool.close()
     #
     # # save tmp result
     # df_tmp = pd.DataFrame(list_dict)
     # df_tmp.to_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    list_dict = df_tmp.to_dict('records')
+    # df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
+    # list_dict = df_tmp.to_dict('records')
 
     list_input = []
     for idx, dict_in in enumerate(list_dict):
-        gene = dict_in['gene']
-        list_dhs = dict_in['list_dhs']
+        sub_dict = dict_in.copy()
+        gene = sub_dict['gene']
+        list_dhs = sub_dict['list_dhs']
         # tmp
-        list_dhs = list_dhs[2:-2].split("', '")
+        # list_dhs = list_dhs[2:-2].split("', '")
         vec_gene = df_mat_pro.loc[gene, :]
         mat_dhs = df_mat_dhs.loc[list_dhs, :].T
-        dict_in['vec_gene'] = vec_gene
-        dict_in['mat_dhs'] = mat_dhs
-        list_input.append(dict_in)
+        sub_dict['vec_gene'] = vec_gene
+        sub_dict['mat_dhs'] = mat_dhs
+        list_input.append(sub_dict)
         print(idx, gene)
         if len(list_input) % 200 == 0:
             pool = Pool(num_cpu)
@@ -265,11 +266,11 @@ if __name__ == '__main__':
                 path_correlation, f"{name_gene}_{name_dhs}")
             if not os.path.exists(sub_path_out):
                 os.mkdir(sub_path_out)
-            # correlation(file_gene, file_dhs, sub_path_out)
-            if j == 0:
-                break
-        if i == 0:
-            break
+            correlation(file_gene, file_dhs, sub_path_out)
+        #     if j == 0:
+        #         break
+        # if i == 0:
+        #     break
 
     time_end = time()
     print(time_end - time_start)
