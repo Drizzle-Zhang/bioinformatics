@@ -256,9 +256,9 @@ if __name__ == '__main__':
 
     path_matrix = '/local/zy/PEI/mid_data/database_feature/matrix'
     matrix_gene = ['DHS', 'H3K4me3']
-    files_gene = ['DHS_matrix.promoter.txt', 'H3K27ac_matrix.txt']
+    files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt']
     matrix_dhs = ['DHS', 'H3K27ac']
-    files_dhs = ['DHS_matrix.txt', 'H3K4me3_matrix.txt']
+    files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
 
     path_correlation = '/local/zy/PEI/mid_data/database_feature/correlation'
 
