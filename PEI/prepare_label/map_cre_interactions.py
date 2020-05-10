@@ -212,6 +212,18 @@ def prepare_interaction_data(dict_in):
         path_term, f"{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt")
     annotate_hic(file_cre, file_uniform, file_out, file_pair)
 
+    file_index = os.path.join(path_dhs_cell, f"{term}/index.txt")
+
+    df_pair = pd.read_csv(file_pair, sep='\t', header=None,
+                          names=['gene', 'dhs_id', 'type_cre', 'loop_score'])
+    df_index = pd.read_csv(file_index, sep='\t', header=None, usecols=[0, 2],
+                           names=['dhs_id', 'ref_dhs_id'])
+    df_merge_pair = pd.merge(df_pair, df_index, how='left', on='dhs_id')
+    df_merge_pair = df_merge_pair.loc[
+                    :, ['gene', 'dhs_id', 'ref_dhs_id',
+                        'type_cre', 'loop_score']]
+    df_merge_pair.to_csv(file_pair, sep='\t', index=None)
+
     return
 
 
@@ -220,9 +232,11 @@ def generate_heatmap_data(file_heatmap):
         by=['Name', 'Method', 'Source'], axis=0)
 
     def calculate_similarity(file1, file2):
-        df_1 = pd.read_csv(file1, sep='\t', header=None, usecols=[0, 1])
-        df_2 = pd.read_csv(file2, sep='\t', header=None, usecols=[0, 1])
-        df_merge = pd.merge(df_1, df_2, how='inner', on=[0, 1])
+        df_1 = pd.read_csv(file1, sep='\t', usecols=['gene', 'ref_dhs_id'])
+        df_1 = df_1.drop_duplicates()
+        df_2 = pd.read_csv(file2, sep='\t', usecols=['gene', 'ref_dhs_id'])
+        df_2 = df_2.drop_duplicates()
+        df_merge = pd.merge(df_1, df_2, how='inner', on=['gene', 'ref_dhs_id'])
         score = df_merge.shape[0] / min(df_1.shape[0], df_2.shape[0])
 
         return score
@@ -281,17 +295,16 @@ def merge_files(file_num_pair):
             file_pair = os.path.join(
                 path_term,
                 f"{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt")
-            sub_df = pd.read_csv(file_pair, sep='\t', header=None,
-                                 usecols=[0, 1, 2])
+            sub_df = pd.read_csv(file_pair, sep='\t', usecols=[0, 1, 2, 3])
             list_df.append(sub_df)
         df_cell = pd.concat(list_df)
         df_cell = df_cell.drop_duplicates()
         df_cell.to_csv(os.path.join(path_term, cell + '.txt'),
-                       sep='\t', index=None, header=None)
+                       sep='\t', index=None)
         list_out.append({'Cell line': cell, 'Num of pairs': df_cell.shape[0]})
 
-    df_heatmap = pd.DataFrame(list_out)
-    df_heatmap.to_csv(file_num_pair, sep='\t', index=None)
+    df_out = pd.DataFrame(list_out)
+    df_out.to_csv(file_num_pair, sep='\t', index=None)
 
     return
 
@@ -299,6 +312,8 @@ def merge_files(file_num_pair):
 if __name__ == '__main__':
     time_start = time()
     path_ref_cellline = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
+    path_dhs_cell = \
+        '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     path_label = \
         '/local/zy/PEI/mid_data/training_label/label_interactions_cutoff3'
 

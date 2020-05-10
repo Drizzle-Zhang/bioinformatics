@@ -1,4 +1,4 @@
-setwd('C:\\Users\\Rain_Zhang\\Desktop\\PEI\\test_data')
+setwd('C:\\Users\\zhang\\Desktop\\PEI\\test_data')
 library(ggplot2)
 
 df.mtx <- read.delim('./corr.txt', sep = '\t', stringsAsFactors = F, 
@@ -50,7 +50,7 @@ ggsave(
 
 
 #################################################
-df.mtx <- read.delim('./heatmap_label4.txt', sep = '\t', stringsAsFactors = F)
+df.mtx <- read.delim('./heatmap_label3.txt', sep = '\t', stringsAsFactors = F)
 
 plot.heatmap <- ggplot(data = df.mtx, aes(label1, label2)) + 
     geom_tile(aes(fill = score)) + 
@@ -66,5 +66,5 @@ plot.heatmap <- ggplot(data = df.mtx, aes(label1, label2)) +
     geom_text(aes(label = round(score, 2)), size = 2)
 
 ggsave(
-    plot = plot.heatmap, path = './', filename = "Heatmap_label4.png",
+    plot = plot.heatmap, path = './', filename = "Heatmap_label3.png",
     units = 'cm', width = 35, height = 25)
