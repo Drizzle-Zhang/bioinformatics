@@ -12,7 +12,7 @@ import numpy as np
 from multiprocessing import Pool
 
 
-def encode_chiapet(file_in, file_out, cutoff=3):
+def encode_chiapet(file_in, file_out, cutoff=2):
     fmt = "{chrom1}\t{start1}\t{end1}\t{chrom2}\t{start2}\t{end2}\t" \
           "{loop_id}\t{score}\n"
     with open(file_in, 'r') as r_in:
@@ -64,7 +64,7 @@ def transform_insitu(file_in, file_out):
     return
 
 
-def tang_cell_2015(file_in, file_out, cutoff=3):
+def tang_cell_2015(file_in, file_out, cutoff=2):
     with open(file_out, 'w') as w_out:
         fmt = "{chrom1}\t{start1}\t{end1}\t{chrom2}\t{start2}\t{end2}\t" \
               "{loop_id}\t{score}\n"
@@ -225,10 +225,10 @@ def uniform_file(dict_in):
 
 if __name__ == '__main__':
     time_start = time()
-    cutoff_pet = 3
+    cutoff_pet = 2
     path_origin = '/local/zy/PEI/origin_data/Chromatin_interactions/'
     path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_cutoff3'
+        '/local/zy/PEI/mid_data/training_label/label_interactions'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')

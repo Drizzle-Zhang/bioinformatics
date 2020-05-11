@@ -407,6 +407,11 @@ def h3k27ac_matrix():
     return
 
 
+def gtex_expression_matrix():
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40

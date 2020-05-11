@@ -50,7 +50,7 @@ ggsave(
 
 
 #################################################
-df.mtx <- read.delim('./heatmap_label3.txt', sep = '\t', stringsAsFactors = F)
+df.mtx <- read.delim('./heatmap_label.txt', sep = '\t', stringsAsFactors = F)
 
 plot.heatmap <- ggplot(data = df.mtx, aes(label1, label2)) + 
     geom_tile(aes(fill = score)) + 

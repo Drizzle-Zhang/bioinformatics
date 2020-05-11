@@ -295,8 +295,13 @@ def merge_files(file_num_pair):
             file_pair = os.path.join(
                 path_term,
                 f"{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt")
+            if not os.path.exists(file_pair):
+                print(file_pair)
+                continue
             sub_df = pd.read_csv(file_pair, sep='\t', usecols=[0, 1, 2, 3])
             list_df.append(sub_df)
+        if not list_df:
+            continue
         df_cell = pd.concat(list_df)
         df_cell = df_cell.drop_duplicates()
         df_cell.to_csv(os.path.join(path_term, cell + '.txt'),
@@ -315,7 +320,7 @@ if __name__ == '__main__':
     path_dhs_cell = \
         '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_cutoff3'
+        '/local/zy/PEI/mid_data/training_label/label_interactions'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')
