@@ -9,6 +9,7 @@ from time import time
 import pandas as pd
 import os
 from multiprocessing import Pool
+from subprocess import check_output
 
 
 def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
@@ -32,9 +33,13 @@ def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
               f"| cut -f 4,5,6,7,8,9,10,11,12,13,14 > {file_intersect1}")
     os.system(f"bedtools intersect -wb -a {file_intersect1} "
               f"-b {file_gene_pro} -sorted -v > {file_intersect2}")
+    len_ref = int(str(check_output(f"wc -l {file_intersect2}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    if len_ref == 0:
+        return
     df_gene_dhs = pd.read_csv(file_intersect2, sep='\t', header=None)
     distance = (df_gene_dhs[1] + df_gene_dhs[2]) / 2 - (int(start_pro) + 2000)
-    df_gene_dhs = df_gene_dhs.rename({3: 'dhs_id', 4: 'type_cre'})
+    df_gene_dhs = df_gene_dhs.rename(columns={3: 'dhs_id', 4: 'type_cre'})
     df_gene_dhs = df_gene_dhs.loc[:, ['dhs_id', 'type_cre']]
     df_merge = pd.merge(df_gene_dhs, df_index, on='dhs_id', how='left')
     df_merge['gene'] = [gene for _ in range(df_merge.shape[0])]
@@ -53,7 +58,8 @@ def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
         df_gene_corr = pd.read_csv(
             file_corr_gene, sep='\t',
             names=['gene', 'ref_dhs_id', 'Pearson', 'Spearman', 'Kendall'])
-        df_gene_corr = df_gene_corr.rename({method: folder})
+        df_gene_corr = df_gene_corr.rename(columns={method: folder})
+        df_gene_corr = df_gene_corr.loc[:, ['gene', 'ref_dhs_id', folder]]
         df_merge_corr = pd.merge(df_merge_corr, df_gene_corr,
                                  how='left', on=['gene', 'ref_dhs_id'])
 
@@ -92,7 +98,7 @@ def sub_generate_pair(dict_in):
                             w_pro.write('\t'.join(list_out) + '\n')
 
     df_pro = pd.read_csv(file_cre_pro, sep='\t', header=None)
-    genes = df_pro[6].unique().apply(lambda x: x.split('<-')[0]).tolist()
+    genes = df_pro[6].apply(lambda x: x.split('<-')[0]).unique().tolist()
 
     df_index = pd.read_csv(file_index, sep='\t', header=None,
                            usecols=[0, 2], names=['dhs_id', 'ref_dhs_id'])
@@ -107,7 +113,14 @@ def sub_generate_pair(dict_in):
             file_cre_enh, df_index, sub_path_out, folders, gene, 'Spearman')
         list_out.append(dict_out)
 
-    corr_files = [sub_dict['file_corr'] for sub_dict in list_out]
+    corr_files = [sub_dict['file_corr'] for sub_dict in list_out
+                  if sub_dict is not None]
+    # for sub_dict in list_out:
+    #     try:
+    #         a = sub_dict['file_corr']
+    #     except TypeError:
+    #         print(sub_dict)
+    #         print(sub_dict is not None)
     file_header = os.path.join(path_out, 'header.txt')
     with open(file_header, 'w') as w_header:
         list_header = \

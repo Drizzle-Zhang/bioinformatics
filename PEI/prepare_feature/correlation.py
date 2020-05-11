@@ -109,68 +109,72 @@ def correlation(file_mat_promoter, file_mat_dhs, path_out):
     col_pro = df_mat_pro.columns
     col_dhs = df_mat_dhs.columns
     col_overlap = set(col_pro).intersection(col_dhs)
-    df_mat_pro = df_mat_pro.loc[:, col_overlap]
-    df_mat_dhs = df_mat_dhs.loc[:, col_overlap]
-    genes = df_mat_pro.index
-    path_gene = os.path.join(path_out, 'gene_corr')
-    if not os.path.exists(path_gene):
-        os.mkdir(path_gene)
-
-    pool = Pool(num_cpu)
-    func_get_dhs = partial(get_dhs, path_gene)
-    list_dict = pool.map(func_get_dhs, genes)
-    pool.close()
+    file_corr_variables = os.path.join(path_out, 'variables_corr.txt')
+    with open(file_corr_variables, 'w') as w_var:
+        for var in col_overlap:
+            w_var.write(var + '\n')
+    # df_mat_pro = df_mat_pro.loc[:, col_overlap]
+    # df_mat_dhs = df_mat_dhs.loc[:, col_overlap]
+    # genes = df_mat_pro.index
+    # path_gene = os.path.join(path_out, 'gene_corr')
+    # if not os.path.exists(path_gene):
+    #     os.mkdir(path_gene)
     #
-    # # save tmp result
-    # df_tmp = pd.DataFrame(list_dict)
-    # df_tmp.to_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    # df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    # list_dict = df_tmp.to_dict('records')
-
-    list_input = []
-    for idx, dict_in in enumerate(list_dict):
-        sub_dict = dict_in.copy()
-        gene = sub_dict['gene']
-        list_dhs = sub_dict['list_dhs']
-        # tmp
-        # list_dhs = list_dhs[2:-2].split("', '")
-        vec_gene = df_mat_pro.loc[gene, :]
-        mat_dhs = df_mat_dhs.loc[list_dhs, :].T
-        sub_dict['vec_gene'] = vec_gene
-        sub_dict['mat_dhs'] = mat_dhs
-        list_input.append(sub_dict)
-        print(idx, gene)
-        if len(list_input) % 200 == 0:
-            pool = Pool(num_cpu)
-            func_calc = partial(calculate_corr, path_gene)
-            pool.map(func_calc, list_input)
-            pool.close()
-            list_input = []
-
-    pool = Pool(num_cpu)
-    func_calc = partial(calculate_corr, path_gene)
-    pool.map(func_calc, list_input)
-    pool.close()
-
-    corr_files = \
-        [os.path.join(path_gene, f"{gene}_corr.txt") for gene in genes]
-    list_cat = []
-    for idx in range(len(corr_files)//200):
-        if idx < len(corr_files)//200:
-            sub_cat_in = ' '.join(corr_files[200*idx:200*(idx+1)])
-        else:
-            sub_cat_in = ' '.join(corr_files[200*idx:len(corr_files)])
-        sub_cat_out = os.path.join(path_out, f'sub_{idx}.txt')
-        if os.path.isfile(sub_cat_out):
-            os.remove(sub_cat_out)
-        os.system(f"cat {sub_cat_in} > {sub_cat_out}")
-        list_cat.append(sub_cat_out)
-    cat_in = ' '.join(list_cat)
-    cat_out = os.path.join(path_out, 'correlation.txt')
-    if os.path.isfile(cat_out):
-        os.remove(cat_out)
-    os.system(f"cat {cat_in} > {cat_out}")
-    os.system(f"rm {' '.join(list_cat)}")
+    # pool = Pool(num_cpu)
+    # func_get_dhs = partial(get_dhs, path_gene)
+    # list_dict = pool.map(func_get_dhs, genes)
+    # pool.close()
+    # #
+    # # # save tmp result
+    # # df_tmp = pd.DataFrame(list_dict)
+    # # df_tmp.to_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
+    # # df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
+    # # list_dict = df_tmp.to_dict('records')
+    #
+    # list_input = []
+    # for idx, dict_in in enumerate(list_dict):
+    #     sub_dict = dict_in.copy()
+    #     gene = sub_dict['gene']
+    #     list_dhs = sub_dict['list_dhs']
+    #     # tmp
+    #     # list_dhs = list_dhs[2:-2].split("', '")
+    #     vec_gene = df_mat_pro.loc[gene, :]
+    #     mat_dhs = df_mat_dhs.loc[list_dhs, :].T
+    #     sub_dict['vec_gene'] = vec_gene
+    #     sub_dict['mat_dhs'] = mat_dhs
+    #     list_input.append(sub_dict)
+    #     print(idx, gene)
+    #     if len(list_input) % 200 == 0:
+    #         pool = Pool(num_cpu)
+    #         func_calc = partial(calculate_corr, path_gene)
+    #         pool.map(func_calc, list_input)
+    #         pool.close()
+    #         list_input = []
+    #
+    # pool = Pool(num_cpu)
+    # func_calc = partial(calculate_corr, path_gene)
+    # pool.map(func_calc, list_input)
+    # pool.close()
+    #
+    # corr_files = \
+    #     [os.path.join(path_gene, f"{gene}_corr.txt") for gene in genes]
+    # list_cat = []
+    # for idx in range(len(corr_files)//200):
+    #     if idx < len(corr_files)//200:
+    #         sub_cat_in = ' '.join(corr_files[200*idx:200*(idx+1)])
+    #     else:
+    #         sub_cat_in = ' '.join(corr_files[200*idx:len(corr_files)])
+    #     sub_cat_out = os.path.join(path_out, f'sub_{idx}.txt')
+    #     if os.path.isfile(sub_cat_out):
+    #         os.remove(sub_cat_out)
+    #     os.system(f"cat {sub_cat_in} > {sub_cat_out}")
+    #     list_cat.append(sub_cat_out)
+    # cat_in = ' '.join(list_cat)
+    # cat_out = os.path.join(path_out, 'correlation.txt')
+    # if os.path.isfile(cat_out):
+    #     os.remove(cat_out)
+    # os.system(f"cat {cat_in} > {cat_out}")
+    # os.system(f"rm {' '.join(list_cat)}")
 
     return
 
@@ -202,8 +206,8 @@ if __name__ == '__main__':
                 path_correlation, f"{name_gene}_{name_dhs}")
             if not os.path.exists(sub_path_out):
                 os.mkdir(sub_path_out)
-            if f"{name_gene}_{name_dhs}" == 'DHS_DHS':
-                continue
+            # if f"{name_gene}_{name_dhs}" == 'DHS_DHS':
+            #     continue
             correlation(file_gene, file_dhs, sub_path_out)
         #     if j == 0:
         #         break
