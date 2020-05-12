@@ -103,8 +103,42 @@ def calculate_corr(path_out, dict_in):
     return
 
 
-def correlation(file_mat_promoter, file_mat_dhs, path_out):
+def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
+                file_mat_dhs, path_out):
     df_mat_pro = pd.read_csv(file_mat_promoter, sep='\t', index_col=0)
+    if (name_gene_in == 'expression') & (name_dhs_in == 'DHS'):
+        meta_transfer_col = \
+            '/local/zy/PEI/origin_data/meta_file/meta_GTEx_DHS.txt'
+    elif (name_gene_in == 'expression') & (name_dhs_in == 'H3K27ac'):
+        meta_transfer_col = \
+            '/local/zy/PEI/origin_data/meta_file/meta_GTEx_H3K27ac.txt'
+    else:
+        meta_transfer_col = None
+    if meta_transfer_col:
+        df_meta_trans = pd.read_csv(meta_transfer_col, sep='\t')
+        df_meta_trans = df_meta_trans.loc[
+            (df_meta_trans['Biosample life stage'].apply(
+                lambda x: isinstance(x, str))) |
+            (df_meta_trans['Biosample term name'].apply(
+                lambda x: isinstance(x, str))), :]
+        col_encode = []
+        for idx in df_meta_trans.index:
+            life = df_meta_trans.loc[idx, 'Biosample life stage']
+            organ = df_meta_trans.loc[idx, 'Biosample organ']
+            term = df_meta_trans.loc[idx, 'Biosample term name']
+            suborgan = df_meta_trans.loc[idx, 'Biosample suborgan']
+            if isinstance(life, float):
+                col_encode.append(term)
+            else:
+                life_organ = f"{life}_{organ}"
+                if isinstance(term, float):
+                    col_encode.append(f"{life_organ} | {suborgan}")
+                else:
+                    col_encode.append(f"{life_organ} | {term}")
+        df_meta_trans['ENCODE tissue name'] = col_encode
+        cols_gtex = df_meta_trans['GTEx tissue name'].tolist()
+        df_mat_pro = df_mat_pro.loc[:, cols_gtex]
+        df_mat_pro.columns = col_encode
 
     df_mat_dhs = pd.read_csv(file_mat_dhs, sep='\t', index_col=0)
     col_pro = df_mat_pro.columns
@@ -210,7 +244,7 @@ if __name__ == '__main__':
                 os.mkdir(sub_path_out)
             # if f"{name_gene}_{name_dhs}" == 'DHS_DHS':
             #     continue
-            correlation(file_gene, file_dhs, sub_path_out)
+            correlation(name_gene, name_dhs, file_gene, file_dhs, sub_path_out)
         #     if j == 0:
         #         break
         # if i == 0:

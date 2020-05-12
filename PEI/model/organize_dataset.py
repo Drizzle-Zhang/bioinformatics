@@ -96,6 +96,9 @@ def build_training_set():
         df_positive = pd.merge(df_feature, df_label,
                                on=['gene', 'dhs_id', 'ref_dhs_id', 'type_cre'])
         # assert df_positive.shape[0] == df_label.shape[0]
+        print(cell)
+        print(df_label.shape[0])
+        print(df_positive.shape[0])
         df_positive['label'] = np.full(df_positive.shape[0], 1)
 
         df_feature.index = df_feature.apply(
