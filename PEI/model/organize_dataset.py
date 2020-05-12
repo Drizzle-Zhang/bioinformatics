@@ -46,21 +46,22 @@ def build_dataset(dict_in):
     file_cre_ctcf = os.path.join(path_term, "cRE.CTCF.tmp")
     os.system(f"grep -w 'Insulator' {file_cre} > {file_cre_ctcf}")
     file_ctcf_tmp = os.path.join(path_term, "CTCF.tmp")
-    os.system(f"bedtools intersect -a {file_tmp} -b {file_cre} -wao | "
-              f"cut -f 4,5,9,10,11,17 | "
-              f"grep -w 'Insulator' | uniq > {file_ctcf_tmp}")
+    os.system(f"bedtools intersect -a {file_tmp} -b {file_cre_ctcf} -wao | "
+              f"cut -f 4,5,9,10,11,17 | uniq > {file_ctcf_tmp}")
     df_ctcf = pd.read_csv(file_ctcf_tmp, sep='\t', header=None)
 
     def unique_ctcf(df_in):
         max_ctcf = np.max(df_in[5])
-        df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 4, 5]]
+        # df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 4, 5]]
+        df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 5]]
 
         return df_out
 
     df_uniq = df_ctcf.groupby([0, 1]).apply(unique_ctcf)
     df_uniq.index = list(range(df_uniq.shape[0]))
-    df_uniq.columns = \
-        ['gene', 'dhs_id', 'score_dhs_insulator', 'score_ctcf_insulator']
+    # df_uniq.columns = \
+    #     ['gene', 'dhs_id', 'score_dhs_insulator', 'score_ctcf_insulator']
+    df_uniq.columns = ['gene', 'dhs_id', 'score_ctcf_insulator']
     df_genome_ctcf = pd.merge(df_pre, df_uniq, on=['gene', 'dhs_id'],
                               how='outer')
     df_genome_ctcf = df_genome_ctcf.fillna(-10)
