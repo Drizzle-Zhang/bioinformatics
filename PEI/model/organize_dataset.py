@@ -47,13 +47,21 @@ def build_dataset(dict_in):
     os.system(f"grep -w 'Insulator' {file_cre} > {file_cre_ctcf}")
     file_ctcf_tmp = os.path.join(path_term, "CTCF.tmp")
     os.system(f"bedtools intersect -a {file_tmp} -b {file_cre_ctcf} -wao | "
-              f"cut -f 4,5,9,10,11,17 | uniq > {file_ctcf_tmp}")
-    df_ctcf = pd.read_csv(file_ctcf_tmp, sep='\t', header=None)
+              f"cut -f 4,5,9,10,11,17 > {file_ctcf_tmp}")
+    df_ctcf = pd.read_csv(file_ctcf_tmp, sep='\t', header=None, na_values='.',
+                          dtype={2: 'str', 3: 'str', 4: 'float', 5: 'float'})
 
     def unique_ctcf(df_in):
-        max_ctcf = np.max(df_in[5])
-        # df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 4, 5]]
-        df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 5]]
+        if df_in.shape[0] == 1:
+            if np.isnan(df_in.iloc[0, 5]):
+                df_in.iloc[0, 5] = -10
+                df_out = df_in.loc[:, [0, 1, 5]]
+            else:
+                df_out = df_in.loc[:, [0, 1, 5]]
+        else:
+            max_ctcf = np.max(df_in[5])
+            # df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 4, 5]]
+            df_out = df_in.loc[df_in[5] == max_ctcf, [0, 1, 5]]
 
         return df_out
 
@@ -63,10 +71,11 @@ def build_dataset(dict_in):
     #     ['gene', 'dhs_id', 'score_dhs_insulator', 'score_ctcf_insulator']
     df_uniq.columns = ['gene', 'dhs_id', 'score_ctcf_insulator']
     df_genome_ctcf = pd.merge(df_pre, df_uniq, on=['gene', 'dhs_id'],
-                              how='outer')
+                              how='left')
     df_genome_ctcf = df_genome_ctcf.fillna(-10)
 
     os.remove(file_tmp)
+    os.remove(file_cre_ctcf)
     os.remove(file_ctcf_tmp)
 
     file_out = os.path.join(path_term, "input_file.txt")
