@@ -105,6 +105,7 @@ def calculate_corr(path_out, dict_in):
 
 def correlation(file_mat_promoter, file_mat_dhs, path_out):
     df_mat_pro = pd.read_csv(file_mat_promoter, sep='\t', index_col=0)
+
     df_mat_dhs = pd.read_csv(file_mat_dhs, sep='\t', index_col=0)
     col_pro = df_mat_pro.columns
     col_dhs = df_mat_dhs.columns

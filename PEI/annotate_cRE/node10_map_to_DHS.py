@@ -542,18 +542,18 @@ def sub_annotate_cre_ctcf(dict_in):
                 score_h3k27ac = float(list_line[8])
                 p_h3k27ac = float(list_line[9])
                 score_ctcf = float(list_line[10])
-                if (promoter_id != '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
+                if (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
                     cre = 'Protein-Promoter(Enhancer)'
-                elif (promoter_id == '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
+                elif (promoter_id == '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
                     cre = 'Other-Promoter(Enhancer)'
-                elif (promoter_id != '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac == '0'):
+                elif (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac == 0):
                     cre = 'Protein-Promoter'
-                elif (p_h3k4me3 == '0') & (p_h3k27ac != '0'):
+                elif (p_h3k4me3 == 0) & (p_h3k27ac != 0):
                     cre = 'Enhancer'
-                elif (p_h3k27ac == '0') & (score_ctcf != '-10000'):
+                elif (p_h3k27ac == 0) & (score_ctcf != -10000):
                     cre = 'Insulator'
                 else:
                     cre = '.'

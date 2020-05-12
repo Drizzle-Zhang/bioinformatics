@@ -341,7 +341,7 @@ def merge_files():
         tmp_merge = os.path.join(path_term, cell + '.merge.tmp')
         df_merge.to_csv(tmp_merge, sep='\t', index=None)
         df_merge['sum'] = np.sum(df_merge.iloc[4:], axis=1)
-        file_cell = os.path.join(path_term, cell + '.merge.tmp')
+        file_cell = os.path.join(path_term, cell + '.txt')
         df_merge = df_merge.loc[df_merge['sum'] > 1,
                                 ['gene', 'dhs_id', 'ref_dhs_id', 'type_cre']]
         df_merge.to_csv(file_cell, sep='\t', index=None)
