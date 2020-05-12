@@ -228,7 +228,7 @@ if __name__ == '__main__':
     cutoff_pet = 2
     path_origin = '/local/zy/PEI/origin_data/Chromatin_interactions/'
     path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions'
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')

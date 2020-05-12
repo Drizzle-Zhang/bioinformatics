@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool
+from scipy.spatial.distance import pdist
 
 
 def get_pairs(file_in, file_out):
@@ -234,10 +235,15 @@ def generate_heatmap_data(file_heatmap):
     def calculate_similarity(file1, file2):
         df_1 = pd.read_csv(file1, sep='\t', usecols=['gene', 'ref_dhs_id'])
         df_1 = df_1.drop_duplicates()
+        df_1['score1'] = np.full(df_1.shape[0], 1)
         df_2 = pd.read_csv(file2, sep='\t', usecols=['gene', 'ref_dhs_id'])
         df_2 = df_2.drop_duplicates()
-        df_merge = pd.merge(df_1, df_2, how='inner', on=['gene', 'ref_dhs_id'])
-        score = df_merge.shape[0] / min(df_1.shape[0], df_2.shape[0])
+        df_2['score2'] = np.full(df_2.shape[0], 1)
+        df_merge = pd.merge(df_1, df_2, how='outer', on=['gene', 'ref_dhs_id'])
+        df_merge = df_merge.fillna(0)
+        # score = df_merge.shape[0] / min(df_1.shape[0], df_2.shape[0])
+        jdist = pdist((df_merge.loc[:, ['score1', 'score2']]).T, 'jaccard')[0]
+        score = 1 - jdist
 
         return score
 
@@ -274,6 +280,10 @@ def generate_heatmap_data(file_heatmap):
             list_out.append(
                 {'label1': label1, 'label2': label2,
                  'score': calculate_similarity(file_pair1, file_pair2)})
+        #     if j == 1:
+        #         break
+        # if i == 0:
+        #     break
 
     df_heatmap = pd.DataFrame(list_out)
     df_heatmap.to_csv(file_heatmap, sep='\t', index=None)
@@ -281,35 +291,76 @@ def generate_heatmap_data(file_heatmap):
     return
 
 
-def merge_files(file_num_pair):
+def merge_files():
     cell_lines = (df_meta['Biosample term name'].unique()).tolist()
-    list_out = []
+    list_cell = []
+    list_assay = []
+    list_df_assay = []
     for cell in cell_lines:
         sub_meta = df_meta.loc[df_meta['Biosample term name'] == cell, :]
         path_term = os.path.join(path_label, cell)
-        list_df = []
-        for dict_in in sub_meta.to_dict('records'):
-            method = dict_in['Method']
-            source = dict_in['Source']
-            filename = dict_in['Filename']
-            file_pair = os.path.join(
-                path_term,
-                f"{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt")
-            if not os.path.exists(file_pair):
-                print(file_pair)
+        assays = sub_meta['Assay'].unique().tolist()
+        list_assay_files = []
+        for assay in assays:
+            df_meta_assay = sub_meta.loc[sub_meta['Assay'] == assay, :]
+            file_assay = os.path.join(path_term, assay + '.txt')
+            list_df = []
+            for dict_in in df_meta_assay.to_dict('records'):
+                method = dict_in['Method']
+                source = dict_in['Source']
+                filename = dict_in['Filename']
+                file_pair = os.path.join(
+                    path_term,
+                    f"{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt")
+                if not os.path.exists(file_pair):
+                    print(file_pair)
+                    continue
+                sub_df = pd.read_csv(file_pair, sep='\t', usecols=[0, 1, 2, 3])
+                list_df.append(sub_df)
+            if not list_df:
                 continue
-            sub_df = pd.read_csv(file_pair, sep='\t', usecols=[0, 1, 2, 3])
-            list_df.append(sub_df)
-        if not list_df:
-            continue
-        df_cell = pd.concat(list_df)
-        df_cell = df_cell.drop_duplicates()
-        df_cell.to_csv(os.path.join(path_term, cell + '.txt'),
-                       sep='\t', index=None)
-        list_out.append({'Cell line': cell, 'Num of pairs': df_cell.shape[0]})
+            df_assay = pd.concat(list_df)
+            df_assay = df_assay.drop_duplicates()
+            df_assay.to_csv(file_assay, sep='\t', index=None)
+            list_assay.append({'Cell line': cell, 'Assay': assay,
+                               'Num of pairs': df_assay.shape[0]})
+            list_assay_files.append({'Assay': assay, 'file_assay': file_assay})
+            list_df_assay.append(df_assay)
 
-    df_out = pd.DataFrame(list_out)
-    df_out.to_csv(file_num_pair, sep='\t', index=None)
+        df_merge = pd.read_csv(list_assay_files[0]['file_assay'], sep='\t')
+        df_merge[list_assay_files[0]['Assay']] = np.full(df_merge.shape[0], 1)
+        for i, dict_assay in enumerate(list_assay_files):
+            if i > 0:
+                file_assay = dict_assay['file_assay']
+                assay = dict_assay['Assay']
+                df_assay = pd.read_csv(file_assay, sep='\t')
+                df_assay[assay] = np.full(df_assay.shape[0], 1)
+                df_merge = pd.merge(df_merge, df_assay, how='outer',
+                                    on=['gene', 'dhs_id', 'ref_dhs_id',
+                                        'type_cre'])
+        tmp_merge = os.path.join(path_term, cell + '.merge.tmp')
+        df_merge.to_csv(tmp_merge, sep='\t', index=None)
+        df_merge['sum'] = np.sum(df_merge.iloc[4:], axis=1)
+        file_cell = os.path.join(path_term, cell + '.merge.tmp')
+        df_merge = df_merge.loc[df_merge['sum'] > 1,
+                                ['gene', 'dhs_id', 'ref_dhs_id', 'type_cre']]
+        df_merge.to_csv(file_cell, sep='\t', index=None)
+        list_cell.append({'Cell line': cell,
+                          'Num of pairs': df_merge.shape[0]})
+
+    df_all = pd.concat(list_df_assay)
+    df_all = df_all.loc[:, ['gene', 'ref_dhs_id']]
+    df_all = df_all.drop_duplicates()
+    file_all = os.path.join(path_label, 'All_interactions.txt')
+    df_all.to_csv(file_all, sep='\t', index=None)
+
+    df_out_assay = pd.DataFrame(list_assay)
+    file_num_assay = os.path.join(path_label, 'Assay_num_pairs.txt')
+    df_out_assay.to_csv(file_num_assay, sep='\t', index=None)
+
+    df_out_cell = pd.DataFrame(list_cell)
+    file_num_cell = os.path.join(path_label, 'Cell_num_pairs.txt')
+    df_out_cell.to_csv(file_num_cell, sep='\t', index=None)
 
     return
 
@@ -320,7 +371,7 @@ if __name__ == '__main__':
     path_dhs_cell = \
         '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions'
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')
@@ -331,7 +382,7 @@ if __name__ == '__main__':
 
     generate_heatmap_data(os.path.join(path_label, 'heatmap.txt'))
 
-    merge_files(os.path.join(path_label, 'Num_pairs.txt'))
+    merge_files()
 
     time_end = time()
     print(time_end - time_start)

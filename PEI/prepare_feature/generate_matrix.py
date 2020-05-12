@@ -408,6 +408,31 @@ def h3k27ac_matrix():
 
 
 def gtex_expression_matrix():
+    mat_exp = pd.read_csv(file_expression, sep='\t', index_col=0)
+    df_promoter = pd.read_csv(file_promoter_uniq, sep='\t', header=None)
+    df_dhs_promoter = pd.read_csv(file_dhs_promoter, sep='\t')
+
+    df_all_pro = df_dhs_promoter.loc[:, ['idx', 'gene']].copy()
+    df_all_pro = df_all_pro.drop_duplicates()
+    df_all_pro = pd.merge(df_all_pro, df_promoter, left_on=['idx', 'gene'],
+                          right_on=[6, 7])
+    df_all_pro = df_all_pro.sort_values('idx')
+
+    df_ensg_gene = df_all_pro.loc[:, [4, 'gene']]
+    df_pro_exp = pd.merge(df_ensg_gene, mat_exp, left_on=4, right_index=True)
+
+    # ensg_id = df_all_pro[4].tolist()
+    # genes = df_all_pro['gene']
+    # mat_exp = mat_exp.loc[ensg_id, :]
+    # gtex_genes = mat_exp['Description']
+    # set_overlap = set(genes.tolist()).intersection(gtex_genes.tolist())
+
+    df_pro_exp.index = df_pro_exp['gene']
+    df_pro_exp = df_pro_exp.rename(columns={'gene': 'del_gene'})
+    df_pro_exp = df_pro_exp.drop([4, 'del_gene', 'Description'], axis=1)
+    file_matrix_gtex_expression = \
+        os.path.join(path_matrix, 'GTEx_expression_matrix.txt')
+    df_pro_exp.to_csv(file_matrix_gtex_expression, sep='\t')
 
     return
 
@@ -424,7 +449,16 @@ if __name__ == '__main__':
                     'promoters.up2k.protein.gencode.v19.bed'
     file_dhs_promoter = \
         '/local/zy/PEI/mid_data/database_feature/DHS_index/promoter_index.txt'
-    generate_promoter_file()
+    # generate_promoter_file()
+
+    file_promoter_uniq = '/local/zy/PEI/origin_data/gene/' \
+                         'promoters.up2k.protein.gencode.v19.unique.bed'
+    # df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
+    # df_promoter['idx'] = df_promoter.index
+    # df_promoter['gene'] = df_promoter[3].apply(
+    #     lambda x: x.split('<-')[0])
+    # df_promoter = df_promoter.drop_duplicates(subset='gene')
+    # df_promoter.to_csv(file_promoter_uniq, sep='\t', index=None, header=None)
 
     # DHS
     path_dhs_cell = \
@@ -442,6 +476,11 @@ if __name__ == '__main__':
     path_h3k27ac_cell = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
     path_h3k27ac_tissue = '/local/zy/PEI/mid_data/tissue/DHS/cRE_annotation'
     h3k27ac_matrix()
+
+    # GETx expression
+    file_expression = \
+        '/local/zy/PEI/origin_data/GTEx/' \
+        'GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
 
     time_end = time()
     print(time_end - time_start)

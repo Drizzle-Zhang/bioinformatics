@@ -65,6 +65,17 @@ def build_dataset(dict_in):
     return
 
 
+def build_training_set():
+    file_num_cell = os.path.join(path_label, 'Cell_num_pairs.txt')
+    df_num_cell = pd.read_csv(file_num_cell, sep='\t')
+    cells = df_num_cell.loc[df_num_cell['Num of pairs'] > 0, 'Cell line']
+
+    file_all = os.path.join(path_label, 'All_interactions.txt')
+    df_all = pd.read_csv(file_all, sep='\t')
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
     path_cre = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation/'
@@ -77,6 +88,10 @@ if __name__ == '__main__':
     df_meta = pd.read_csv(file_meta, sep='\t')
     sub_meta = df_meta.to_dict('records')[0]
     build_dataset(sub_meta)
+
+    path_label = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
+
 
     time_end = time()
     print(time_end - time_start)
