@@ -90,7 +90,7 @@ def sub_generate_pair(dict_in):
                     type_cre = list_line[4]
                     if type_cre in set_enh:
                         w_enh.write(line)
-                    elif type_cre in set_pro:
+                    if type_cre in set_pro:
                         genes = list_line[6].split(',')
                         for gene in genes:
                             list_out = list_line.copy()

@@ -188,7 +188,10 @@ def annotate_hic(file_cre, file_uniform, file_out, file_pair):
     os.remove(file_intersect_bin1)
     os.remove(file_intersect_bin2)
 
-    get_pairs(file_out, file_pair)
+    file_pair_pre = file_pair + '.pre'
+    get_pairs(file_out, file_pair_pre)
+    os.system(f"grep -w 'Enhancer' {file_pair_pre} > {file_pair}")
+    os.remove(file_pair_pre)
 
     return
 

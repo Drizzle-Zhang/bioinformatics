@@ -87,7 +87,7 @@ def build_training_set():
 
     list_df_cell = []
     for cell in cells:
-        file_label = os.path.join(path_label, f'{cell}.txt')
+        file_label = os.path.join(path_label, f'{cell}/{cell}.txt')
         file_feature = os.path.join(
             path_feature_cell, f'{cell}/input_file.txt')
         df_feature = pd.read_csv(file_feature, sep='\t')
@@ -95,9 +95,7 @@ def build_training_set():
         df_label = pd.read_csv(file_label, sep='\t')
         df_positive = pd.merge(df_feature, df_label,
                                on=['gene', 'dhs_id', 'ref_dhs_id', 'type_cre'])
-        assert df_positive.shape[0] == df_label.shape[0]
-        df_positive = df_positive.loc[
-                      df_positive['abs_distance'] < 2_000_000, :]
+        # assert df_positive.shape[0] == df_label.shape[0]
         df_positive['label'] = np.full(df_positive.shape[0], 1)
 
         df_feature.index = df_feature.apply(
