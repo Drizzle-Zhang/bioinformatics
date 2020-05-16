@@ -1539,7 +1539,7 @@ if __name__ == '__main__':
     # integrate files from same experiment
     path_exp_dhs = \
         path_root + '/mid_data/tissue/ENCODE/' \
-        'DNase-seq/GRCh38tohg19_experiment'
+        'DNase-seq/hg19toGRCh38_experiment'
     merge_experiment(path_hg19tohg38, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 

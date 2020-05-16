@@ -236,7 +236,7 @@ if __name__ == '__main__':
 
     # annotate DHS by term
     path_dhs_stan = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_root + '/mid_data/cell_line/DHS/hg19tohg38_standard'
     path_h3k4me3_stan = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
                     'H3K4me3_standard'

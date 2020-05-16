@@ -230,19 +230,19 @@ if __name__ == '__main__':
     # integrate files from same experiment
     path_exp_dhs = \
         path_root + '/mid_data/cell_line/ENCODE/' \
-                    'DNase-seq/GRCh38tohg19_experiment'
+                    'DNase-seq/hg19toGRCh38_experiment'
     merge_experiment(path_hg19tohg38, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = path_root + '/mid_data/cell_line/DHS/GRCh38tohg19/'
-    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    path_dhs_hg19tohg38 = path_root + '/mid_data/cell_line/DHS/hg19toGRCh38/'
+    unique_bed_files(path_exp_dhs, path_dhs_hg19tohg38, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
     path_dhs_stan = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
-    standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
+        path_root + '/mid_data/cell_line/DHS/hg19toGRCh38_standard'
+    standardize_bed(path_dhs_hg19tohg38, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # merge dhs files from all cell lines
