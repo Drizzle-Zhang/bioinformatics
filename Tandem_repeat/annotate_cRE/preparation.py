@@ -339,7 +339,7 @@ def liftover(path_in, path_out, path_meta, num_process):
         df_exp = df_meta.loc[df_meta['Experiment accession'] == exp, :]
         df_in = df_exp.loc[df_exp['Assembly'] == 'hg19', :]
         df_out = df_exp.loc[df_exp['Assembly'] == 'GRCh38', :]
-        if df_in.shape[0] == df_out.shape[0]:
+        if df_in.shape[0] <= df_out.shape[0]:
             list_meta.append(df_out)
         else:
             list_meta.append(df_in)
@@ -1486,8 +1486,8 @@ if __name__ == '__main__':
         'promoters.up2k.protein.gencode.v29.merge.bed'
     exon_file_hg38 = \
         path_root + '/origin_data/gene/exon.protein.gencode.v29.bed'
-    generate_gene_file(gtf_file_hg38, protein_file_hg38, promoter_file_hg38,
-                       promoter_file_hg38_merge, exon_file_hg38)
+    # generate_gene_file(gtf_file_hg38, protein_file_hg38, promoter_file_hg38,
+    #                    promoter_file_hg38_merge, exon_file_hg38)
 
     # build life stage dictionary
     path_lifestage = path_root + '/origin_data/ENCODE/metadata/life_stage'

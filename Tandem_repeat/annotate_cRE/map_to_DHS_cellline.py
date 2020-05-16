@@ -232,7 +232,7 @@ if __name__ == '__main__':
     time_start = time()
     # multiple processes
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    path_root = '/local/zy/Tandem_Repeat'
 
     # annotate DHS by term
     path_dhs_stan = \
