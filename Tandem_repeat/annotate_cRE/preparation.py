@@ -35,10 +35,12 @@ def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge,
                             continue
                         list_line_gene = line_gene.strip().split('\t')
                         list_attr = list_line_gene[8].strip().split('; ')
-                        gene_name = list_attr[4][11:-1]
+                        if len(list_attr) < 4:
+                            continue
+                        gene_name = list_attr[2][11:-1]
                         ensg_id = list_attr[0][9:-1]
                         strand = list_line_gene[6]
-                        gene_type = list_attr[2][11:-1]
+                        gene_type = list_attr[1][11:-1]
                         if gene_type != "protein_coding":
                             continue
                         if list_line_gene[2] == 'gene':
@@ -187,97 +189,98 @@ def modify_meta(df_meta, set_ref, df_com):
     return df_meta
 
 
-def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
-    file_hg38 = os.path.join(path_hg38, dict_in['File accession'] + '.bed')
-    file_hg19_unsort = \
-        os.path.join(path_hg19, dict_in['File accession'] + '.unsort.bed')
-    file_hg19 = os.path.join(path_hg19, dict_in['File accession'] + '.bed')
+def sub_liftover(path_in, path_out, dict_in):
+    # hg19 to hg38
+    file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+    file_out_unsort = \
+        os.path.join(path_out, dict_in['File accession'] + '.unsort.bed')
+    file_out = os.path.join(path_out, dict_in['File accession'] + '.bed')
     set_chroms = {'chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
                   'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
                   'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19',
                   'chr20', 'chr21', 'chr22', 'chrX', 'chrY'}
     # Download from UCSC
     file_chain = \
-        '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+        '/local/zy/tools/files_liftOver/hg19ToHg38.over.chain.gz'
     file_ummap = os.path.join(
-        path_hg19, dict_in['File accession'] + '.bed.unmap')
-    if dict_in['Assembly'] == 'hg19':
-        with open(file_hg19_unsort, 'w') as w_f:
+        path_out, dict_in['File accession'] + '.bed.unmap')
+    if dict_in['Assembly'] == 'GRCh38':
+        with open(file_out_unsort, 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
                   "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
-            with open(file_hg38, 'r') as r_hg38:
-                for line in r_hg38:
+            with open(file_in, 'r') as r_in:
+                for line in r_in:
                     list_line = line.strip().split('\t')
                     chrom = list_line[0]
                     if chrom not in set_chroms:
                         continue
-                    dict_hg19 = dict(
+                    dict_out = dict(
                         chrom=list_line[0], start=list_line[1],
                         end=list_line[2], peak_id=dict_in['File accession'],
                         score=list_line[4], strand=list_line[5],
                         fold_change=list_line[6], p_value=list_line[7],
                         q_value=list_line[8], peak_location=list_line[9]
                     )
-                    w_f.write(fmt.format(**dict_hg19))
-        df_bed = pd.read_csv(file_hg19_unsort, sep='\t', header=None)
+                    w_f.write(fmt.format(**dict_out))
+        df_bed = pd.read_csv(file_out_unsort, sep='\t', header=None)
         scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
         scale_scores = StandardScaler().fit_transform(scores)
         df_bed.iloc[:, 6] = scale_scores
         df_bed = df_bed.drop_duplicates([0, 1, 2])
-        df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
+        df_bed.to_csv(file_out_unsort, sep='\t', index=None, header=None)
 
-    if dict_in['Assembly'] == 'GRCh38':
-        file_hg38_labeled = file_hg38 + '.labeled'
+    if dict_in['Assembly'] == 'hg19':
+        file_in_labeled = file_in + '.labeled'
         label_assess = str(
-            check_output(f"head -1 {file_hg38}", shell=True).strip()
+            check_output(f"head -1 {file_in}", shell=True).strip()
         ).split('\\t')[3]
         if label_assess == '.':
-            with open(file_hg38_labeled, 'w') as w_f:
-                with open(file_hg38, 'r') as r_f:
+            with open(file_in_labeled, 'w') as w_f:
+                with open(file_in, 'r') as r_f:
                     for i, line in enumerate(r_f):
                         list_line = line.strip().split('\t')
                         list_line[3] = 'peak_' + str(i)
                         w_f.write('\t'.join(list_line) + '\n')
         else:
-            os.system(f"cp {file_hg38} {file_hg38_labeled}")
+            os.system(f"cp {file_in} {file_in_labeled}")
 
-        file_prefix = file_hg38 + '.prefix'
-        file_suffix = file_hg38 + '.suffix'
-        file_hg19_prefix = file_hg19 + '.prefix'
-        file_hg19_format = file_hg19 + '.format'
-        os.system(f"cut -f 1,2,3,4 {file_hg38_labeled} > {file_prefix}")
-        os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38_labeled} > {file_suffix}")
+        file_prefix = file_in + '.prefix'
+        file_suffix = file_in + '.suffix'
+        file_out_prefix = file_out + '.prefix'
+        file_out_format = file_out + '.format'
+        os.system(f"cut -f 1,2,3,4 {file_in_labeled} > {file_prefix}")
+        os.system(f"cut -f 4,5,6,7,8,9,10 {file_in_labeled} > {file_suffix}")
         os.system(f"/local/zy/tools/liftOver {file_prefix} {file_chain} "
-                  f"{file_hg19_prefix} {file_ummap}")
+                  f"{file_out_prefix} {file_ummap}")
         dict_peak_score = defaultdict(list)
         with open(file_suffix, 'r') as r_f:
             for line in r_f:
                 list_line = line.strip().split('\t')
                 dict_peak_score[list_line[0]].append(list_line[1:])
-        with open(file_hg19_format, 'w') as w_f:
+        with open(file_out_format, 'w') as w_f:
             fmt = "{chrom}\t{start}\t{end}\t{peak_id}\t{score}\t{strand}\t" \
                   "{fold_change}\t{p_value}\t{q_value}\t{peak_location}\n"
-            with open(file_hg19_prefix, 'r') as r_hg19:
-                for line in r_hg19:
+            with open(file_out_prefix, 'r') as r_out:
+                for line in r_out:
                     list_line = line.strip().split('\t')
                     chrom = list_line[0]
                     if chrom not in set_chroms:
                         continue
                     list_suffix = dict_peak_score[list_line[3]][0]
-                    dict_hg19 = dict(
+                    dict_out = dict(
                         chrom=list_line[0], start=list_line[1],
                         end=list_line[2], peak_id=dict_in['File accession'],
                         score=list_suffix[0], strand=list_suffix[1],
                         fold_change=list_suffix[2], p_value=list_suffix[3],
                         q_value=list_suffix[4], peak_location=list_suffix[5]
                     )
-                    w_f.write(fmt.format(**dict_hg19))
+                    w_f.write(fmt.format(**dict_out))
 
         df_old = pd.read_csv(file_prefix, sep='\t', header=None)
         length_old = df_old.iloc[:, 2] - df_old.iloc[:, 1]
         up_limit = min(np.max(length_old) + 10, 15000)
         down_limit = max(np.min(length_old) - 10, 140)
-        df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
+        df_bed = pd.read_csv(file_out_format, sep='\t', header=None)
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
         scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
@@ -288,17 +291,17 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         df_bed = df_bed.drop_duplicates([0, 1, 2])
         # if dict_in['File accession'] == 'ENCFF742USA':
         #     print(df_bed.shape[0])
-        df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
+        df_bed.to_csv(file_out_unsort, sep='\t', index=None, header=None)
 
-        os.remove(file_hg38_labeled)
+        os.remove(file_in_labeled)
         os.remove(file_ummap)
         os.remove(file_prefix)
         os.remove(file_suffix)
-        os.remove(file_hg19_prefix)
-        os.remove(file_hg19_format)
+        os.remove(file_out_prefix)
+        os.remove(file_out_format)
 
-    os.system(f"bedtools sort -i {file_hg19_unsort} > {file_hg19}")
-    os.remove(file_hg19_unsort)
+    os.system(f"bedtools sort -i {file_out_unsort} > {file_out}")
+    os.remove(file_out_unsort)
 
     return
 
@@ -320,41 +323,43 @@ def calculate_peak_numbers(path_in, dict_in):
             'Peak number': order, 'Inferred peak number': total}
 
 
-def hg38tohg19(path_hg38, path_hg19, path_meta, num_process):
-    if os.path.exists(path_hg19):
-        os.system(f"rm -rf {path_hg19}")
-    os.mkdir(path_hg19)
+def liftover(path_in, path_out, path_meta, num_process):
+    # in: hg19
+    # out: hg38
+    if os.path.exists(path_out):
+        os.system(f"rm -rf {path_out}")
+    os.mkdir(path_out)
     os.system(f"cp {path_meta} "
-              f"{os.path.join(path_hg19, 'metadata.simple.tsv')}")
+              f"{os.path.join(path_out, 'metadata.simple.tsv')}")
 
     df_meta = pd.read_csv(path_meta, sep='\t')
     list_meta = []
     experiments = set(df_meta['Experiment accession'].tolist())
     for exp in experiments:
         df_exp = df_meta.loc[df_meta['Experiment accession'] == exp, :]
-        hg19 = df_exp.loc[df_exp['Assembly'] == 'hg19', :]
-        hg38 = df_exp.loc[df_exp['Assembly'] == 'GRCh38', :]
-        if hg19.shape[0] == hg38.shape[0]:
-            list_meta.append(hg19)
+        df_in = df_exp.loc[df_exp['Assembly'] == 'hg19', :]
+        df_out = df_exp.loc[df_exp['Assembly'] == 'GRCh38', :]
+        if df_in.shape[0] == df_out.shape[0]:
+            list_meta.append(df_out)
         else:
-            list_meta.append(hg38)
+            list_meta.append(df_in)
     new_meta = pd.concat(list_meta, sort=False)
     list_dict = new_meta.to_dict('records')
 
     pool = Pool(processes=num_process)
-    func_hg38tohg19 = partial(sub_hg38tohg19, path_hg38, path_hg19)
-    pool.map(func_hg38tohg19, list_dict)
+    func_liftover = partial(sub_liftover, path_in, path_out)
+    pool.map(func_liftover, list_dict)
     pool.close()
 
     # count peak numbers and infer total peak numbers
     pool = Pool(processes=num_process)
-    func_calc = partial(calculate_peak_numbers, path_hg19)
+    func_calc = partial(calculate_peak_numbers, path_out)
     result = pool.map(func_calc, list_dict)
     pool.close()
     df_res = pd.DataFrame(result)
     df_meta_merge = pd.merge(new_meta, df_res, on='File accession')
 
-    df_meta_merge.to_csv(os.path.join(path_hg19, 'metadata.simple.tsv'),
+    df_meta_merge.to_csv(os.path.join(path_out, 'metadata.simple.tsv'),
                          sep='\t', index=None)
 
     return
@@ -1467,22 +1472,22 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    path_root = '/local/zy/Tandem_Repeat'
     # get bed file annotating protein-coding genes
-    gtf_file_hg19 = \
-        path_root + '/origin_data/ENCODE/gencode.v19.annotation.gtf'
-    protein_file_hg19 = \
-        path_root + '/origin_data/gene/genes.protein.gencode.v19.bed'
-    promoter_file_hg19 = \
+    gtf_file_hg38 = \
+        path_root + '/origin_data/ENCODE/gencode.v29.annotation.gtf'
+    protein_file_hg38 = \
+        path_root + '/origin_data/gene/genes.protein.gencode.v29.bed'
+    promoter_file_hg38 = \
         path_root + '/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.bed'
-    promoter_file_hg19_merge = \
+        'promoters.up2k.protein.gencode.v29.bed'
+    promoter_file_hg38_merge = \
         path_root + '/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.merge.bed'
-    exon_file_hg19 = \
-        path_root + '/origin_data/gene/exon.protein.gencode.v19.bed'
-    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
-                       promoter_file_hg19_merge, exon_file_hg19)
+        'promoters.up2k.protein.gencode.v29.merge.bed'
+    exon_file_hg38 = \
+        path_root + '/origin_data/gene/exon.protein.gencode.v29.bed'
+    generate_gene_file(gtf_file_hg38, protein_file_hg38, promoter_file_hg38,
+                       promoter_file_hg38_merge, exon_file_hg38)
 
     # build life stage dictionary
     path_lifestage = path_root + '/origin_data/ENCODE/metadata/life_stage'
@@ -1525,31 +1530,31 @@ if __name__ == '__main__':
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/tissue/ENCODE/DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    # hg19 to hg38
+    path_hg19tohg38 = \
+        path_root + '/mid_data/tissue/ENCODE/DNase-seq/hg19toGRCh38'
+    liftover(path_dhs, path_hg19tohg38, meta_dhs, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
         path_root + '/mid_data/tissue/ENCODE/' \
         'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
+    merge_experiment(path_hg19tohg38, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = path_root + '/mid_data/tissue/DHS/GRCh38tohg19/'
-    unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
+    path_dhs_hg19tohg38 = path_root + '/mid_data/tissue/DHS/hg19toGRCh38/'
+    unique_bed_files(path_exp_dhs, path_dhs_hg19tohg38, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
-    path_dhs_stan = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
-    standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
+    path_dhs_stan = path_root + '/mid_data/tissue/DHS/hg19toGRCh38_standard'
+    standardize_bed(path_dhs_hg19tohg38, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # merge and cluster
-    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/hg19toGRCh38_cluster'
     merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu, False, False)
     print('Cluster and merge of DHS completed!')
 
@@ -1588,16 +1593,16 @@ if __name__ == '__main__':
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
     print("H3K4me3 metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_h3k4me3, path_hg19tohg38, meta_h3k4me3, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_h3k4me3_stan = \
         path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K4me3_standard'
-    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    standardize_bed(path_hg19tohg38, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # H3K27ac
@@ -1629,16 +1634,16 @@ if __name__ == '__main__':
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
     print("H3K27ac metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K27ac'
-    hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_h3k27ac, path_hg19tohg38, meta_h3k27ac, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_h3k27ac_stan = \
         path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K27ac_standard'
-    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    standardize_bed(path_hg19tohg38, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # CTCF
@@ -1671,16 +1676,16 @@ if __name__ == '__main__':
     df_meta_ctcf.to_csv(meta_ctcf, sep='\t', index=None)
     print("CTCF metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/tissue/ENCODE/TF_ChIP-seq/CTCF'
-    hg38tohg19(path_ctcf, path_hg38tohg19, meta_ctcf, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_ctcf, path_hg19tohg38, meta_ctcf, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_ctcf_stan = \
         path_root + '/mid_data/tissue/ENCODE/TF_ChIP-seq/CTCF_standard'
-    standardize_bed(path_hg38tohg19, path_ctcf_stan, 'CTCF', num_cpu)
+    standardize_bed(path_hg19tohg38, path_ctcf_stan, 'CTCF', num_cpu)
     print('Standardization of CTCF completed!')
 
     time_end = time()

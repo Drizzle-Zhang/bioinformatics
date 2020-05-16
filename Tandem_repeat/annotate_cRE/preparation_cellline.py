@@ -14,7 +14,7 @@ from functools import partial
 import sys
 sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
 from preparation import \
-    filter_meta, build_dict_attr, add_attr, hg38tohg19, \
+    filter_meta, build_dict_attr, add_attr, liftover, \
     merge_peak_bed, overlap_matrix, merge_experiment, merge_standard_bed
 
 
@@ -221,17 +221,17 @@ if __name__ == '__main__':
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/cell_line/ENCODE/DNase-seq/GRCh38tohg19'
-    hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
+    # hg19 to hg38
+    path_hg19tohg38 = \
+        path_root + '/mid_data/cell_line/ENCODE/DNase-seq/hg19toGRCh38'
+    liftover(path_dhs, path_hg19tohg38, meta_dhs, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
         path_root + '/mid_data/cell_line/ENCODE/' \
                     'DNase-seq/GRCh38tohg19_experiment'
-    merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
+    merge_experiment(path_hg19tohg38, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
@@ -279,17 +279,17 @@ if __name__ == '__main__':
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
     print("H3K4me3 metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K4me3'
-    hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_h3k4me3, path_hg19tohg38, meta_h3k4me3, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_h3k4me3_stan = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
                     'H3K4me3_standard'
-    standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
+    standardize_bed(path_hg19tohg38, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # H3K27ac
@@ -321,17 +321,17 @@ if __name__ == '__main__':
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
     print("H3K27ac metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K27ac'
-    hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_h3k27ac, path_hg19tohg38, meta_h3k27ac, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_h3k27ac_stan = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
         'H3K27ac_standard'
-    standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
+    standardize_bed(path_hg19tohg38, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # CTCF
@@ -364,16 +364,16 @@ if __name__ == '__main__':
     df_meta_ctcf.to_csv(meta_ctcf, sep='\t', index=None)
     print("CTCF metadata ---- completed")
 
-    # hg38 to hg19
-    path_hg38tohg19 = \
+    # hg19 to hg38
+    path_hg19tohg38 = \
         path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF'
-    hg38tohg19(path_ctcf, path_hg38tohg19, meta_ctcf, num_cpu)
-    print("Format conversion: hg38 -> hg19 ---- completed")
+    liftover(path_ctcf, path_hg19tohg38, meta_ctcf, num_cpu)
+    print("Format conversion: hg19 -> hg38 ---- completed")
 
     # standardization
     path_ctcf_stan = \
         path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
-    standardize_bed(path_hg38tohg19, path_ctcf_stan, 'CTCF', num_cpu)
+    standardize_bed(path_hg19tohg38, path_ctcf_stan, 'CTCF', num_cpu)
     print('Standardization of CTCF completed!')
 
     time_end = time()
