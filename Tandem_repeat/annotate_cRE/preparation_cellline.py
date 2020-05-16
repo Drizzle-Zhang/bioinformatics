@@ -188,7 +188,7 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 20
-    path_root = '/local/zy/PEI'
+    path_root = '/local/zy/Tandem_Repeat'
 
     # build life stage dictionary
     path_lifestage = path_root + '/origin_data/ENCODE/metadata/life_stage'
