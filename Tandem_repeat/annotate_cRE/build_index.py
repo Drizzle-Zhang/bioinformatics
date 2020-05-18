@@ -12,8 +12,8 @@ import os
 from multiprocessing import Pool
 from subprocess import check_output
 import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
-from node10_preparation import merge_standard_bed
+sys.path.append('/local/zy/my_git/bioinformatics/Tandem_repeat/annotate_cRE')
+from preparation import merge_standard_bed
 
 
 def merge_cell_tissue():
@@ -21,10 +21,10 @@ def merge_cell_tissue():
         path=path_dhs_merge,
         term_name='all_cellline_tissue',
         accession_ids=
-        ['cell_line/DHS/GRCh38tohg19_standard/all_celllines',
-         'tissue/DHS/GRCh38tohg19_cluster/all_organs'],
+        ['cell_line/DHS/hg19toGRCh38_standard/all_celllines',
+         'tissue/DHS/hg19toGRCh38_cluster/all_organs'],
         flank_percent=1.0)]
-    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, num_cpu)
+    merge_standard_bed('/local/zy/Tandem_Repeat/mid_data', dict_merge, num_cpu)
 
     file_merge = os.path.join(path_dhs_merge, 'all_cellline_tissue.bed')
     file_merge_index = os.path.join(path_dhs_merge, 'all_index.txt')
@@ -123,8 +123,8 @@ def generate_index_file():
     for term in (df_meta_cell['Biosample term name'].unique()).tolist():
         str_term = term.replace(' ', '_').replace('/', '+')
         path_term = os.path.join(path_dhs_cell, str_term)
-        # list_input.append({'str_term': str_term, 'path_term': path_term,
-        #                    'file_ref': file_ref})
+        list_input.append({'str_term': str_term, 'path_term': path_term,
+                           'file_ref': file_ref})
 
     # tissue
     df_meta_tissue = pd.read_csv(
@@ -136,9 +136,9 @@ def generate_index_file():
             ' ', '_').replace('/', '+').replace("'", "--")
         path_term = os.path.join(
             path_dhs_tissue_stan, f"{str_life_organ}/{str_term}")
-        # list_input.append(
-        #     {'str_term': str_term, 'path_term': path_term,
-        #      'file_ref': file_ref})
+        list_input.append(
+            {'str_term': str_term, 'path_term': path_term,
+             'file_ref': file_ref})
 
     life_organs = list(set(df_meta_tissue['Biosample life_organ'].tolist()))
     for life_organ in life_organs:
@@ -163,9 +163,9 @@ def generate_index_file():
             ' ', '_').replace('/', '+').replace("'", "--")
         path_term = os.path.join(
             path_dhs_tissue_cluster, f"{str_life_organ}/{str_term}")
-        # list_input.append(
-        #     {'str_term': str_term, 'path_term': path_term,
-        #      'file_ref': file_ref})
+        list_input.append(
+            {'str_term': str_term, 'path_term': path_term,
+             'file_ref': file_ref})
 
     pool = Pool(processes=num_cpu)
     pool.map(sub_generate_index, list_input)
@@ -177,14 +177,14 @@ def generate_index_file():
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    path_root = '/local/zy/Tandem_Repeat'
 
     path_dhs_cell = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_root + '/mid_data/cell_line/DHS/hg19toGRCh38_standard'
     path_dhs_tissue_cluster = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+        path_root + '/mid_data/tissue/DHS/hg19toGRCh38_cluster'
     path_dhs_tissue_stan = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
+        path_root + '/mid_data/tissue/DHS/hg19toGRCh38_standard'
     path_dhs_merge = path_root + '/mid_data/database_feature/DHS_index'
     meta_suborgan = path_root + '/origin_data/meta_file/meta.reference.tsv'
 
