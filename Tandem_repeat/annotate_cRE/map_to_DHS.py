@@ -833,7 +833,7 @@ if __name__ == '__main__':
 
     # promoter reference
     promoter_file_hg19 = \
-        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v19.bed'
+        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v29.bed'
     meta_suborgan_dhs = \
         path_root + '/origin_data/meta_file/meta.reference.tsv'
     meta_suborgan_histone = \
@@ -848,7 +848,7 @@ if __name__ == '__main__':
 
     # map H3K27ac to reference
     protein_exon = \
-        path_root + '/origin_data/gene/exon.protein.gencode.v19.bed'
+        path_root + '/origin_data/gene/exon.protein.gencode.v29.bed'
     # path_map_h3k27ac = '/local/zy/PEI/mid_data/tissue/DHS/map_H3K27ac'
     path_combine_h3k27ac = path_root + '/mid_data/tissue/DHS/cRE_annotation'
     annotate_cre(path_ref_promoter, path_h3k27ac_stan, path_combine_h3k27ac,
