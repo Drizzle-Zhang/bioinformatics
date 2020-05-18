@@ -116,27 +116,29 @@ def build_training_set():
         set_cell_all_neg = set_cell_all.difference(set_all)
         df_feature_neg = df_feature.loc[set_cell_all_neg, :]
 
-        len_bin = 20000
+        # len_bin = 20000
         num_pos = df_positive.shape[0]
-        num_neg = df_feature_neg.shape[0]
-        list_df = []
-        for i in range(0, 100):
-            down_limit = i * len_bin
-            up_limit = (i + 1) * len_bin
-            sub_pos = df_positive.loc[
-                      (df_positive['abs_distance'] > down_limit) &
-                      (df_positive['abs_distance'] <= up_limit), :]
-            # num_sample = int(num_neg * (sub_pos.shape[0]/num_pos))
-            num_sample = sub_pos.shape[0]
-            sub_neg = df_feature_neg.loc[
-                      (df_feature_neg['abs_distance'] > down_limit) &
-                      (df_feature_neg['abs_distance'] <= up_limit), :]
-            # sub_neg_sample = sub_neg.sample(
-            #     min(num_sample, sub_neg.shape[0]), random_state=123)
-            sub_neg_sample = sub_neg.sample(num_sample, random_state=123)
-            list_df.append(sub_neg_sample)
+        # num_neg = df_feature_neg.shape[0]
+        # list_df = []
+        # for i in range(0, 100):
+        #     down_limit = i * len_bin
+        #     up_limit = (i + 1) * len_bin
+        #     sub_pos = df_positive.loc[
+        #               (df_positive['abs_distance'] > down_limit) &
+        #               (df_positive['abs_distance'] <= up_limit), :]
+        #     # num_sample = int(num_neg * (sub_pos.shape[0]/num_pos))
+        #     num_sample = sub_pos.shape[0]
+        #     sub_neg = df_feature_neg.loc[
+        #               (df_feature_neg['abs_distance'] > down_limit) &
+        #               (df_feature_neg['abs_distance'] <= up_limit), :]
+        #     # sub_neg_sample = sub_neg.sample(
+        #     #     min(num_sample, sub_neg.shape[0]), random_state=123)
+        #     sub_neg_sample = sub_neg.sample(num_sample, random_state=123)
+        #     list_df.append(sub_neg_sample)
+        #
+        # df_negative = pd.concat(list_df, sort=False)
 
-        df_negative = pd.concat(list_df, sort=False)
+        df_negative = df_feature_neg.sample(num_pos, random_state=123)
         df_negative['label'] = np.full(df_negative.shape[0], 0)
         print(cell)
         print(df_positive.shape[0])
@@ -156,6 +158,18 @@ def build_training_set():
     return
 
 
+def build_test_set(file_label, file_feature, file_out):
+    df_label = pd.read_csv(file_label, sep='\t', usecols=[0, 1, 2, 3])
+    df_label['label'] = np.full(df_label.shape[0], 1)
+    df_feature = pd.read_csv(file_feature, sep='\t')
+    df_out = pd.merge(df_feature, df_label, how='left',
+                      on=['gene', 'dhs_id', 'ref_dhs_id', 'type_cre'])
+    df_out = df_out.fillna(0)
+    df_out.to_csv(file_out, sep='\t', index=None)
+
+    return df_out
+
+
 if __name__ == '__main__':
     time_start = time()
     path_cre_cell = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation/'
@@ -167,9 +181,9 @@ if __name__ == '__main__':
     df_meta_cell = pd.read_csv(
         os.path.join(path_cre_cell, 'meta.reference.tsv'), sep='\t')
     cell_dicts = df_meta_cell.to_dict('records')
-    pool = Pool(40)
-    pool.map(build_dataset, cell_dicts)
-    pool.close()
+    # pool = Pool(40)
+    # pool.map(build_dataset, cell_dicts)
+    # pool.close()
 
     # sub_meta = cell_dicts[4]
     # build_dataset(sub_meta)
@@ -177,6 +191,23 @@ if __name__ == '__main__':
     path_label = \
         '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
     build_training_set()
+
+    file_label_h1 = 'H1.merge.tmp'
+    file_feature_h1 = ''
+    file_out_h1 = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'H1/test_set.txt'
+    build_test_set(file_label_h1, file_feature_h1, file_out_h1)
+
+    file_label_IMR90 = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'IMR-90/IMR-90.merge.tmp'
+    file_feature_IMR90 = \
+        '/local/zy/PEI/mid_data/cell_line/model_input/IMR-90/input_file.txt'
+    file_out_IMR90 = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'IMR-90/test_set.txt'
+    build_test_set(file_label_IMR90, file_feature_IMR90, file_out_IMR90)
 
     time_end = time()
     print(time_end - time_start)

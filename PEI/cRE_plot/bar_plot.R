@@ -80,14 +80,12 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
 
 # compare among different models
 df.accuracy <- data.frame(
-    Model = c(rep('Baseline', 4), rep('Add CTCF and continuous pcHi-C', 4), 
-              rep('Simple Model', 4)),
-    Evaluator = c('F1 Score', 'Precision', 'Recall', 'AUC of ROC', 
-                  'F1 Score', 'Precision', 'Recall', 'AUC of ROC', 
-                  'F1 Score', 'Precision', 'Recall', 'AUC of ROC'),
-    Value = c(0.92790, 0.90936, 0.94725, 0.97448,
-              0.97350, 0.96844, 0.97865, 0.99171,
-              0.96392, 0.95434, 0.97376, 0.99035)
+    Model = c(rep('Model(distance matched)', 5),
+              rep('Model(without distance matched)', 5)),
+    Evaluator = c('F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC', 
+                  'F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC'),
+    Value = c(0.72543, 0.70133, 0.75125, 0.79244, 0.78579,
+              0.87345, 0.89694, 0.85120, 0.94325, 0.94112)
 )
 
 ggplot(df.accuracy,
@@ -95,7 +93,7 @@ ggplot(df.accuracy,
     geom_bar(position = 'dodge', stat = 'identity') +
     labs(title = "", y = '', x = '') + 
     theme(axis.text = element_text(size = 12)) +   
-    coord_cartesian(ylim = c(0.85, 1))
+    coord_cartesian(ylim = c(0.60, 1))
 # scale_fill_discrete(
 #     name = 'Evaluation methods',
 #     breaks = c('pcReg', 'sil', 'kBET', 'mixent',
@@ -115,18 +113,48 @@ ggplot(df.accuracy,
 
 df_feature_corr <- data.frame(
     Feature = factor(
-        c('score_h3k27ac_enhancer', 'distance', 'score_h3k4me3_promoter',
-          'gene_expression', 'score_ctcf_insulator',
-          'pcHi-C_ng2019', '3DIV', 'Thurman'), 
-        levels = c('score_h3k27ac_enhancer', 'score_h3k4me3_promoter',
-                   'gene_expression', 'distance', 'score_ctcf_insulator',
-                   'pcHi-C_ng2019', '3DIV', 'Thurman')),
-        Importance = c(0.13116104, 0.15870940, 0.19263499, 0.18950501, 
-                       0.16377640, 0.12306651, 0.00732349, 0.03382314))
+        c('DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+          'H3K4me3_H3K27ac', 'score_ctcf_insulator'), 
+        levels = c('DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+                   'H3K4me3_H3K27ac', 'score_ctcf_insulator')),
+        Importance = c(0.19175378, 0.18946368, 0.21554017, 0.20636483, 
+                       0.19687755))
 
 ggplot(df_feature_corr, aes(x = Feature, y = Importance)) + 
     geom_bar(stat = "identity") + coord_flip() + 
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
+    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+
+
+df_feature_corr <- data.frame(
+    Feature = factor(
+        c('DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+          'H3K4me3_H3K27ac', 'score_ctcf_insulator'), 
+        levels = c('DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+                   'H3K4me3_H3K27ac', 'score_ctcf_insulator')),
+    Importance = c(0.19019998, 0.18159677, 0.20561532, 0.19609595, 
+                   0.22649198))
+
+ggplot(df_feature_corr, aes(x = Feature, y = Importance)) + 
+    geom_bar(stat = "identity") + coord_flip() + 
+    theme(axis.ticks = element_blank())+
+    theme(axis.title = element_text(size = 17)) +   
+    theme(axis.text = element_text(size = 12)) +   
+    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+
+
+df_feature_corr <- data.frame(
+    Dataset = factor(
+        c('Cross_validation', 'H1', 'IMR-90'), 
+        levels = c('Cross_validation', 'H1', 'IMR-90')),
+    AUROC = c(0.9422056376836075, 0.8452468496196388, 0.8492239553508365))
+
+ggplot(df_feature_corr, aes(x = Dataset, y = AUROC)) + 
+    geom_bar(stat = "identity") + coord_flip() + 
+    theme(axis.ticks = element_blank())+
+    theme(axis.title = element_text(size = 17)) +   
+    theme(axis.text = element_text(size = 12)) +   
+    coord_cartesian(ylim = c(0.50, 1)) +   
     theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«

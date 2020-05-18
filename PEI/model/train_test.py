@@ -11,7 +11,7 @@ import numpy as np
 import lightgbm as lgb
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import roc_auc_score, f1_score, \
-    recall_score, precision_score
+    recall_score, precision_score, auc, precision_recall_curve
 from sklearn.preprocessing import StandardScaler
 
 
@@ -23,6 +23,7 @@ def train_model(clf, x_train, y_train, class_cv):
     precision_train, precision_test = [], []
     recall_train, recall_test = [], []
     auc_roc_train, auc_roc_test = [], []
+    auc_prc_train, auc_prc_test = [], []
     feature_importance = []
 
     i = 1
@@ -51,6 +52,12 @@ def train_model(clf, x_train, y_train, class_cv):
             sub_y_train, pred_y_train[:, 1] - pred_y_train[:, 0]))
         auc_roc_test.append(roc_auc_score(
             sub_y_test, pred_y_test[:, 1] - pred_y_test[:, 0]))
+        _precision, _recall, _ = precision_recall_curve(
+            sub_y_train, pred_y_train[:, 1] - pred_y_train[:, 0])
+        auc_prc_train.append(auc(_recall, _precision))
+        _precision, _recall, _ = precision_recall_curve(
+            sub_y_test, pred_y_test[:, 1] - pred_y_test[:, 0])
+        auc_prc_test.append(auc(_recall, _precision))
 
         preds_train[idx_test] = clf.predict_proba(sub_x_test)[:]
 
@@ -71,11 +78,41 @@ def train_model(clf, x_train, y_train, class_cv):
     print('AUC of ROC: Mean_Train{0:0.5f}\nMean_Test{1:0.5f}\n'.format(
         np.mean(auc_roc_train), np.mean(auc_roc_test)))
     print('-' * 50)
+    print('AUC of PRC: Mean_Train{0:0.5f}\nMean_Test{1:0.5f}\n'.format(
+        np.mean(auc_prc_train), np.mean(auc_prc_test)))
+    print('-' * 50)
     array_importance = np.array(feature_importance)
     mean_importance = np.mean(array_importance, axis=0)
     normal_importance = mean_importance / np.sum(mean_importance)
     print(mean_importance)
     print(normal_importance)
+
+    return clf
+
+
+def predict_metric(file_input_predict, model_in):
+    df_input_predict = pd.read_csv(file_input_predict, sep='\t')
+    df_y_predict = df_input_predict['label']
+    df_x_predict = df_input_predict.loc[
+                   :, ['DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+                       'H3K4me3_H3K27ac', 'score_ctcf_insulator']]
+    pred_y_predict = model_in.predict_proba(df_x_predict)
+    bool_pred_y_predict = np.argmax(pred_y_predict, axis=1)
+    f1_predict = f1_score(df_y_predict, bool_pred_y_predict)
+    precision_predict = \
+        precision_score(df_y_predict, bool_pred_y_predict)
+    recall_predict = recall_score(df_y_predict, bool_pred_y_predict)
+    auc_roc_predict = roc_auc_score(
+        df_y_predict, pred_y_predict[:, 1] - pred_y_predict[:, 0])
+    _precision, _recall, _ = precision_recall_curve(
+        df_y_predict, pred_y_predict[:, 1] - pred_y_predict[:, 0])
+    auc_prc_predict = auc(_recall, _precision)
+
+    print('F1 Score: ', f1_predict)
+    print('Precision: ', precision_predict)
+    print('Recall: ', recall_predict)
+    print('AUC of ROC: ', auc_roc_predict)
+    print('AUC of PRC: ', auc_prc_predict)
 
     return
 
@@ -88,7 +125,8 @@ if __name__ == '__main__':
 
     # dataset
     file_input = \
-        '/local/zy/PEI/mid_data/cell_line/model_input/GM12878/input_file.txt'
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'training_set.txt'
     df_input = pd.read_csv(file_input, sep='\t')
     df_label = df_input['label']
     df_features = (df_input.iloc[:, 3:]).drop('label', axis=1)
@@ -100,30 +138,28 @@ if __name__ == '__main__':
     #                   'gene_expression',
     #                   'score_dhs_insulator', 'score_ctcf_insulator',
     #                   'pcHi-C_ng2019', '3DIV', 'Thurman']]
+    df_features = df_features.loc[
+                  :, ['DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
+                      'H3K4me3_H3K27ac', 'score_ctcf_insulator']]
     # df_features = df_features.loc[
     #               :, ['score_h3k27ac_enhancer',
     #                   'distance', 'score_h3k4me3_promoter',
     #                   'gene_expression', 'score_ctcf_insulator',
     #                   'pcHi-C_ng2019', '3DIV', 'Thurman']]
-    df_features = df_features.loc[
-                  :, ['score_h3k27ac_enhancer',
-                      'distance', 'score_h3k4me3_promoter',
-                      'gene_expression', 'score_ctcf_insulator',
-                      'pcHi-C_ng2019', '3DIV', 'Thurman']]
     scale_scores = StandardScaler().fit_transform(df_features)
     df_x_train, df_x_test, df_y_train, df_y_test = train_test_split(
         df_features, df_label, test_size=0.1, random_state=331)
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(df_x_train)
-    X_test = scaler.transform(df_x_test)
+    # scaler = StandardScaler()
+    # X_train = scaler.fit_transform(df_x_train)
+    # X_test = scaler.transform(df_x_test)
 
     # lightGB
     params = {
         'objective': 'binary',
         'learning_rate': 0.01,
         'min_child_samples': 15,
-        'max_depth': 6,
-        'num_leaves': 75,
+        'max_depth': 5,
+        'num_leaves': 35,
         'lambda_l1': 1,
         'boosting': 'gbdt',
         # 'boosting': 'dart',
@@ -143,7 +179,43 @@ if __name__ == '__main__':
     #     'num_leaves': 36,
     # }
     model_lgb = lgb.LGBMClassifier(**params)
-    train_model(model_lgb, df_x_train, df_y_train, skf)
+    # train and cross validation
+    model_lgb = train_model(model_lgb, df_x_train, df_y_train, skf)
+
+    # train model
+    model_all = lgb.LGBMClassifier(**params)
+    model_all.fit(df_x_train, df_y_train, eval_set=[(df_x_test, df_y_test)],
+                  early_stopping_rounds=500, verbose=False)
+
+    # test
+    pred_y = model_all.predict_proba(df_x_test)
+    bool_pred_y = np.argmax(pred_y, axis=1)
+    f1_test_independent = f1_score(df_y_test, bool_pred_y)
+    precision_test_independent = precision_score(df_y_test, bool_pred_y)
+    recall_test_independent = recall_score(df_y_test, bool_pred_y)
+    auc_roc_test_independent = roc_auc_score(
+        df_y_test, pred_y[:, 1] - pred_y[:, 0])
+    precision, recall, _thresholds = precision_recall_curve(
+        df_y_test, pred_y[:, 1] - pred_y[:, 0])
+    auc_prc_test_independent = auc(recall, precision)
+    print('F1 Score of test set: ', f1_test_independent)
+    print('Precision of test set: ', precision_test_independent)
+    print('Recall of test set: ', recall_test_independent)
+    print('AUC of ROC of test set: ', auc_roc_test_independent)
+    print('AUC of PRC of test set: ', auc_prc_test_independent)
+
+    # prediction
+    file_input_h1 = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'H1/test_set.txt'
+    print('H1')
+    predict_metric(file_input_h1, model_all)
+
+    file_input_IMR90 = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
+        'IMR-90/test_set.txt'
+    print('IMR-90')
+    predict_metric(file_input_IMR90, model_all)
 
     time_end = time()
     print(time_end - time_start)
