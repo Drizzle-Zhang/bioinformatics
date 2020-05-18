@@ -231,12 +231,12 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
 if __name__ == '__main__':
     time_start = time()
     # multiple processes
-    num_cpu = 40
+    num_cpu = 20
     path_root = '/local/zy/Tandem_Repeat'
 
     # annotate DHS by term
     path_dhs_stan = \
-        path_root + '/mid_data/cell_line/DHS/hg19tohg38_standard'
+        path_root + '/mid_data/cell_line/DHS/hg19toGRCh38_standard'
     path_h3k4me3_stan = \
         path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
                     'H3K4me3_standard'
@@ -261,14 +261,14 @@ if __name__ == '__main__':
         ))
 
     # promoter reference
-    promoter_file_hg19 = \
-        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v19.bed'
+    promoter_file_hg38 = \
+        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v29.bed'
     meta_suborgan_dhs = \
         path_root + '/mid_data/cell_line/DHS/meta.reference.tsv'
     path_ref_promoter = path_root + '/mid_data/cell_line/DHS/reference_map'
     annotate_promoter_to_dhs(
         path_dhs_stan, path_h3k4me3_stan,
-        promoter_file_hg19, path_ref_promoter, num_cpu
+        promoter_file_hg38, path_ref_promoter, num_cpu
     )
     print('Annotation of promoters and H3K4me3 is completed!')
 
@@ -276,7 +276,7 @@ if __name__ == '__main__':
     path_ctcf_stan = \
         path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
     protein_exon = path_root + '/origin_data/gene/' \
-                               'exon.protein.gencode.v19.bed'
+                               'exon.protein.gencode.v29.bed'
     path_map_h3k27ac = path_root + '/mid_data/cell_line/DHS/map_H3K27ac'
     path_combine_h3k27ac = \
         path_root + '/mid_data/cell_line/DHS/cRE_annotation'

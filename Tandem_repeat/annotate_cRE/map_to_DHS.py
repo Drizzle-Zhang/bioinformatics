@@ -820,8 +820,8 @@ if __name__ == '__main__':
     path_root = '/local/zy/Tandem_Repeat'
 
     # annotate DHS by term
-    path_dhs_stan = path_root + '/mid_data/tissue/DHS/hg19tohg38_standard'
-    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/hg19tohg38_cluster'
+    path_dhs_stan = path_root + '/mid_data/tissue/DHS/hg19toGRCh38_standard'
+    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/hg19toGRCh38_cluster'
     path_h3k4me3_stan = \
         path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
                     'H3K4me3_standard'
