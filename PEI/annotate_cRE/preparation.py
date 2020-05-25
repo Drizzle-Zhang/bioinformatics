@@ -220,9 +220,12 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                     )
                     w_f.write(fmt.format(**dict_hg19))
         df_bed = pd.read_csv(file_hg19_unsort, sep='\t', header=None)
-        scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
-        scale_scores = StandardScaler().fit_transform(scores)
-        df_bed.iloc[:, 6] = scale_scores
+        # scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
+        #
+        # # scale_scores = StandardScaler().fit_transform(scores)
+        # scale_scores = scores / np.mean(scores)
+        #
+        # df_bed.iloc[:, 6] = scale_scores
         df_bed = df_bed.drop_duplicates([0, 1, 2])
         df_bed.to_csv(file_hg19_unsort, sep='\t', index=None, header=None)
 
@@ -280,9 +283,13 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         df_bed = pd.read_csv(file_hg19_format, sep='\t', header=None)
         length = df_bed.iloc[:, 2] - df_bed.iloc[:, 1]
         df_bed = df_bed.loc[(length < up_limit) & (length > down_limit), :]
-        scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
-        scale_scores = StandardScaler().fit_transform(scores)
-        df_bed.iloc[:, 6] = scale_scores
+        # scores = np.array(df_bed.iloc[:, 6]).reshape(-1, 1)
+        #
+        # # scale_scores = StandardScaler().fit_transform(scores)
+        #
+        # scale_scores = scores / np.mean(scores)
+        #
+        # df_bed.iloc[:, 6] = scale_scores
         # if dict_in['File accession'] == 'ENCFF742USA':
         #     print(df_bed.shape[0])
         df_bed = df_bed.drop_duplicates([0, 1, 2])
@@ -608,12 +615,21 @@ def overlap_matrix(path_in, dict_in):
         file_merge = os.path.join(path_out, term_name + '.bed')
         list_bed = \
             (pd.read_csv(file_merge, sep='\t', header=None)).to_dict('records')
+        term = term_name.replace('_', ' ').replace('+', '/').replace("--", "'")
+        list_term_access = df_meta.loc[df_meta['Biosample term name'] == term,
+                                       'File accession'].tolist()
         list_dict = []
+        list_score = []
         for sub_dict in list_bed:
             out_dict = dict()
             out_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            set_access = set(sub_dict[3].strip().split('|'))
+            score_dict = dict()
+            score_dict['peak_id'] = \
+                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
+            list_access = sub_dict[3].strip().split('|')
+            list_row_score = sub_dict[6].strip().split('|')
+            set_access = set(list_access)
             if accession_ids[0][:5] == 'ENCSR':
                 for access in accession_ids:
                     access_files = (df_meta.loc[
@@ -623,7 +639,14 @@ def overlap_matrix(path_in, dict_in):
                         out_dict[access] = 1
                     else:
                         out_dict[access] = 0
-                    list_dict.append(out_dict)
+                list_dict.append(out_dict)
+                for access in list_term_access:
+                    if access in set_access:
+                        idx_access = list_access.index(access)
+                        score_dict[access] = list_row_score[idx_access]
+                    else:
+                        score_dict[access] = np.nan
+                list_score.append(score_dict)
             else:
                 for access in accession_ids:
                     if access in set_access:
@@ -638,7 +661,19 @@ def overlap_matrix(path_in, dict_in):
         df_ref = df_ref.drop('peak_id', 1)
         # write score matrix to txt file
         file_ref = os.path.join(path_out, term_name + '.ref')
+        # df_ref = df_ref.drop_duplicates()
         df_ref.to_csv(file_ref, sep='\t')
+
+        if accession_ids[0][:5] == 'ENCSR':
+            df_score = pd.DataFrame(
+                list_score, columns=['peak_id'] + list_term_access
+            )
+            df_score.index = df_score['peak_id']
+            df_score = df_score.drop('peak_id', 1)
+            # write score matrix to txt file
+            file_score = os.path.join(path_out, 'score.txt')
+            # df_ref = df_ref.drop_duplicates()
+            df_score.to_csv(file_score, sep='\t', na_rep='NA')
 
         list_out = []
         list_com = combinations(df_ref.columns, 2)
@@ -1468,51 +1503,48 @@ if __name__ == '__main__':
     # parameters
     num_cpu = 40
     path_root = '/local/zy/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
     # get bed file annotating protein-coding genes
-    gtf_file_hg19 = \
-        path_root + '/origin_data/ENCODE/gencode.v19.annotation.gtf'
-    protein_file_hg19 = \
-        path_root + '/origin_data/gene/genes.protein.gencode.v19.bed'
+    gtf_file_hg19 = path_origin + '/ENCODE/gencode.v19.annotation.gtf'
+    protein_file_hg19 = path_origin + '/gene/genes.protein.gencode.v19.bed'
     promoter_file_hg19 = \
-        path_root + '/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.bed'
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     promoter_file_hg19_merge = \
-        path_root + '/origin_data/gene/' \
-        'promoters.up2k.protein.gencode.v19.merge.bed'
-    exon_file_hg19 = \
-        path_root + '/origin_data/gene/exon.protein.gencode.v19.bed'
-    generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
-                       promoter_file_hg19_merge, exon_file_hg19)
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.merge.bed'
+    exon_file_hg19 = path_origin + '/gene/exon.protein.gencode.v19.bed'
+    # generate_gene_file(gtf_file_hg19, protein_file_hg19, promoter_file_hg19,
+    #                    promoter_file_hg19_merge, exon_file_hg19)
 
     # build life stage dictionary
-    path_lifestage = path_root + '/origin_data/ENCODE/metadata/life_stage'
+    path_lifestage = path_origin + '/ENCODE/metadata/life_stage'
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_meta_organ = path_root + '/origin_data/ENCODE/metadata/organ'
+    path_meta_organ = path_origin + '/ENCODE/metadata/organ'
     dict_organ = build_dict_attr(path_meta_organ)
 
     # build organ dictionary
-    path_meta_cell = path_root + '/origin_data/ENCODE/metadata/cell'
+    path_meta_cell = path_origin + '/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_meta_cell)
 
     # build organ dictionary
-    path_meta_lab = path_root + '/origin_data/ENCODE/metadata/lab'
+    path_meta_lab = path_origin + '/ENCODE/metadata/lab'
     dict_lab = build_dict_attr(path_meta_lab)
 
     # read reference organ
-    ref_organ = path_root + '/origin_data/ENCODE/metadata/organ_ref.txt'
+    ref_organ = path_origin + '/ENCODE/metadata/organ_ref.txt'
     with open(ref_organ, 'r') as r_ref:
         set_organs = set([organ.strip() for organ in r_ref])
     # organ complement
     file_complement = \
-        path_root + '/origin_data/ENCODE/metadata/complement_organ.txt'
+        path_origin + '/ENCODE/metadata/complement_organ.txt'
     df_complement = pd.read_csv(file_complement, sep='\t')
     print("Preparation of dictionary files and reference files is completed")
 
     # DHS reference
     # metafile
-    path_dhs = path_root + '/origin_data/ENCODE/DNase-seq/all'
+    path_dhs = path_origin + '/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
     df_meta_dhs = filter_meta(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
@@ -1520,48 +1552,45 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs, set_organs, df_complement)
-    meta_dhs = path_root + '/mid_data/tissue/ENCODE/' \
-                           'DNase-seq/metadata.simple.tsv'
+    meta_dhs = path_mid + '/tissue/ENCODE/DNase-seq/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/tissue/ENCODE/DNase-seq/GRCh38tohg19'
+    path_hg38tohg19 = path_mid + '/tissue/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
-        path_root + '/mid_data/tissue/ENCODE/' \
-        'DNase-seq/GRCh38tohg19_experiment'
+        path_mid + '/tissue/ENCODE/DNase-seq/GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = path_root + '/mid_data/tissue/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = path_mid + '/tissue/DHS/GRCh38tohg19/'
     unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
-    path_dhs_stan = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
+    path_dhs_stan = path_mid + '/tissue/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
     # merge and cluster
-    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+    path_dhs_cluster = path_mid + '/tissue/DHS/GRCh38tohg19_cluster'
     merge_organ_cluster(path_dhs_stan, path_dhs_cluster, num_cpu, False, False)
     print('Cluster and merge of DHS completed!')
 
     # merge sub-organ
     meta_suborgan_dhs = \
-        path_root + '/origin_data/meta_file/meta.reference.tsv'
+        path_origin + '/meta_file/meta.reference.tsv'
     merge_suborgan(path_dhs_stan, path_dhs_cluster, meta_suborgan_dhs, num_cpu)
 
     # preparation of bed files of histone and TF
     # H3K4me3
     path_h3k4me3 = \
-        path_root + '/origin_data/ENCODE/histone_ChIP-seq/H3K4me3'
+        path_origin + '/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
     df_meta_h3k4me3 = pd.read_csv(ori_meta_h3k4me3, sep='\t')
     df_meta_h3k4me3 = df_meta_h3k4me3.loc[
@@ -1583,26 +1612,25 @@ if __name__ == '__main__':
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
     df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3, set_organs, df_complement)
-    meta_h3k4me3 = path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
-                               'metadata.simple.H3K4me3.tsv'
+    meta_h3k4me3 = path_mid + '/tissue/ENCODE/histone_ChIP-seq/' \
+                              'metadata.simple.H3K4me3.tsv'
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
     print("H3K4me3 metadata ---- completed")
 
     # hg38 to hg19
     path_hg38tohg19 = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K4me3'
+        path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
     path_h3k4me3_stan = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K4me3_standard'
+        path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K4me3_standard'
     standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # H3K27ac
-    path_h3k27ac = \
-        path_root + '/origin_data/ENCODE/histone_ChIP-seq/H3K27ac'
+    path_h3k27ac = path_origin + '/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
     df_meta_h3k27ac = pd.read_csv(ori_meta_h3k27ac, sep='\t')
     df_meta_h3k27ac = df_meta_h3k27ac.loc[
@@ -1624,26 +1652,24 @@ if __name__ == '__main__':
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
     df_meta_h3k27ac = modify_meta(df_meta_h3k27ac, set_organs, df_complement)
-    meta_h3k27ac = path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
-                               'metadata.simple.H3K27ac.tsv'
+    meta_h3k27ac = path_mid + '/tissue/ENCODE/histone_ChIP-seq/' \
+                              'metadata.simple.H3K27ac.tsv'
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
     print("H3K27ac metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K27ac'
+    path_hg38tohg19 = path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K27ac'
     hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
     path_h3k27ac_stan = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/H3K27ac_standard'
+        path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K27ac_standard'
     standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # CTCF
-    path_ctcf = \
-        path_root + '/origin_data/ENCODE/TF_ChIP-seq/CTCF'
+    path_ctcf = path_origin + '/ENCODE/TF_ChIP-seq/CTCF'
     ori_meta_ctcf = os.path.join(path_ctcf, 'metadata.tsv')
     df_meta_ctcf = pd.read_csv(ori_meta_ctcf, sep='\t')
     df_meta_ctcf = df_meta_ctcf.loc[
@@ -1666,20 +1692,18 @@ if __name__ == '__main__':
     df_meta_ctcf = add_attr(df_meta_ctcf, dict_cell, 'Biosample cell')
     df_meta_ctcf = add_attr(df_meta_ctcf, dict_lab, 'Lab')
     df_meta_ctcf = modify_meta(df_meta_ctcf, set_organs, df_complement)
-    meta_ctcf = path_root + '/mid_data/tissue/ENCODE/' \
-                            'TF_ChIP-seq/metadata.simple.CTCF.tsv'
+    meta_ctcf = path_mid + '/tissue/ENCODE/' \
+                           'TF_ChIP-seq/metadata.simple.CTCF.tsv'
     df_meta_ctcf.to_csv(meta_ctcf, sep='\t', index=None)
     print("CTCF metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/tissue/ENCODE/TF_ChIP-seq/CTCF'
+    path_hg38tohg19 = path_mid + '/tissue/ENCODE/TF_ChIP-seq/CTCF'
     hg38tohg19(path_ctcf, path_hg38tohg19, meta_ctcf, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
-    path_ctcf_stan = \
-        path_root + '/mid_data/tissue/ENCODE/TF_ChIP-seq/CTCF_standard'
+    path_ctcf_stan = path_mid + '/tissue/ENCODE/TF_ChIP-seq/CTCF_standard'
     standardize_bed(path_hg38tohg19, path_ctcf_stan, 'CTCF', num_cpu)
     print('Standardization of CTCF completed!')
 

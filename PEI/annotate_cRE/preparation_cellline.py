@@ -187,29 +187,31 @@ def merge_all_cells(path_stan, num_process):
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    num_cpu = 20
+    num_cpu = 40
     path_root = '/local/zy/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
     # build life stage dictionary
-    path_lifestage = path_root + '/origin_data/ENCODE/metadata/life_stage'
+    path_lifestage = path_origin + '/ENCODE/metadata/life_stage'
     dict_lifestage = build_dict_attr(path_lifestage)
 
     # build organ dictionary
-    path_meta_organ = path_root + '/origin_data/ENCODE/metadata/organ'
+    path_meta_organ = path_origin + '/ENCODE/metadata/organ'
     dict_organ = build_dict_attr(path_meta_organ)
 
     # build organ dictionary
-    path_meta_cell = path_root + '/origin_data/ENCODE/metadata/cell'
+    path_meta_cell = path_origin + '/ENCODE/metadata/cell'
     dict_cell = build_dict_attr(path_meta_cell)
 
     # build organ dictionary
-    path_meta_lab = path_root + '/origin_data/ENCODE/metadata/lab'
+    path_meta_lab = path_origin + '/ENCODE/metadata/lab'
     dict_lab = build_dict_attr(path_meta_lab)
     print("Preparation of dictionary files and reference files is completed")
 
     # DHS reference
     # metafile
-    path_dhs = path_root + '/origin_data/ENCODE/DNase-seq/all'
+    path_dhs = path_origin + '/ENCODE/DNase-seq/all'
     ori_meta_dhs = os.path.join(path_dhs, 'metadata.tsv')
     df_meta_dhs = filter_meta(ori_meta_dhs)
     df_meta_dhs = add_attr(df_meta_dhs, dict_lifestage, 'Biosample life stage')
@@ -217,31 +219,28 @@ if __name__ == '__main__':
     df_meta_dhs = add_attr(df_meta_dhs, dict_cell, 'Biosample cell')
     df_meta_dhs = add_attr(df_meta_dhs, dict_lab, 'Lab')
     df_meta_dhs = modify_meta(df_meta_dhs)
-    meta_dhs = path_root + '/mid_data/cell_line/metadata.simple.tsv'
+    meta_dhs = path_mid + '/cell_line/metadata.simple.tsv'
     df_meta_dhs.to_csv(meta_dhs, sep='\t', index=None)
     print("DHS metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/cell_line/ENCODE/DNase-seq/GRCh38tohg19'
+    path_hg38tohg19 = path_mid + '/cell_line/ENCODE/DNase-seq/GRCh38tohg19'
     hg38tohg19(path_dhs, path_hg38tohg19, meta_dhs, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # integrate files from same experiment
     path_exp_dhs = \
-        path_root + '/mid_data/cell_line/ENCODE/' \
-                    'DNase-seq/GRCh38tohg19_experiment'
+        path_mid + '/cell_line/ENCODE/DNase-seq/GRCh38tohg19_experiment'
     merge_experiment(path_hg38tohg19, path_exp_dhs, 0.5, num_cpu)
     print("Integration of files from same experiment ---- completed")
 
     # build DHS reference
-    path_dhs_hg38tohg19 = path_root + '/mid_data/cell_line/DHS/GRCh38tohg19/'
+    path_dhs_hg38tohg19 = path_mid + '/cell_line/DHS/GRCh38tohg19/'
     unique_bed_files(path_exp_dhs, path_dhs_hg38tohg19, 0.5, num_cpu)
     print("Integration of files from same term ---- completed")
 
     # standardization
-    path_dhs_stan = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+    path_dhs_stan = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     standardize_bed(path_dhs_hg38tohg19, path_dhs_stan, 'DHS', num_cpu)
     print('Standardization of DHS completed!')
 
@@ -251,8 +250,7 @@ if __name__ == '__main__':
 
     # preparation of bed files of histone and TF
     # H3K4me3
-    path_h3k4me3 = \
-        path_root + '/origin_data/ENCODE/histone_ChIP-seq/H3K4me3'
+    path_h3k4me3 = path_origin + '/ENCODE/histone_ChIP-seq/H3K4me3'
     ori_meta_h3k4me3 = os.path.join(path_h3k4me3, 'metadata.tsv')
     df_meta_h3k4me3 = pd.read_csv(ori_meta_h3k4me3, sep='\t')
     df_meta_h3k4me3 = df_meta_h3k4me3.loc[
@@ -274,27 +272,24 @@ if __name__ == '__main__':
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_cell, 'Biosample cell')
     df_meta_h3k4me3 = add_attr(df_meta_h3k4me3, dict_lab, 'Lab')
     df_meta_h3k4me3 = modify_meta(df_meta_h3k4me3)
-    meta_h3k4me3 = path_root + '/mid_data/cell_line/ENCODE/' \
-                               'histone_ChIP-seq/metadata.simple.H3K4me3.tsv'
+    meta_h3k4me3 = path_mid + '/cell_line/ENCODE/' \
+                              'histone_ChIP-seq/metadata.simple.H3K4me3.tsv'
     df_meta_h3k4me3.to_csv(meta_h3k4me3, sep='\t', index=None)
     print("H3K4me3 metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K4me3'
+    path_hg38tohg19 = path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K4me3'
     hg38tohg19(path_h3k4me3, path_hg38tohg19, meta_h3k4me3, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
     path_h3k4me3_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
-                    'H3K4me3_standard'
+        path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K4me3_standard'
     standardize_bed(path_hg38tohg19, path_h3k4me3_stan, 'H3K4me3', num_cpu)
     print('Standardization of H3K4me3 completed!')
 
     # H3K27ac
-    path_h3k27ac = \
-        path_root + '/origin_data/ENCODE/histone_ChIP-seq/H3K27ac'
+    path_h3k27ac = path_origin + '/ENCODE/histone_ChIP-seq/H3K27ac'
     ori_meta_h3k27ac = os.path.join(path_h3k27ac, 'metadata.tsv')
     df_meta_h3k27ac = pd.read_csv(ori_meta_h3k27ac, sep='\t')
     df_meta_h3k27ac = df_meta_h3k27ac.loc[
@@ -316,27 +311,24 @@ if __name__ == '__main__':
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_cell, 'Biosample cell')
     df_meta_h3k27ac = add_attr(df_meta_h3k27ac, dict_lab, 'Lab')
     df_meta_h3k27ac = modify_meta(df_meta_h3k27ac)
-    meta_h3k27ac = path_root + '/mid_data/cell_line/ENCODE/' \
-                               'histone_ChIP-seq/metadata.simple.H3K27ac.tsv'
+    meta_h3k27ac = path_mid + '/cell_line/ENCODE/' \
+                              'histone_ChIP-seq/metadata.simple.H3K27ac.tsv'
     df_meta_h3k27ac.to_csv(meta_h3k27ac, sep='\t', index=None)
     print("H3K27ac metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/H3K27ac'
+    path_hg38tohg19 = path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K27ac'
     hg38tohg19(path_h3k27ac, path_hg38tohg19, meta_h3k27ac, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
     path_h3k27ac_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
-        'H3K27ac_standard'
+        path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K27ac_standard'
     standardize_bed(path_hg38tohg19, path_h3k27ac_stan, 'H3K27ac', num_cpu)
     print('Standardization of H3K27ac completed!')
 
     # CTCF
-    path_ctcf = \
-        path_root + '/origin_data/ENCODE/TF_ChIP-seq/CTCF'
+    path_ctcf = path_origin + '/ENCODE/TF_ChIP-seq/CTCF'
     ori_meta_ctcf = os.path.join(path_ctcf, 'metadata.tsv')
     df_meta_ctcf = pd.read_csv(ori_meta_ctcf, sep='\t')
     df_meta_ctcf = df_meta_ctcf.loc[
@@ -359,20 +351,18 @@ if __name__ == '__main__':
     df_meta_ctcf = add_attr(df_meta_ctcf, dict_cell, 'Biosample cell')
     df_meta_ctcf = add_attr(df_meta_ctcf, dict_lab, 'Lab')
     df_meta_ctcf = modify_meta(df_meta_ctcf)
-    meta_ctcf = path_root + '/mid_data/cell_line/ENCODE/' \
-                            'TF_ChIP-seq/metadata.simple.CTCF.tsv'
+    meta_ctcf = \
+        path_mid + '/cell_line/ENCODE/TF_ChIP-seq/metadata.simple.CTCF.tsv'
     df_meta_ctcf.to_csv(meta_ctcf, sep='\t', index=None)
     print("CTCF metadata ---- completed")
 
     # hg38 to hg19
-    path_hg38tohg19 = \
-        path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF'
+    path_hg38tohg19 = path_mid + '/cell_line/ENCODE/TF_ChIP-seq/CTCF'
     hg38tohg19(path_ctcf, path_hg38tohg19, meta_ctcf, num_cpu)
     print("Format conversion: hg38 -> hg19 ---- completed")
 
     # standardization
-    path_ctcf_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
+    path_ctcf_stan = path_mid + '/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
     standardize_bed(path_hg38tohg19, path_ctcf_stan, 'CTCF', num_cpu)
     print('Standardization of CTCF completed!')
 

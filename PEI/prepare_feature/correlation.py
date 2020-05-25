@@ -217,15 +217,17 @@ def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
+    path_root = '/local/zy/PEI'
+
     file_all_index = \
-        '/local/zy/PEI/mid_data/database_feature/DHS_index/all_index.txt'
+        path_root + '/mid_data/database_feature/DHS_index/all_index.txt'
     file_dhs_promoter = \
-        '/local/zy/PEI/mid_data/database_feature/DHS_index/promoter_index.txt'
-    file_promoter = '/local/zy/PEI/origin_data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.bed'
+        path_root + '/mid_data/database_feature/DHS_index/promoter_index.txt'
+    file_promoter = path_root + '/origin_data/gene/' \
+                                'promoters.up2k.protein.gencode.v19.bed'
     dict_gene_pos = generate_promoter_dict()
 
-    path_matrix = '/local/zy/PEI/mid_data/database_feature/matrix'
+    path_matrix = path_root + '/mid_data/database_feature/matrix'
     # matrix_gene = ['DHS', 'H3K4me3']
     matrix_gene = ['expression']
     # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt']
@@ -233,7 +235,7 @@ if __name__ == '__main__':
     matrix_dhs = ['DHS', 'H3K27ac']
     files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
 
-    path_correlation = '/local/zy/PEI/mid_data/database_feature/correlation'
+    path_correlation = path_root + '/mid_data/database_feature/correlation'
 
     for i, name_gene in enumerate(matrix_gene):
         for j, name_dhs in enumerate(matrix_dhs):
@@ -245,7 +247,7 @@ if __name__ == '__main__':
                 os.mkdir(sub_path_out)
             # if f"{name_gene}_{name_dhs}" == 'DHS_DHS':
             #     continue
-            correlation(name_gene, name_dhs, file_gene, file_dhs, sub_path_out)
+            # correlation(name_gene, name_dhs, file_gene, file_dhs, sub_path_out)
         #     if j == 0:
         #         break
         # if i == 0:

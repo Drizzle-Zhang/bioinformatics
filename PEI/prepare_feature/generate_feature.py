@@ -99,6 +99,7 @@ def sub_generate_pair(dict_in):
 
     df_pro = pd.read_csv(file_cre_pro, sep='\t', header=None)
     genes = df_pro[6].apply(lambda x: x.split('<-')[0]).unique().tolist()
+    genes = set(genes).intersection(set_genes_gtex)
 
     df_index = pd.read_csv(file_index, sep='\t', header=None,
                            usecols=[0, 2], names=['dhs_id', 'ref_dhs_id'])
@@ -181,10 +182,12 @@ def generate_pairs():
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    file_promoter = '/local/zy/PEI/origin_data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.bed'
-    file_promoter_uniq = '/local/zy/PEI/origin_data/gene/' \
-                         'promoters.up2k.protein.gencode.v19.unique.bed'
+    path_root = '/local/zy/PEI'
+    file_promoter = path_root + '/origin_data/gene/' \
+                                'promoters.up2k.protein.gencode.v19.bed'
+    file_promoter_uniq = \
+        path_root + '/origin_data/gene/' \
+                    'promoters.up2k.protein.gencode.v19.unique.bed'
     df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
     df_promoter['idx'] = df_promoter.index
     df_promoter['gene'] = df_promoter[3].apply(
@@ -192,25 +195,38 @@ if __name__ == '__main__':
     df_promoter = df_promoter.drop_duplicates(subset='gene')
     df_promoter.to_csv(file_promoter_uniq, sep='\t', index=None, header=None)
 
+    # use genes in GTEx
+    file_mat_exp_gtex = \
+        path_root + '/mid_data/database_feature/matrix/' \
+                    'GTEx_expression_matrix.txt'
+    set_genes_gtex = set(pd.read_csv(
+        file_mat_exp_gtex, sep='\t', usecols=[0]).iloc[:, 0].tolist())
+    # genes not in GTEx
+    file_mat_h3k4me3 = \
+        path_root + '/mid_data/database_feature/matrix/H3K4me3_matrix.txt'
+    set_genes_encode = set(pd.read_csv(
+        file_mat_h3k4me3, sep='\t', usecols=[0]).iloc[:, 0].tolist())
+    set_not_gtex = set_genes_encode.difference(set_genes_gtex)
+
     dict_gene_pos = {}
     for sub_dict_gene in df_promoter.to_dict('records'):
         dict_gene_pos[sub_dict_gene['gene']] = \
             [sub_dict_gene[0], sub_dict_gene[1], sub_dict_gene[2]]
 
     path_dhs_cell = \
-        '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_cluster = \
-        '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
     path_dhs_tissue_stan = \
-        '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_standard'
+        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
 
-    path_cre_cell = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
-    path_cre_tissue = '/local/zy/PEI/mid_data/tissue/DHS/cRE_annotation'
+    path_cre_cell = path_root + '/mid_data/cell_line/DHS/cRE_annotation'
+    path_cre_tissue = path_root + '/mid_data/tissue/DHS/cRE_annotation'
 
-    path_feature_cell = '/local/zy/PEI/mid_data/cell_line/model_input'
-    path_feature_tissue = '/local/zy/PEI/mid_data/tissue/model_input'
+    path_feature_cell = path_root + '/mid_data/cell_line/model_input'
+    path_feature_tissue = path_root + '/mid_data/tissue/model_input'
 
-    path_correlation = '/local/zy/PEI/mid_data/database_feature/correlation'
+    path_correlation = path_root + '/mid_data/database_feature/correlation'
     generate_pairs()
 
     time_end = time()

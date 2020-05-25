@@ -118,7 +118,6 @@ def dhs_matrix():
 
     df_dhs = pd.read_csv(file_matrix_dhs, sep='\t', index_col=0)
     df_dhs_promoter = pd.read_csv(file_dhs_promoter, sep='\t')
-    df_dhs_promoter = df_dhs_promoter.drop_duplicates('gene')
     df_dhs_promoter = pd.merge(
         df_dhs_promoter, df_dhs, left_on='dhs_id', right_index=True)
     df_gene_dhs = df_dhs_promoter.groupby('idx').apply(calculate_score)

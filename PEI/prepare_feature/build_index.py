@@ -123,8 +123,8 @@ def generate_index_file():
     for term in (df_meta_cell['Biosample term name'].unique()).tolist():
         str_term = term.replace(' ', '_').replace('/', '+')
         path_term = os.path.join(path_dhs_cell, str_term)
-        # list_input.append({'str_term': str_term, 'path_term': path_term,
-        #                    'file_ref': file_ref})
+        list_input.append({'str_term': str_term, 'path_term': path_term,
+                           'file_ref': file_ref})
 
     # tissue
     df_meta_tissue = pd.read_csv(
@@ -136,9 +136,9 @@ def generate_index_file():
             ' ', '_').replace('/', '+').replace("'", "--")
         path_term = os.path.join(
             path_dhs_tissue_stan, f"{str_life_organ}/{str_term}")
-        # list_input.append(
-        #     {'str_term': str_term, 'path_term': path_term,
-        #      'file_ref': file_ref})
+        list_input.append(
+            {'str_term': str_term, 'path_term': path_term,
+             'file_ref': file_ref})
 
     life_organs = list(set(df_meta_tissue['Biosample life_organ'].tolist()))
     for life_organ in life_organs:
@@ -163,9 +163,9 @@ def generate_index_file():
             ' ', '_').replace('/', '+').replace("'", "--")
         path_term = os.path.join(
             path_dhs_tissue_cluster, f"{str_life_organ}/{str_term}")
-        # list_input.append(
-        #     {'str_term': str_term, 'path_term': path_term,
-        #      'file_ref': file_ref})
+        list_input.append(
+            {'str_term': str_term, 'path_term': path_term,
+             'file_ref': file_ref})
 
     pool = Pool(processes=num_cpu)
     pool.map(sub_generate_index, list_input)

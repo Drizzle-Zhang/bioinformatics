@@ -70,6 +70,7 @@ def build_dataset(dict_in):
     # df_uniq.columns = \
     #     ['gene', 'dhs_id', 'score_dhs_insulator', 'score_ctcf_insulator']
     df_uniq.columns = ['gene', 'dhs_id', 'score_ctcf_insulator']
+    df_uniq = df_uniq.drop_duplicates()
     df_genome_ctcf = pd.merge(df_pre, df_uniq, on=['gene', 'dhs_id'],
                               how='left')
     df_genome_ctcf = df_genome_ctcf.fillna(-10)
@@ -167,46 +168,41 @@ def build_test_set(file_label, file_feature, file_out):
     df_out = df_out.fillna(0)
     df_out.to_csv(file_out, sep='\t', index=None)
 
-    return df_out
+    return
 
 
 if __name__ == '__main__':
     time_start = time()
-    path_cre_cell = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation/'
-    path_feature_cell = '/local/zy/PEI/mid_data/cell_line/model_input'
-    file_promoter = '/local/zy/PEI/origin_data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.unique.bed'
+    path_root = '/local/zy/PEI'
+
+    path_cre_cell = path_root + '/mid_data/cell_line/DHS/cRE_annotation'
+    path_feature_cell = path_root + '/mid_data/cell_line/model_input'
+    file_promoter = path_root + '/origin_data/gene/' \
+                                'promoters.up2k.protein.gencode.v19.unique.bed'
     df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
 
     df_meta_cell = pd.read_csv(
         os.path.join(path_cre_cell, 'meta.reference.tsv'), sep='\t')
     cell_dicts = df_meta_cell.to_dict('records')
-    # pool = Pool(40)
-    # pool.map(build_dataset, cell_dicts)
-    # pool.close()
+    pool = Pool(40)
+    pool.map(build_dataset, cell_dicts)
+    pool.close()
 
     # sub_meta = cell_dicts[4]
     # build_dataset(sub_meta)
 
     path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
+        path_root + '/mid_data/training_label/label_interactions_V1'
     build_training_set()
 
-    file_label_h1 = 'H1.merge.tmp'
-    file_feature_h1 = ''
-    file_out_h1 = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
-        'H1/test_set.txt'
+    file_label_h1 = path_label + '/H1/H1.merge.tmp'
+    file_feature_h1 = path_feature_cell + '/H1/input_file.txt'
+    file_out_h1 = path_label + '/H1/test_set.txt'
     build_test_set(file_label_h1, file_feature_h1, file_out_h1)
 
-    file_label_IMR90 = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
-        'IMR-90/IMR-90.merge.tmp'
-    file_feature_IMR90 = \
-        '/local/zy/PEI/mid_data/cell_line/model_input/IMR-90/input_file.txt'
-    file_out_IMR90 = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_V1/' \
-        'IMR-90/test_set.txt'
+    file_label_IMR90 = path_label + '/IMR-90/IMR-90.merge.tmp'
+    file_feature_IMR90 = path_feature_cell + '/IMR-90/input_file.txt'
+    file_out_IMR90 = path_label + '/IMR-90/test_set.txt'
     build_test_set(file_label_IMR90, file_feature_IMR90, file_out_IMR90)
 
     time_end = time()

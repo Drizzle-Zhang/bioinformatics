@@ -1,4 +1,5 @@
 library(ggplot2)
+setwd('/home/drizzle_zhang/driver_mutation/cRE_plot/model_test')
 
 df_feature <- data.frame(
     Feature = factor(c('score_dhs_enhancer', 'score_h3k4me3_enhancer', 'pval_h3k4me3_enhancer', 
@@ -20,7 +21,7 @@ ggplot(df_feature, aes(x = Feature, y = Importance)) +
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background=element_blank())   ## È¥?ï¿½ï¿½ï¿½ï¿½???É«
 
 
 df_feature_corr <- data.frame(
@@ -43,7 +44,7 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background=element_blank())   ## È¥?ï¿½ï¿½ï¿½ï¿½???É«
 
 
 df_feature_corr <- data.frame(
@@ -74,7 +75,7 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background=element_blank())   ## È¥?ï¿½ï¿½ï¿½ï¿½???É«
 
 
 
@@ -82,9 +83,21 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
 df.accuracy <- data.frame(
     Model = c(rep('Model(distance matched)', 5),
               rep('Model(without distance matched)', 5)),
-    Evaluator = c('F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC', 
+    Evaluator = c('F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC',
                   'F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC'),
     Value = c(0.72543, 0.70133, 0.75125, 0.79244, 0.78579,
+              0.87345, 0.89694, 0.85120, 0.94325, 0.94112)
+)
+
+df.accuracy <- data.frame(
+    Model = c(rep('Model(distance matched)', 5),
+              rep('Model(without distance matched, no CTCF)', 5),
+              rep('Model(without distance matched)', 5)),
+    Evaluator = c('F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC',
+                  'F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC',
+                  'F1 Score', 'Precision', 'Recall', 'AUC of ROC', 'AUC of PRC'),
+    Value = c(0.72543, 0.70133, 0.75125, 0.79244, 0.78579,
+              0.64133, 0.64327, 0.63947, 0.69948, 0.69776,
               0.87345, 0.89694, 0.85120, 0.94325, 0.94112)
 )
 
@@ -125,7 +138,7 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background=element_blank())   
 
 
 df_feature_corr <- data.frame(
@@ -142,7 +155,7 @@ ggplot(df_feature_corr, aes(x = Feature, y = Importance)) +
     theme(axis.ticks = element_blank())+
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background=element_blank())   
 
 
 df_feature_corr <- data.frame(
@@ -153,8 +166,8 @@ df_feature_corr <- data.frame(
 
 ggplot(df_feature_corr, aes(x = Dataset, y = AUROC)) + 
     geom_bar(stat = "identity") + coord_flip() + 
-    theme(axis.ticks = element_blank())+
+    theme(axis.ticks = element_blank()) +
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
     coord_cartesian(ylim = c(0.50, 1)) +   
-    theme(panel.background=element_blank())   ## È¥µô±³¾°ÑÕÉ«
+    theme(panel.background = element_blank())   
