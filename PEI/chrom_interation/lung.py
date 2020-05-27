@@ -10,6 +10,7 @@ import re
 import os
 import pandas as pd
 import numpy as np
+from multiprocessing import Pool
 
 
 def transform_ng2019(file_pp, file_po, file_out, cutoff):
@@ -75,94 +76,70 @@ def get_pairs(file_in, file_out):
                 cres2 = list_line[10].split(',')
                 set_cres1 = set(list_line[4].split(','))
                 set_cres2 = set(list_line[10].split(','))
-                if ('.' in set_cres1) | ('.' in set_cres2):
-                    continue
+                # if ('.' in set_cres1) | ('.' in set_cres2):
+                #     continue
                 dhs_ids1 = list_line[3].split(',')
                 dhs_ids2 = list_line[9].split(',')
                 promoters1 = set(list_line[5].split(','))
                 promoters2 = set(list_line[11].split(','))
                 if loop_id[:2] == 'pp':
-                    if (('Protein-Promoter' in set_cres1) |
-                        ('Protein-Promoter(Enhancer)' in set_cres1)) & \
-                            (('Protein-Promoter' in set_cres2) |
-                             ('Protein-Promoter(Enhancer)' in set_cres2)):
-                        genes1 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters1 if val != '.']
-                        genes2 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters2 if val != '.']
+                    genes1 = [pattern_gene.search(val).group()[:-2]
+                              for val in promoters1 if val != '.']
+                    genes2 = [pattern_gene.search(val).group()[:-2]
+                              for val in promoters2 if val != '.']
+                    if genes2:
                         for i, dhs_id in enumerate(dhs_ids1):
+                            if dhs_id == '.':
+                                continue
                             for gene2 in genes2:
                                 dict_pro1 = dict(gene=gene2, dhs_id=dhs_id,
                                                  cre_type=cres1[i],
                                                  loop_score=loop_score)
                                 w_out.write(fmt.format(**dict_pro1))
+                    if genes1:
                         for i, dhs_id in enumerate(dhs_ids2):
+                            if dhs_id == '.':
+                                continue
                             for gene1 in genes1:
                                 dict_pro2 = dict(gene=gene1, dhs_id=dhs_id,
                                                  cre_type=cres2[i],
                                                  loop_score=loop_score)
                                 w_out.write(fmt.format(**dict_pro2))
                 elif loop_id[:2] == 'po':
-                    if (('Protein-Promoter' in set_cres1) |
-                        ('Protein-Promoter(Enhancer)' in set_cres1)) & \
-                            (('Enhancer' in set_cres2) |
-                             ('Other-Promoter(Enhancer)' in set_cres2) |
-                             ('Protein-Promoter(Enhancer)' in set_cres2)):
-                        genes1 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters1 if val != '.']
+                    genes1 = [pattern_gene.search(val).group()[:-2]
+                              for val in promoters1 if val != '.']
+                    if genes1:
                         for i, dhs_id in enumerate(dhs_ids2):
+                            if dhs_id == '.':
+                                continue
                             for gene1 in genes1:
                                 dict_pro2 = dict(gene=gene1, dhs_id=dhs_id,
                                                  cre_type=cres2[i],
                                                  loop_score=loop_score)
                                 w_out.write(fmt.format(**dict_pro2))
                 else:
-                    if (('Protein-Promoter' in set_cres1) |
-                        ('Protein-Promoter(Enhancer)' in set_cres1)) & \
-                            (('Protein-Promoter' in set_cres2) |
-                             ('Protein-Promoter(Enhancer)' in set_cres2)):
-                        genes1 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters1 if val != '.']
-                        genes2 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters2 if val != '.']
+                    genes1 = [pattern_gene.search(val).group()[:-2]
+                              for val in promoters1 if val != '.']
+                    genes2 = [pattern_gene.search(val).group()[:-2]
+                              for val in promoters2 if val != '.']
+                    if genes2:
                         for i, dhs_id in enumerate(dhs_ids1):
+                            if dhs_id == '.':
+                                continue
                             for gene2 in genes2:
                                 dict_pro1 = dict(gene=gene2, dhs_id=dhs_id,
                                                  cre_type=cres1[i],
                                                  loop_score=loop_score)
                                 w_out.write(fmt.format(**dict_pro1))
+                    if genes1:
                         for i, dhs_id in enumerate(dhs_ids2):
+                            if dhs_id == '.':
+                                continue
                             for gene1 in genes1:
                                 dict_pro2 = dict(gene=gene1, dhs_id=dhs_id,
                                                  cre_type=cres2[i],
                                                  loop_score=loop_score)
                                 w_out.write(fmt.format(**dict_pro2))
-                    elif (('Protein-Promoter' in set_cres1) |
-                          ('Protein-Promoter(Enhancer)' in set_cres1)) & \
-                            (('Enhancer' in set_cres2) |
-                             ('Other-Promoter(Enhancer)' in set_cres2) |
-                             ('Protein-Promoter(Enhancer)' in set_cres2)):
-                        genes1 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters1 if val != '.']
-                        for i, dhs_id in enumerate(dhs_ids2):
-                            for gene1 in genes1:
-                                dict_pro2 = dict(gene=gene1, dhs_id=dhs_id,
-                                                 cre_type=cres2[i],
-                                                 loop_score=loop_score)
-                                w_out.write(fmt.format(**dict_pro2))
-                    elif (('Enhancer' in set_cres1) |
-                          ('Other-Promoter(Enhancer)' in set_cres1) |
-                          ('Protein-Promoter(Enhancer)' in set_cres1)) & \
-                            (('Protein-Promoter' in set_cres2) |
-                             ('Protein-Promoter(Enhancer)' in set_cres2)):
-                        genes2 = [pattern_gene.search(val).group()[:-2]
-                                  for val in promoters2 if val != '.']
-                        for i, dhs_id in enumerate(dhs_ids1):
-                            for gene2 in genes2:
-                                dict_pro1 = dict(gene=gene2, dhs_id=dhs_id,
-                                                 cre_type=cres1[i],
-                                                 loop_score=loop_score)
-                                w_out.write(fmt.format(**dict_pro1))
 
     def drop_dup(x):
         if x.shape[0] == 1:
@@ -266,20 +243,163 @@ def uniform_snp(file_in, file_out, file_cre, file_pair, flank=500):
                           names=['gene', 'dhs_id', 'type_cre', 'loop_score'])
     df_out = pd.merge(df_snp_cre, df_pair, on='dhs_id', how='left')
     df_out.to_csv(file_out, sep='\t', index=None)
+    #
+    # file_pro = '/local/zy/PEI/lung_snps/pro.txt'
+    # file_enh = '/local/zy/PEI/lung_snps/enh.txt'
+    # file_snp_hic = '/local/zy/PEI/lung_snps/snp_enh.txt'
+    # os.system(f"cut -f 1,2,3,7,8 {file_uniform_lung} > {file_pro}")
+    # os.system(f"cut -f 4,5,6,7,8 {file_uniform_lung} > {file_enh}")
+    # os.system(f"bedtools intersect -a {file_in_bed} -b {file_enh} -wao | "
+    #           f"cut -f 4,8 > {file_snp_hic}")
 
-    file_pro = '/local/zy/PEI/lung_snps/pro.txt'
-    file_enh = '/local/zy/PEI/lung_snps/enh.txt'
-    file_snp_hic = '/local/zy/PEI/lung_snps/snp_enh.txt'
-    os.system(f"cut -f 1,2,3,7,8 {file_uniform_lung} > {file_pro}")
-    os.system(f"cut -f 4,5,6,7,8 {file_uniform_lung} > {file_enh}")
-    os.system(f"bedtools intersect -a {file_in_bed} -b {file_enh} -wao | "
-              f"cut -f 4,8 > {file_snp_hic}")
+    return
+
+
+def map_tissue(dict_in):
+    file_pp = dict_in['file_pp']
+    file_po = dict_in['file_po']
+    file_cre = dict_in['file_cre']
+    file_uniform = dict_in['file_uniform']
+    file_out = dict_in['file_out']
+    file_pair = dict_in['file_pair']
+    tissue = dict_in['tissue']
+    file_out_snp = dict_in['file_out_snp']
+    transform_ng2019(file_pp, file_po, file_uniform, 1.3)
+    annotate_hic(file_cre, file_uniform, file_out, file_pair)
+
+    file_snp_cre = file_out_snp + '.snp.cRE'
+    os.system(f"bedtools intersect -a {file_snp_uniform} -b {file_cre} -wao | "
+              f"cut -f 4,8 > {file_snp_cre}")
+    df_snp_cre = pd.read_csv(file_snp_cre, sep='\t', header=None,
+                             names=['snp_id', 'dhs_id'])
+    df_pair = pd.read_csv(file_pair, sep='\t', header=None,
+                          names=['gene', 'dhs_id', 'type_cre', 'loop_score'])
+    df_out = pd.merge(df_snp_cre, df_pair, on='dhs_id', how='left')
+    df_out.to_csv(file_out_snp, sep='\t', index=None)
+    df_out['tissue'] = [tissue for _ in range(df_out.shape[0])]
+
+    return df_out
+
+
+def map_label(dict_in):
+    file_cre = dict_in['file_cre']
+    file_uniform = dict_in['file_uniform']
+    file_out = dict_in['file_out']
+    file_pair = dict_in['file_pair']
+    label = dict_in['label']
+    file_out_snp = dict_in['file_out_snp']
+    annotate_hic(file_cre, file_uniform, file_out, file_pair)
+
+    file_snp_cre = file_out_snp + '.snp.cRE'
+    os.system(f"bedtools intersect -a {file_snp_uniform} -b {file_cre} -wao | "
+              f"cut -f 4,8 > {file_snp_cre}")
+    df_snp_cre = pd.read_csv(file_snp_cre, sep='\t', header=None,
+                             names=['snp_id', 'dhs_id'])
+    df_pair = pd.read_csv(file_pair, sep='\t', header=None,
+                          names=['gene', 'dhs_id', 'type_cre', 'loop_score'])
+    df_out = pd.merge(df_snp_cre, df_pair, on='dhs_id', how='left')
+    df_out.to_csv(file_out_snp, sep='\t', index=None)
+    df_out['tissue'] = [label for _ in range(df_out.shape[0])]
+
+    return df_out
+
+
+def snp_map_to_multiple_tissue():
+    with open(file_snp, 'r') as r_f:
+        with open(file_snp_uniform, 'w') as w_f:
+            fmt = "{chrom}\t{start}\t{end}\t{snp_id}\n"
+            for line in r_f:
+                tmp_line = line.strip().split('\t')
+                chrom = 'chr' + tmp_line[0]
+                start = int(tmp_line[1]) - flank
+                end = int(tmp_line[1]) + flank
+                snp_id = tmp_line[2]
+                w_f.write(fmt.format(**locals()))
+
+    df_meta = pd.read_csv(meta_file_pchic, sep='\t')
+    df_meta = df_meta.dropna()
+    list_input = []
+    for sub_dict in df_meta.to_dict('records'):
+        path_tissue = os.path.join(path_lung, sub_dict['tissue'])
+        if not os.path.exists(path_tissue):
+            os.mkdir(path_tissue)
+        file_pp = os.path.join(path_hic, f"{sub_dict['tissue']}.pp.txt")
+        file_po = os.path.join(path_hic, f"{sub_dict['tissue']}.po.txt")
+        file_cre = os.path.join(sub_dict['file_cre'], 'cRE.txt')
+        file_uniform = os.path.join(path_tissue, 'uniform.txt')
+        file_out = os.path.join(path_tissue, 'interactions.cRE.txt')
+        file_pair = os.path.join(path_tissue, 'pairs.gene.cRE.txt')
+        file_out_snp = os.path.join(path_tissue, 'SNPs.gene.cRE.txt')
+        list_input.append(
+            {'file_pp': file_pp, 'file_po': file_po, 'file_cre': file_cre,
+             'file_uniform': file_uniform, 'file_out': file_out,
+             'file_pair': file_pair, 'tissue': sub_dict['tissue'],
+             'file_out_snp': file_out_snp})
+
+    # pool = Pool(processes=num_cpu)
+    # list_out = pool.map(map_tissue, list_input)
+    # pool.close()
+    # df_out = pd.concat(list_out)
+    # df_out.to_csv(
+    #     os.path.join(path_lung, 'SNPs_gene_cRE.pcHiC.all.txt'),
+    #     sep='\t', index=None)
+    # df_out = df_out.loc[df_out['dhs_id'] != '.', :]
+    # df_out.to_csv(
+    #     os.path.join(path_lung, 'SNPs_gene_cRE.pcHiC.txt'),
+    #     sep='\t', index=None)
+
+    df_meta = pd.read_csv(flie_meta_label, sep='\t')
+    list_input = []
+    for sub_dict in df_meta.to_dict('records'):
+        term = sub_dict['Biosample term name']
+        method = sub_dict['Method']
+        source = sub_dict['Source']
+        filename = sub_dict['Filename']
+        path_term = os.path.join(path_lung, term)
+        if not os.path.exists(path_term):
+            os.mkdir(path_term)
+        file_cre = os.path.join(path_ref_cellline, f"{term}/cRE.txt")
+        file_uniform = os.path.join(
+            path_label, f'{term}/{method}__{source}__{filename[:-4]}.uniform')
+        file_out = os.path.join(
+            path_term,
+            f'{method}__{source}__{filename[:-4]}.interactions.cRE.txt')
+        file_pair = os.path.join(
+            path_term,
+            f'{method}__{source}__{filename[:-4]}.pairs.gene.cRE.txt')
+        file_out_snp = os.path.join(
+            path_term,
+            f'{method}__{source}__{filename[:-4]}.SNPs.gene.cRE.txt')
+        list_input.append(
+            {'file_cre': file_cre,
+             'label': f"{method}__{source}__{filename[:-4]}",
+             'file_uniform': file_uniform, 'file_out': file_out,
+             'file_pair': file_pair, 'file_out_snp': file_out_snp})
+
+    pool = Pool(processes=num_cpu)
+    list_out = pool.map(map_label, list_input)
+    pool.close()
+    df_out = pd.concat(list_out)
+    df_out.to_csv(
+        os.path.join(path_lung, 'SNPs_gene_cRE.label.all.txt'),
+        sep='\t', index=None)
+    df_out = df_out.loc[df_out['dhs_id'] != '.', :]
+    df_out.to_csv(
+        os.path.join(path_lung, 'SNPs_gene_cRE.label.txt'),
+        sep='\t', index=None)
 
     return
 
 
 if __name__ == '__main__':
     time_start = time()
+    num_cpu = 40
+    flank = 1000
+    path_hic = \
+        '/local/zy/PEI/origin_data/Chromatin_interactions/pcHi-C/Jung_NG_2019'
+    path_lung = '/local/zy/PEI/lung_snps/multi_tissue'
+
+    # example
     file_pp_lung = \
         '/local/zy/PEI/origin_data/Chromatin_interactions/pcHi-C/' \
         'Jung_NG_2019/LG.pp.txt'
@@ -292,13 +412,23 @@ if __name__ == '__main__':
         'adult_lung/lung/cRE.txt'
     file_out_lung = '/local/zy/PEI/lung_snps/lung.interactions.cRE.txt'
     file_pair_lung = '/local/zy/PEI/lung_snps/lung.pairs.gene.cRE.txt'
-    transform_ng2019(file_pp_lung, file_po_lung, file_uniform_lung, 1.3)
-    annotate_hic(
-        file_cre_lung, file_uniform_lung, file_out_lung, file_pair_lung)
+    # transform_ng2019(file_pp_lung, file_po_lung, file_uniform_lung, 1.3)
+    # annotate_hic(
+    #     file_cre_lung, file_uniform_lung, file_out_lung, file_pair_lung)
 
     file_snp = '/local/zy/PEI/lung_snps/top_SNPs.txt'
     file_snp_cre_gene = '/local/zy/PEI/lung_snps/SNPs_cRE_gene.txt'
-    uniform_snp(file_snp, file_snp_cre_gene, file_cre_lung, file_pair_lung,
-                flank=1000)
+    # uniform_snp(file_snp, file_snp_cre_gene, file_cre_lung, file_pair_lung,
+    #             flank=1000)
+
+    # multiple tissue
+    file_snp_uniform = '/local/zy/PEI/lung_snps/top_SNPs_uniform.txt'
+    meta_file_pchic = '/local/zy/PEI/origin_data/meta_file/meta_pcHi-C.txt'
+    path_label = \
+        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
+    flie_meta_label = os.path.join(path_label, 'meta_label.txt')
+    path_ref_cellline = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
+    snp_map_to_multiple_tissue()
+
     time_end = time()
     print(time_end - time_start)

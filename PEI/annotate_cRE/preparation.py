@@ -18,7 +18,12 @@ from scipy.spatial.distance import pdist
 from sklearn.preprocessing import StandardScaler
 import glob
 import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+# sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+# file_chain = \
+#     '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+# liftover = '/local/zy/tools/liftOver'
+file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+liftover = '/lustre/tianlab/tools/liftOver'
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge,
@@ -197,8 +202,6 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
                   'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19',
                   'chr20', 'chr21', 'chr22', 'chrX', 'chrY'}
     # Download from UCSC
-    file_chain = \
-        '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
     file_ummap = os.path.join(
         path_hg19, dict_in['File accession'] + '.bed.unmap')
     if dict_in['Assembly'] == 'hg19':
@@ -250,7 +253,7 @@ def sub_hg38tohg19(path_hg38, path_hg19, dict_in):
         file_hg19_format = file_hg19 + '.format'
         os.system(f"cut -f 1,2,3,4 {file_hg38_labeled} > {file_prefix}")
         os.system(f"cut -f 4,5,6,7,8,9,10 {file_hg38_labeled} > {file_suffix}")
-        os.system(f"/local/zy/tools/liftOver {file_prefix} {file_chain} "
+        os.system(f"{liftover} {file_prefix} {file_chain} "
                   f"{file_hg19_prefix} {file_ummap}")
         dict_peak_score = defaultdict(list)
         with open(file_suffix, 'r') as r_f:
@@ -608,18 +611,42 @@ def overlap_matrix(path_in, dict_in):
     accession_ids = dict_in['accession_ids']
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+    file_merge = os.path.join(path_out, term_name + '.bed')
+    list_bed = \
+        (pd.read_csv(file_merge, sep='\t', header=None)).to_dict('records')
+    term = term_name.replace('_', ' ').replace('+', '/').replace("--", "'")
+    list_term_access = df_meta.loc[df_meta['Biosample term name'] == term,
+                                   'File accession'].tolist()
+    if accession_ids[0][:5] == 'ENCSR':
+        list_score = []
+        for sub_dict in list_bed:
+            score_dict = dict()
+            score_dict['peak_id'] = \
+                f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
+            list_row_score = sub_dict[6].strip().split('|')
+            list_access = sub_dict[3].strip().split('|')
+            set_access = set(list_access)
+            for access in list_term_access:
+                if access in set_access:
+                    idx_access = list_access.index(access)
+                    score_dict[access] = list_row_score[idx_access]
+                else:
+                    score_dict[access] = np.nan
+            list_score.append(score_dict)
+        df_score = pd.DataFrame(
+            list_score, columns=['peak_id'] + list_term_access
+        )
+        df_score.index = df_score['peak_id']
+        df_score = df_score.drop('peak_id', 1)
+        # write score matrix to txt file
+        file_score = os.path.join(path_out, 'score.txt')
+        # df_ref = df_ref.drop_duplicates()
+        df_score.to_csv(file_score, sep='\t', na_rep='NA')
 
     if len(accession_ids) <= 1:
         return
     else:
-        file_merge = os.path.join(path_out, term_name + '.bed')
-        list_bed = \
-            (pd.read_csv(file_merge, sep='\t', header=None)).to_dict('records')
-        term = term_name.replace('_', ' ').replace('+', '/').replace("--", "'")
-        list_term_access = df_meta.loc[df_meta['Biosample term name'] == term,
-                                       'File accession'].tolist()
         list_dict = []
-        list_score = []
         for sub_dict in list_bed:
             out_dict = dict()
             out_dict['peak_id'] = \
@@ -628,7 +655,6 @@ def overlap_matrix(path_in, dict_in):
             score_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
             list_access = sub_dict[3].strip().split('|')
-            list_row_score = sub_dict[6].strip().split('|')
             set_access = set(list_access)
             if accession_ids[0][:5] == 'ENCSR':
                 for access in accession_ids:
@@ -640,13 +666,6 @@ def overlap_matrix(path_in, dict_in):
                     else:
                         out_dict[access] = 0
                 list_dict.append(out_dict)
-                for access in list_term_access:
-                    if access in set_access:
-                        idx_access = list_access.index(access)
-                        score_dict[access] = list_row_score[idx_access]
-                    else:
-                        score_dict[access] = np.nan
-                list_score.append(score_dict)
             else:
                 for access in accession_ids:
                     if access in set_access:
@@ -663,17 +682,6 @@ def overlap_matrix(path_in, dict_in):
         file_ref = os.path.join(path_out, term_name + '.ref')
         # df_ref = df_ref.drop_duplicates()
         df_ref.to_csv(file_ref, sep='\t')
-
-        if accession_ids[0][:5] == 'ENCSR':
-            df_score = pd.DataFrame(
-                list_score, columns=['peak_id'] + list_term_access
-            )
-            df_score.index = df_score['peak_id']
-            df_score = df_score.drop('peak_id', 1)
-            # write score matrix to txt file
-            file_score = os.path.join(path_out, 'score.txt')
-            # df_ref = df_ref.drop_duplicates()
-            df_score.to_csv(file_score, sep='\t', na_rep='NA')
 
         list_out = []
         list_com = combinations(df_ref.columns, 2)

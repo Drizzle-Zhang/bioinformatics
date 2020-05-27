@@ -19,6 +19,7 @@ ggplot(data = df.2, aes(x = ENCFF804BNU, y = ENCFF273MVV)) +
 
 # correct (normalization)
 densityplot(~(ENCFF273MVV), data = df.scores)
+summary(powerTransform(df.scores$ENCFF273MVV))
 densityplot(~(ENCFF273MVV)^-0.1681, data = df.scores)
 summary(powerTransform(df.scores$ENCFF804BNU))
 densityplot(~(ENCFF804BNU)^-0.3465, data = df.scores)

@@ -12,7 +12,8 @@ import os
 from multiprocessing import Pool
 from functools import partial
 import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+# sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+sys.path.append('/lustre/tianlab/my_git/bioinformatics/PEI/annotate_cRE')
 from preparation import \
     filter_meta, build_dict_attr, add_attr, hg38tohg19, \
     merge_peak_bed, overlap_matrix, merge_experiment, merge_standard_bed
@@ -187,8 +188,8 @@ def merge_all_cells(path_stan, num_process):
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    num_cpu = 40
-    path_root = '/local/zy/PEI'
+    num_cpu = 20
+    path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
     path_mid = path_root + '/mid_data_correct'
 
