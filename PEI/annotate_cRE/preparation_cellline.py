@@ -18,6 +18,7 @@ sys.path.append(
 from preparation import \
     filter_meta, build_dict_attr, add_attr, hg38tohg19, \
     merge_peak_bed, overlap_matrix, merge_experiment, merge_standard_bed
+root_path = '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
 
 
 def modify_meta(df_meta):
@@ -88,16 +89,27 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         file = f"{term_name}/{term_name}.bed"
         folder3 = os.path.join(path_out, term_name)
         file_in = os.path.join(path_in, file)
+        file_out_unsort = os.path.join(path_out, file + '.unsort')
         file_out = os.path.join(path_out, file)
         # make folder
         if not os.path.exists(folder3):
             os.mkdir(folder3)
+        file_score = os.path.join(path_in, f"{term_name}/score.txt")
+        file_quantile = os.path.join(folder3, 'quantile.txt')
+        os.system(
+            f"Rscript {os.path.join(root_path, 'correct_DHS_score.R')} "
+            f"{file_score} {file_quantile}")
+        df_quantile = pd.read_csv(
+            file_quantile, sep='\t', header=None, index_col=0,
+            names=['dhs_id', 'quantile'])
     else:
         file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+        file_out_unsort = \
+            os.path.join(path_out, dict_in['File accession'] + '.unsort.bed')
         file_out = os.path.join(path_out, dict_in['File accession'] + '.bed')
 
     with open(file_in, 'r') as r_f:
-        with open(file_out, 'w') as w_f:
+        with open(file_out_unsort, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\t" \
                       "{file_label}\t{accessions}\n"
             fmt_chip = "{chrom}\t{start}\t{end}\t{label}\t" \
@@ -109,16 +121,21 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                 end = list_line[2]
                 accessions = list_line[3]
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
-                score = max([float(num)
-                             for num in list_line[6].strip().split('|')])
                 if type_bed == 'DHS':
+                    dhs_id = f"{chrom}:{start}-{end}"
+                    score = df_quantile.loc[dhs_id, 'quantile']
                     w_f.write(fmt_dhs.format(**locals()))
                 elif type_bed in {'H3K4me3', 'H3K27ac'}:
+                    score = list_line[6]
                     pvalue = list_line[7]
                     w_f.write(fmt_chip.format(**locals()))
                 elif type_bed == 'CTCF':
+                    score = list_line[6]
                     pvalue = list_line[8]
                     w_f.write(fmt_chip.format(**locals()))
+
+    os.system(f"bedtools sort -i {file_out_unsort} > {file_out}")
+    os.remove(file_out_unsort)
 
     return
 

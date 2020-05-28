@@ -24,7 +24,7 @@ import sys
 # liftover = '/local/zy/tools/liftOver'
 file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
 liftover = '/lustre/tianlab/tools/liftOver'
-root_path = '/local/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
+root_path = '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge,
@@ -859,8 +859,8 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         with open(file_out_unsort, 'w') as w_f:
             fmt_dhs = "{chrom}\t{start}\t{end}\t{label}\t{score}\t.\t" \
                       "{file_label}\t{accessions}\n"
-            fmt_histone = "{chrom}\t{start}\t{end}\t{label}\t" \
-                          "{score}\t{pvalue}\t{accessions}\n"
+            fmt_chip = "{chrom}\t{start}\t{end}\t{label}\t" \
+                       "{score}\t{pvalue}\t{accessions}\n"
             for line in r_f:
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
@@ -872,10 +872,14 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                     dhs_id = f"{chrom}:{start}-{end}"
                     score = df_quantile.loc[dhs_id, 'quantile']
                     w_f.write(fmt_dhs.format(**locals()))
-                else:
+                elif type_bed in {'H3K4me3', 'H3K27ac'}:
                     score = list_line[6]
                     pvalue = list_line[7]
-                    w_f.write(fmt_histone.format(**locals()))
+                    w_f.write(fmt_chip.format(**locals()))
+                elif type_bed == 'CTCF':
+                    score = list_line[6]
+                    pvalue = list_line[8]
+                    w_f.write(fmt_chip.format(**locals()))
 
     os.system(f"bedtools sort -i {file_out_unsort} > {file_out}")
     os.remove(file_out_unsort)
