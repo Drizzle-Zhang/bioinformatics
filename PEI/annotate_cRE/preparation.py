@@ -24,6 +24,7 @@ import sys
 # liftover = '/local/zy/tools/liftOver'
 file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
 liftover = '/lustre/tianlab/tools/liftOver'
+root_path = '/local/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
 
 
 def generate_gene_file(gtf_file, protein_file, promoter_file, promoter_merge,
@@ -611,6 +612,7 @@ def overlap_matrix(path_in, dict_in):
     accession_ids = dict_in['accession_ids']
     df_meta = pd.read_csv(
         os.path.join(path_in, 'metadata.simple.tsv'), sep='\t')
+
     file_merge = os.path.join(path_out, term_name + '.bed')
     list_bed = \
         (pd.read_csv(file_merge, sep='\t', header=None)).to_dict('records')
@@ -623,15 +625,18 @@ def overlap_matrix(path_in, dict_in):
             score_dict = dict()
             score_dict['peak_id'] = \
                 f"{sub_dict[0]}:{str(sub_dict[1])}-{str(sub_dict[2])}"
-            list_row_score = sub_dict[6].strip().split('|')
             list_access = sub_dict[3].strip().split('|')
-            set_access = set(list_access)
-            for access in list_term_access:
-                if access in set_access:
-                    idx_access = list_access.index(access)
-                    score_dict[access] = list_row_score[idx_access]
-                else:
-                    score_dict[access] = np.nan
+            if len(list_access) == 1:
+                score_dict[list_access[0]] = sub_dict[6]
+            else:
+                set_access = set(list_access)
+                list_row_score = sub_dict[6].strip().split('|')
+                for access in list_term_access:
+                    if access in set_access:
+                        idx_access = list_access.index(access)
+                        score_dict[access] = list_row_score[idx_access]
+                    else:
+                        score_dict[access] = np.nan
             list_score.append(score_dict)
         df_score = pd.DataFrame(
             list_score, columns=['peak_id'] + list_term_access
@@ -835,6 +840,15 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         # make folder
         if not os.path.exists(folder3):
             os.mkdir(folder3)
+        file_score = os.path.join(
+            path_in, f"{life_organ.replace(' ', '_')}/{term_name}/score.txt")
+        file_quantile = os.path.join(folder3, 'quantile.txt')
+        os.system(
+            f"Rscript {os.path.join(root_path, 'correct_DHS_score.R')} "
+            f"{file_score} {file_quantile}")
+        df_quantile = pd.read_csv(
+            file_quantile, sep='\t', header=None, index_col=0,
+            names=['dhs_id', 'quantile'])
     else:
         file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
         file_out_unsort = \
@@ -854,11 +868,12 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                 end = list_line[2]
                 accessions = list_line[3]
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
-                score = max([float(num)
-                             for num in list_line[6].strip().split('|')])
                 if type_bed == 'DHS':
+                    dhs_id = f"{chrom}:{start}-{end}"
+                    score = df_quantile.loc[dhs_id, 'quantile']
                     w_f.write(fmt_dhs.format(**locals()))
                 else:
+                    score = list_line[6]
                     pvalue = list_line[7]
                     w_f.write(fmt_histone.format(**locals()))
 
@@ -1510,7 +1525,8 @@ if __name__ == '__main__':
     time_start = time()
     # parameters
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
     path_mid = path_root + '/mid_data_correct'
     # get bed file annotating protein-coding genes

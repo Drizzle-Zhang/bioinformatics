@@ -13,7 +13,8 @@ from multiprocessing import Pool
 from functools import partial
 import sys
 # sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
-sys.path.append('/lustre/tianlab/my_git/bioinformatics/PEI/annotate_cRE')
+sys.path.append(
+    '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE')
 from preparation import \
     filter_meta, build_dict_attr, add_attr, hg38tohg19, \
     merge_peak_bed, overlap_matrix, merge_experiment, merge_standard_bed
@@ -61,6 +62,8 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                      '/', '+').replace("'", '--'),
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
+        # if term == "HTR-8/SVneo":
+        #     break
 
     merge_peak_bed(path_in, list_input, num_process)
     
