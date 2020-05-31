@@ -199,7 +199,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
                       cutoff.lgp = cutoff.lgp))
     df.bed$p.combine <- vec.combine.lgp
     # combine score
-    df.score <- df.bed[, col.score]
+    df.score <- as.data.frame(df.bed[, col.score])
     row.names(df.score) <- df.bed$V4
     df.score.correct <- correct.score(df.score)
     df.score.correct$V4 <- row.names(df.score.correct)

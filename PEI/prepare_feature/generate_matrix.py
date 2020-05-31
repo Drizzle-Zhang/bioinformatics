@@ -482,6 +482,7 @@ if __name__ == '__main__':
     # GETx expression
     file_expression = \
         path_origin + '/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
-
+    gtex_expression_matrix()
+    
     time_end = time()
     print(time_end - time_start)

@@ -3,7 +3,7 @@ library(VIM)
 library(Hmisc)
 library(car)
 
-# path.in <- 
+# path.in <-
 #     '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/DHS_promoter_H3K4me3.origin'
 
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
@@ -24,9 +24,14 @@ fisher.combine <- function(vec.lgp, cutoff.lgp) {
 correct.score <- function(df.score) {
     df.score[df.score == '.'] <- NA
     df.score.num <- apply(df.score, 1, as.numeric)
-    df.score.num <- as.data.frame(t(df.score.num))
+    if (is.null(dim(df.score.num))) {
+        df.score.num <- as.data.frame(df.score.num)
+        num.cols <- 1
+    } else {
+        df.score.num <- as.data.frame(t(df.score.num))
+        num.cols <- dim(df.score.num)[2]
+    }
     
-    num.cols <- dim(df.score.num)[2]
     if (num.cols <= 1) {
         df.score.num[,'peak_id'] <- row.names(df.score.num)
         
@@ -201,7 +206,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
                       cutoff.lgp = cutoff.lgp))
     df.bed$p.combine <- vec.combine.lgp
     # combine score
-    df.score <- df.bed[, col.score]
+    df.score <- as.data.frame(df.bed[, col.score])
     row.names(df.score) <- df.bed$V4
     df.score.correct <- correct.score(df.score)
     df.score.correct$V4 <- row.names(df.score.correct)
