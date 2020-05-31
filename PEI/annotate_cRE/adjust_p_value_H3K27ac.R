@@ -13,20 +13,25 @@ fisher.combine <- function(vec.lgp, cutoff.lgp) {
     return(lgp.combine)
 }
 
-
-max.score <- function(vec.score) {
-    vec.score[vec.score == '.'] <- '-10000'
-    vec.score.num <- as.numeric(vec.score)
-    score.combine <- max(vec.score.num)
-}
-
+# 
+# max.score <- function(vec.score) {
+#     vec.score[vec.score == '.'] <- '-10000'
+#     vec.score.num <- as.numeric(vec.score)
+#     score.combine <- max(vec.score.num)
+# }
+# 
 
 correct.score <- function(df.score) {
     df.score[df.score == '.'] <- NA
     df.score.num <- apply(df.score, 1, as.numeric)
-    df.score.num <- as.data.frame(t(df.score.num))
+    if (is.null(dim(df.score.num))) {
+        df.score.num <- as.data.frame(df.score.num)
+        num.cols <- 1
+    } else {
+        df.score.num <- as.data.frame(t(df.score.num))
+        num.cols <- dim(df.score.num)[2]
+    }
     
-    num.cols <- dim(df.score.num)[2]
     if (num.cols <= 1) {
         df.score.num[,'peak_id'] <- row.names(df.score.num)
         
