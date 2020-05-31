@@ -849,6 +849,7 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         df_quantile = pd.read_csv(
             file_quantile, sep='\t', header=None, index_col=0,
             names=['dhs_id', 'quantile'])
+        set_dhs_id = set(df_quantile.index)
     else:
         file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
         file_out_unsort = \
@@ -870,7 +871,10 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                 label = f"{type_bed}<-{chrom}:{start}-{end}"
                 if type_bed == 'DHS':
                     dhs_id = f"{chrom}:{start}-{end}"
-                    score = df_quantile.loc[dhs_id, 'quantile']
+                    if dhs_id in set_dhs_id:
+                        score = df_quantile.loc[dhs_id, 'quantile']
+                    else:
+                        continue
                     w_f.write(fmt_dhs.format(**locals()))
                 elif type_bed in {'H3K4me3', 'H3K27ac'}:
                     score = list_line[6]
