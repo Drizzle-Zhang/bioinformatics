@@ -12,7 +12,8 @@ import os
 from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
-root_path = '/local/zy/my_git/bioinformatics/PEI/annotate_cRE'
+# root_path = '/local/zy/my_git/bioinformatics/PEI/annotate_cRE'
+root_path = '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
 
 
 def drop_dup(x):

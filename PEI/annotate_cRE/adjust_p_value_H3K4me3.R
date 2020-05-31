@@ -1,4 +1,11 @@
 library(plyr)
+library(VIM)
+library(Hmisc)
+library(car)
+
+path.in <- 
+    '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/DHS_promoter_H3K4me3.origin'
+
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
     vec.lgp[vec.lgp == '.'] <- '0'
     vec.lgp.num <- as.numeric(vec.lgp)
@@ -14,10 +21,119 @@ fisher.combine <- function(vec.lgp, cutoff.lgp) {
 }
 
 
-max.score <- function(vec.score) {
-    vec.score[vec.score == '.'] <- '-10000'
-    vec.score.num <- as.numeric(vec.score)
-    score.combine <- max(vec.score.num)
+correct.score <- function(df.score) {
+    df.score[df.score == '.'] <- NA
+    df.score.num <- apply(df.score, 1, as.numeric)
+    df.score.num <- as.data.frame(t(df.score.num))
+    
+    num.cols <- dim(df.score.num)[2]
+    if (num.cols <= 1) {
+        df.score.num[,'peak_id'] <- row.names(df.score.num)
+        df.sort <- df.score.num[order(df.score.num[,1]),]
+        func.quantile <- ecdf(df.sort[,1])
+        df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
+        row.names(df.sort.out) <- df.sort[,'peak_id']
+        names(df.sort.out) <- c('score.combine')
+        
+    } else {
+        names <- names(df.score.num)
+        len.cols <- apply(df.score.num, 2, function(x){length(x[!is.na(x)])})
+        
+        # define length
+        # len.median <- median(len.cols)
+        names(len.cols) <- names
+        len.cols <- sort(len.cols)
+        # idx.ref <- ceiling(length(len.cols)/2)
+        idx.ref <- length(len.cols)
+        # define reference file
+        name.ref <- names(len.cols[idx.ref])
+        
+        # normalization
+        i = 1
+        for (col in names) {
+            df.sub <- df.score.num[,col]
+            box <- summary(powerTransform(df.sub))
+            index <- box$result[4]
+            # if (index > 0 & col == name.ref) {
+            #     print(col)
+            #     print(index)
+            #     return()
+            # }
+            # print(index)
+            if (col == name.ref) {
+                index.ref <- index
+            }
+            df.sub <- df.sub^index
+            if (i == 1) {
+                df.norm <- df.sub
+            } else {
+                df.norm <- cbind(df.norm, df.sub)
+            }
+            i = i + 1
+        }
+        print(index.ref)
+        dimnames(df.norm)[[1]] <- row.names(df.score.num)
+        dimnames(df.norm)[[2]] <- names
+        
+        cols.correct <- setdiff(names, name.ref)
+        df.out <- as.data.frame(df.norm[,name.ref])
+        names(df.out) <- name.ref
+        for (col in cols.correct) {
+            df.sub <- df.norm[,c(name.ref, col)]
+            df.sub.omitna <- as.data.frame(na.omit(df.sub))
+            boxtidwell <- boxTidwell(as.formula(paste0(name.ref, ' ~ ', col)), 
+                                     data = df.sub.omitna)
+            df.sub.omitna$col.boxtidwell <- 
+                (df.sub.omitna[,col])^boxtidwell$result[1]
+            fit <- lm(as.formula(paste0(name.ref, ' ~ col.boxtidwell')), 
+                      data = df.sub.omitna)
+            df.sub.omitna$hatvalue <- hatvalues(fit)
+            df.sub.omitna$rstudent <- rstudent(fit)
+            cutoff.hatvalue <- 3*mean(df.sub.omitna$hatvalue)
+            df.sub.omitna.del <- df.sub.omitna[
+                (df.sub.omitna$hatvalue < cutoff.hatvalue) & 
+                    (df.sub.omitna$rstudent < 2) & (df.sub.omitna$rstudent > -2),]
+            fit <- lm(as.formula(paste0(name.ref, ' ~ col.boxtidwell')), 
+                      data = df.sub.omitna.del)
+            # print(summary(fit)$r.squared)
+            
+            sub.out <- 
+                fit$coefficients[2]*(df.norm[,col]^boxtidwell$result[1]) + 
+                fit$coefficients[1]
+            sub.out <- as.data.frame(sub.out)
+            names(sub.out) <- col
+            df.out <- cbind(df.out, sub.out)
+            
+        }
+        
+        if (index.ref < 0) {
+            df.impute <- df.out
+            for (col in names) {
+                df.impute[,col] <- impute(df.out[,col], fun = max)
+            }
+            df.mean <- rowMeans(df.impute, na.rm = T)
+            df.sort <- sort(df.mean)
+            df.sort <- as.data.frame(df.sort)
+            func.quantile <- ecdf(df.sort[,1])
+            df.sort.out <- 
+                as.data.frame(1 - func.quantile(df.sort[,1]) + 1/dim(df.sort)[1])
+            row.names(df.sort.out) <- row.names(df.sort)
+        }
+        if (index.ref > 0) {
+            df.impute <- df.out
+            for (col in names) {
+                df.impute[,col] <- impute(df.out[,col], fun = min)
+            }
+            df.mean <- rowMeans(df.impute, na.rm = T)
+            df.sort <- sort(df.mean, decreasing = T)
+            df.sort <- as.data.frame(df.sort)
+            func.quantile <- ecdf(df.sort[,1])
+            df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
+        }
+        row.names(df.sort.out) <- row.names(df.sort)
+    }
+    
+    return(df.sort.out)
 }
 
 
@@ -52,9 +168,8 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     df.bed$p.combine <- vec.combine.lgp
     # combine score
     df.score <- df.bed[, col.score]
-    vec.combine.score <- 
-        unlist(alply(.data = df.score, .margins = 1, .fun = max.score))
-    vec.combine.score[vec.combine.lgp == 0] <- -10000
+    row.names(df.score) <- df.bed$V4
+    vec.combine.score <- correct.score(df.score)
     df.bed$score.combine <- vec.combine.score
     
     df.out <- df.bed[, c('V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'score.combine', 

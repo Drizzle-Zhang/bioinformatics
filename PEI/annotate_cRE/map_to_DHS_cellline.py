@@ -13,11 +13,14 @@ from multiprocessing import Pool
 from functools import partial
 from subprocess import check_output
 import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+# sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+sys.path.append(
+    '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE')
 from map_to_DHS import \
     drop_dup, sub_annotate_promoter, integrate_ctcf, sub_annotate_cre, \
     sub_annotate_cre_ctcf
-root_path = '/local/zy/my_git/bioinformatics/PEI/annotate_cRE'
+# root_path = '/local/zy/my_git/bioinformatics/PEI/annotate_cRE'
+root_path = '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
 
 
 def annotate_promoter_to_dhs(path_dhs, path_h3k4me3,
@@ -232,17 +235,18 @@ if __name__ == '__main__':
     time_start = time()
     # multiple processes
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
     # annotate DHS by term
     path_dhs_stan = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     path_h3k4me3_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
-                    'H3K4me3_standard'
+        path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K4me3_standard'
     path_h3k27ac_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/histone_ChIP-seq/' \
-                    'H3K27ac_standard'
+        path_mid + '/cell_line/ENCODE/histone_ChIP-seq/H3K27ac_standard'
     # select data having H3K4me3 and H3K27ac
     df_dhs = pd.read_csv(
         os.path.join(path_dhs_stan, 'metadata.simple.tsv'), sep='\t'
@@ -262,10 +266,10 @@ if __name__ == '__main__':
 
     # promoter reference
     promoter_file_hg19 = \
-        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v19.bed'
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     meta_suborgan_dhs = \
-        path_root + '/mid_data/cell_line/DHS/meta.reference.tsv'
-    path_ref_promoter = path_root + '/mid_data/cell_line/DHS/reference_map'
+        path_mid + '/cell_line/DHS/meta.reference.tsv'
+    path_ref_promoter = path_mid + '/cell_line/DHS/reference_map'
     annotate_promoter_to_dhs(
         path_dhs_stan, path_h3k4me3_stan,
         promoter_file_hg19, path_ref_promoter, num_cpu
@@ -274,12 +278,11 @@ if __name__ == '__main__':
 
     # map H3K27ac to reference
     path_ctcf_stan = \
-        path_root + '/mid_data/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
-    protein_exon = path_root + '/origin_data/gene/' \
-                               'exon.protein.gencode.v19.bed'
-    path_map_h3k27ac = path_root + '/mid_data/cell_line/DHS/map_H3K27ac'
+        path_mid + '/cell_line/ENCODE/TF_ChIP-seq/CTCF_standard'
+    protein_exon = path_origin + '/gene/exon.protein.gencode.v19.bed'
+    path_map_h3k27ac = path_mid + '/cell_line/DHS/map_H3K27ac'
     path_combine_h3k27ac = \
-        path_root + '/mid_data/cell_line/DHS/cRE_annotation'
+        path_mid + '/cell_line/DHS/cRE_annotation'
     annotate_cre(path_ref_promoter, path_h3k27ac_stan, path_ctcf_stan,
                  path_map_h3k27ac, path_combine_h3k27ac, num_cpu)
     print('Annotation of H3K27ac and CTCF is completed!')

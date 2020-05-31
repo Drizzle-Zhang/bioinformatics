@@ -608,6 +608,7 @@ def merge_peak_bed(path_in, list_input, num_process):
 
 def overlap_matrix(path_in, dict_in):
     term_name = dict_in['term_name']
+    life_stage = dict_in['life_stage']
     path_out = dict_in['path']
     accession_ids = dict_in['accession_ids']
     df_meta = pd.read_csv(
@@ -617,8 +618,10 @@ def overlap_matrix(path_in, dict_in):
     list_bed = \
         (pd.read_csv(file_merge, sep='\t', header=None)).to_dict('records')
     term = term_name.replace('_', ' ').replace('+', '/').replace("--", "'")
-    list_term_access = df_meta.loc[df_meta['Biosample term name'] == term,
-                                   'File accession'].tolist()
+    list_term_access = df_meta.loc[
+        (df_meta['Biosample term name'] == term) &
+        (df_meta['Biosample life stage'] == life_stage),
+        'File accession'].tolist()
     if accession_ids[0][:5] == 'ENCSR':
         list_score = []
         for sub_dict in list_bed:
@@ -806,6 +809,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
                 dict(path=path_term,
                      term_name=term.replace(' ', '_').replace(
                          '/', '+').replace("'", '--'),
+                     life_stage=life_stage,
                      accession_ids=accession_ids,
                      flank_percent=flank_percent))
 
