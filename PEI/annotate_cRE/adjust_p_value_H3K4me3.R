@@ -3,8 +3,8 @@ library(VIM)
 library(Hmisc)
 library(car)
 
-path.in <- 
-    '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/DHS_promoter_H3K4me3.origin'
+# path.in <- 
+#     '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/DHS_promoter_H3K4me3.origin'
 
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
     vec.lgp[vec.lgp == '.'] <- '0'
@@ -29,11 +29,20 @@ correct.score <- function(df.score) {
     num.cols <- dim(df.score.num)[2]
     if (num.cols <= 1) {
         df.score.num[,'peak_id'] <- row.names(df.score.num)
-        df.sort <- df.score.num[order(df.score.num[,1]),]
+        
+        df.score.num.na <- df.score.num[is.na(df.score.num[,1]),]
+        df.na.0 <- as.data.frame(rep(0, dim(df.score.num.na)[1]))
+        row.names(df.na.0) <- df.score.num.na[,'peak_id']
+        names(df.na.0) <- c('score.combine')
+        
+        df.score.num.nona <- df.score.num[!is.na(df.score.num[,1]),]
+        df.sort <- df.score.num.nona[order(df.score.num.nona[,1]),]
         func.quantile <- ecdf(df.sort[,1])
         df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
         row.names(df.sort.out) <- df.sort[,'peak_id']
         names(df.sort.out) <- c('score.combine')
+        
+        df.quantile <- rbind(df.sort.out, df.na.0)
         
     } else {
         names <- names(df.score.num)
@@ -71,7 +80,7 @@ correct.score <- function(df.score) {
             }
             i = i + 1
         }
-        print(index.ref)
+        # print(index.ref)
         dimnames(df.norm)[[1]] <- row.names(df.score.num)
         dimnames(df.norm)[[2]] <- names
         
@@ -112,12 +121,25 @@ correct.score <- function(df.score) {
                 df.impute[,col] <- impute(df.out[,col], fun = max)
             }
             df.mean <- rowMeans(df.impute, na.rm = T)
-            df.sort <- sort(df.mean)
+            # split NA and non-NA
+            num.na <- max(df.mean)
+            
+            df.na <- df.mean[df.mean == num.na]
+            df.na.0 <- as.data.frame(rep(0, length(df.na)))
+            row.names(df.na.0) <- names(df.na)
+            names(df.na.0) <- c('score.combine')
+            
+            df.nona <- df.mean[df.mean < num.na]
+            df.sort <- sort(df.nona)
             df.sort <- as.data.frame(df.sort)
             func.quantile <- ecdf(df.sort[,1])
             df.sort.out <- 
                 as.data.frame(1 - func.quantile(df.sort[,1]) + 1/dim(df.sort)[1])
             row.names(df.sort.out) <- row.names(df.sort)
+            names(df.sort.out) <- c('score.combine')
+            
+            df.quantile <- rbind(df.sort.out, df.na.0)
+            
         }
         if (index.ref > 0) {
             df.impute <- df.out
@@ -125,15 +147,27 @@ correct.score <- function(df.score) {
                 df.impute[,col] <- impute(df.out[,col], fun = min)
             }
             df.mean <- rowMeans(df.impute, na.rm = T)
-            df.sort <- sort(df.mean, decreasing = T)
+            # split NA and non-NA
+            num.na <- min(df.mean)
+            
+            df.na <- df.mean[df.mean == num.na]
+            df.na.0 <- as.data.frame(rep(0, length(df.na)))
+            row.names(df.na.0) <- names(df.na)
+            names(df.na.0) <- c('score.combine')
+            
+            df.nona <- df.mean[df.mean > num.na]
+            df.sort <- sort(df.nona, decreasing = T)
             df.sort <- as.data.frame(df.sort)
             func.quantile <- ecdf(df.sort[,1])
             df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
+            row.names(df.sort.out) <- row.names(df.sort)
+            names(df.sort.out) <- c('score.combine')
+            
+            df.quantile <- rbind(df.sort.out, df.na.0)
         }
-        row.names(df.sort.out) <- row.names(df.sort)
     }
     
-    return(df.sort.out)
+    return(df.quantile)
 }
 
 
@@ -169,9 +203,11 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     # combine score
     df.score <- df.bed[, col.score]
     row.names(df.score) <- df.bed$V4
-    vec.combine.score <- correct.score(df.score)
-    df.bed$score.combine <- vec.combine.score
-    
+    df.score.correct <- correct.score(df.score)
+    df.score.correct$V4 <- row.names(df.score.correct)
+    df.bed <- merge(df.bed, df.score.correct, by = 'V4')
+    df.bed[df.bed$p.combine == 0, 'score.combine'] <- 0
+
     df.out <- df.bed[, c('V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'score.combine', 
                          'p.combine')]
     write.table(df.out, path.out, sep = '\t', quote = F, row.names = F,

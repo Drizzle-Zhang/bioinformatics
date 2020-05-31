@@ -441,45 +441,47 @@ if __name__ == '__main__':
     num_cpu = 40
     # na_mode = 'minus'
     na_mode = 'constant'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
+
     file_all_index = \
-        '/local/zy/PEI/mid_data/database_feature/DHS_index/all_index.txt'
-    path_matrix = '/local/zy/PEI/mid_data/database_feature/matrix'
-    file_promoter = '/local/zy/PEI/origin_data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.bed'
+        path_mid + '/database_feature/DHS_index/all_index.txt'
+    path_matrix = path_mid + '/database_feature/matrix'
+    file_promoter = \
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     file_dhs_promoter = \
-        '/local/zy/PEI/mid_data/database_feature/DHS_index/promoter_index.txt'
+        path_mid + '/database_feature/DHS_index/promoter_index.txt'
     # generate_promoter_file()
 
-    file_promoter_uniq = '/local/zy/PEI/origin_data/gene/' \
-                         'promoters.up2k.protein.gencode.v19.unique.bed'
-    # df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
-    # df_promoter['idx'] = df_promoter.index
-    # df_promoter['gene'] = df_promoter[3].apply(
-    #     lambda x: x.split('<-')[0])
-    # df_promoter = df_promoter.drop_duplicates(subset='gene')
-    # df_promoter.to_csv(file_promoter_uniq, sep='\t', index=None, header=None)
+    file_promoter_uniq = \
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.unique.bed'
+    df_promoter_main = pd.read_csv(file_promoter, sep='\t', header=None)
+    df_promoter_main['idx'] = df_promoter_main.index
+    df_promoter_main['gene'] = df_promoter_main[3].apply(
+        lambda x: x.split('<-')[0])
+    df_promoter_main = df_promoter_main.drop_duplicates(subset='gene')
+    df_promoter_main.to_csv(
+        file_promoter_uniq, sep='\t', index=None, header=None)
 
     # DHS
-    path_dhs_cell = \
-        '/local/zy/PEI/mid_data/cell_line/DHS/GRCh38tohg19_standard'
-    path_dhs_tissue_stan = \
-        '/local/zy/PEI/mid_data/tissue/DHS/GRCh38tohg19_standard'
+    path_dhs_cell = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
+    path_dhs_tissue_stan = path_mid + '/tissue/DHS/GRCh38tohg19_standard'
     dhs_matrix()
 
     # H3K4me3
-    path_h3k4me3_cell = '/local/zy/PEI/mid_data/cell_line/DHS/reference_map'
-    path_h3k4me3_tissue = '/local/zy/PEI/mid_data/tissue/DHS/reference_map'
-    h3k4me3_matrix()
+    path_h3k4me3_cell = path_mid + '/cell_line/DHS/reference_map'
+    path_h3k4me3_tissue = path_mid + '/tissue/DHS/reference_map'
+    # h3k4me3_matrix()
 
     # H3K27ac
-    path_h3k27ac_cell = '/local/zy/PEI/mid_data/cell_line/DHS/cRE_annotation'
-    path_h3k27ac_tissue = '/local/zy/PEI/mid_data/tissue/DHS/cRE_annotation'
-    h3k27ac_matrix()
+    path_h3k27ac_cell = path_mid + '/cell_line/DHS/cRE_annotation'
+    path_h3k27ac_tissue = path_mid + '/tissue/DHS/cRE_annotation'
+    # h3k27ac_matrix()
 
     # GETx expression
     file_expression = \
-        '/local/zy/PEI/origin_data/GTEx/' \
-        'GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
+        path_origin + '/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
 
     time_end = time()
     print(time_end - time_start)

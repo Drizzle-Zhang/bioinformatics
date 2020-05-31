@@ -12,8 +12,10 @@ import os
 from multiprocessing import Pool
 from subprocess import check_output
 import sys
-sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
-from node10_preparation import merge_standard_bed
+# sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
+sys.path.append(
+    '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE')
+from preparation import merge_standard_bed
 
 
 def merge_cell_tissue():
@@ -24,7 +26,7 @@ def merge_cell_tissue():
         ['cell_line/DHS/GRCh38tohg19_standard/all_celllines',
          'tissue/DHS/GRCh38tohg19_cluster/all_organs'],
         flank_percent=1.0)]
-    merge_standard_bed('/local/zy/PEI/mid_data', dict_merge, num_cpu)
+    merge_standard_bed(path_mid, dict_merge, num_cpu)
 
     file_merge = os.path.join(path_dhs_merge, 'all_cellline_tissue.bed')
     file_merge_index = os.path.join(path_dhs_merge, 'all_index.txt')
@@ -177,16 +179,19 @@ def generate_index_file():
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
     path_dhs_cell = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_cluster = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+        path_mid + '/tissue/DHS/GRCh38tohg19_cluster'
     path_dhs_tissue_stan = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
-    path_dhs_merge = path_root + '/mid_data/database_feature/DHS_index'
-    meta_suborgan = path_root + '/origin_data/meta_file/meta.reference.tsv'
+        path_mid + '/tissue/DHS/GRCh38tohg19_standard'
+    path_dhs_merge = path_mid + '/database_feature/DHS_index'
+    meta_suborgan = path_origin + '/meta_file/meta.reference.tsv'
 
     merge_cell_tissue()
     print(
