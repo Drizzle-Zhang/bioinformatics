@@ -1,4 +1,8 @@
 library(plyr)
+library(VIM)
+library(Hmisc)
+library(car)
+
 fisher.combine <- function(vec.lgp, cutoff.lgp) {
     vec.lgp[vec.lgp == '.'] <- '0'
     vec.lgp.num <- as.numeric(vec.lgp)
