@@ -75,8 +75,8 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num, ref.col.num) {
     df.pvalue <- data.frame()
     col.pvalue <- c()
     col.score <- c()
-    ref.col <- ref.col.num - 4
-    for (i in 1:file.num) {
+    ref.col <- as.numeric(ref.col.num) - 4
+    for (i in 1:as.numeric(file.num)) {
         col.pvalue <- c(col.pvalue, 
                         paste0('V', as.character(ref.col + 3 + 4*i)))
         col.score <- c(col.score, 
