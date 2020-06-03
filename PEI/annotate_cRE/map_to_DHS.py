@@ -11,6 +11,7 @@ import numpy as np
 import os
 from multiprocessing import Pool
 from functools import partial
+from statsmodels.api import distributions
 from subprocess import check_output
 # root_path = '/local/zy/my_git/bioinformatics/PEI/annotate_cRE'
 root_path = '/lustre/tianlab/zhangyu/my_git/bioinformatics/PEI/annotate_cRE'
@@ -735,13 +736,26 @@ def integrate_ctcf(path_ctcf, dict_in):
         path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.origin')
     os.system(f"mv {file_ref} {file_origin}")
 
+    # normalization
+    def normalize(col_in):
+        col_0 = col_in[col_in == 0]
+        col_pos = col_in[col_in != 0]
+        ecdf = distributions.ECDF(col_pos)
+        col_ecdf = pd.Series(ecdf(col_pos),
+                             index=col_pos.index, name=col_pos.name)
+        col_out = pd.concat([col_ecdf, col_0])
+
+        return col_out
+
     df_origin = pd.read_csv(file_origin, sep='\t', header=None)
+    df_origin.index = df_origin[3]
     file_num = sub_ctcf.shape[0]
     cols = [11 + 4*i for i in range(file_num)]
     df_out = df_origin.iloc[:, :10]
     df_scores = df_origin.loc[:, cols]
-    df_scores = df_scores.applymap(lambda x: float(x) if x != '.' else -10000)
-    df_out[10] = np.max(df_scores, axis=1)
+    df_scores = df_scores.applymap(lambda x: float(x) if x != '.' else 0)
+    df_normalization = df_scores.apply(normalize)
+    df_out[10] = np.max(df_normalization, axis=1)
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
     df_out.to_csv(file_out, sep='\t', header=None, index=None)

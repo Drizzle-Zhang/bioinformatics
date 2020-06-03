@@ -103,6 +103,8 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     ref_col_num = int(
         check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
                      shell=True).strip())
+    len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                   shell=True).strip()).split(' ')[0][2:])
 
     df_ref = pd.read_csv(file_ref, sep='\t', header=None)
     for accession in accessions:
@@ -115,7 +117,7 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
 
         # check error
         try:
-            assert ref_col_num == df_plus.shape[0]
+            assert len_ref == df_plus.shape[0]
         except AssertionError:
             print(dict_in)
             return
@@ -128,7 +130,7 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     file_num = sub_h3k27ac.shape[0]
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
-    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_histone.R')} "
+    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_H3K27ac.R')} "
               f"{file_origin} {file_out} {infer_num} {file_num} {ref_col_num}")
 
     return

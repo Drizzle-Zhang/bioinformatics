@@ -434,10 +434,10 @@ def gtex_expression_matrix():
     # normalization
     def normalize(col_in):
         col_0 = col_in[col_in == 0]
-        col_num = col_in[col_in != 0]
-        ecdf = distributions.ECDF(col_num)
-        col_ecdf = pd.Series(ecdf(col_num),
-                             index=col_num.index, name=col_num.name)
+        col_pos = col_in[col_in != 0]
+        ecdf = distributions.ECDF(col_pos)
+        col_ecdf = pd.Series(ecdf(col_pos),
+                             index=col_pos.index, name=col_pos.name)
         col_out = pd.concat([col_ecdf, col_0])
 
         return col_out
