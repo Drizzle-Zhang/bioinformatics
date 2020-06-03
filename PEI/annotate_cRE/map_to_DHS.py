@@ -34,7 +34,7 @@ def sub_annotate_promoter(dict_in):
     accessions = sub_h3k4me3['File accession'].tolist()
 
     # promoter
-    file_promoter = os.path.join(path_out, 'ref_promoter.txt')
+    file_promoter = os.path.join(path_out, 'promoter.txt')
     os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
               f"| cut -f 1,2,3,4,5,12,15 > {file_promoter}")
     # drop duplicates
@@ -55,9 +55,7 @@ def sub_annotate_promoter(dict_in):
             row_out = pd.DataFrame(dict_out, index=[row_out[3]])
             return row_out
 
-    if len_ref == len_pro:
-        file_ref = file_promoter
-    else:
+    if len_ref != len_pro:
         file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
         file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
         df_plus = pd.read_csv(file_promoter, sep='\t', header=None,
@@ -70,12 +68,18 @@ def sub_annotate_promoter(dict_in):
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
         df_uniq = pd.concat([df_0, df_pn_uniq])
         df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
-        os.system(f"bedtools sort -i {file_promoter_uniq} > "
-                  f"{file_promoter_sort}")
+        os.system(f"bedtools sort -i {file_promoter_uniq} | "
+                  f"cut -f 1,2,3,4,5,6 > {file_promoter_sort}")
         os.remove(file_promoter)
         os.remove(file_promoter_uniq)
         os.system(f"mv {file_promoter_sort} {file_promoter}")
-        file_ref = file_promoter
+
+    file_ref = os.path.join(path_out, 'ref_promoter.txt')
+    os.system(f"cut -f 1,2,3,4,5,6 {file_promoter} > {file_ref}")
+    os.remove(file_promoter)
+    ref_col_num = int(
+        check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                     shell=True).strip())
 
     for accession in accessions:
         file_accession = os.path.join(path_h3k4me3, accession + '.bed')
@@ -124,8 +128,9 @@ def sub_annotate_promoter(dict_in):
     infer_num = np.sum(sub_h3k4me3['Inferred peak number'])
     file_num = sub_h3k4me3.shape[0]
     file_promoter_out = os.path.join(path_out, 'DHS_promoter_H3K4me3.txt')
-    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_H3K4me3.R')} "
-              f"{file_origin} {file_promoter_out} {infer_num} {file_num}")
+    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_histone.R')} "
+              f"{file_origin} {file_promoter_out} {infer_num} {file_num} "
+              f"{ref_col_num}")
 
     return
 
@@ -491,6 +496,9 @@ def integrate_h3k27ac(path_h3k27ac, dict_in):
     len_ref = int(str(check_output(f"wc -l {file_ref}",
                                    shell=True).strip()).split(' ')[0][2:])
 
+    ref_col_num = int(
+        check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                     shell=True).strip())
     file_ref_ori = file_ref
     for accession in accessions:
         file_accession = os.path.join(path_h3k27ac, accession + '.bed')
@@ -547,8 +555,8 @@ def integrate_h3k27ac(path_h3k27ac, dict_in):
     file_num = sub_h3k27ac.shape[0]
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
-    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_H3K27ac.R')} "
-              f"{file_origin} {file_out} {infer_num} {file_num}")
+    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_histone.R')} "
+              f"{file_origin} {file_out} {infer_num} {file_num} {ref_col_num}")
 
     return
 

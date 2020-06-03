@@ -11,6 +11,7 @@ import os
 import numpy as np
 from multiprocessing import Pool
 from functools import partial
+from statsmodels.api import distributions
 
 
 def generate_promoter_file():
@@ -434,13 +435,17 @@ def gtex_expression_matrix():
     def normalize(col_in):
         col_0 = col_in[col_in == 0]
         col_num = col_in[col_in != 0]
+        ecdf = distributions.ECDF(col_num)
+        col_ecdf = pd.Series(ecdf(col_num),
+                             index=col_num.index, name=col_num.name)
+        col_out = pd.concat([col_ecdf, col_0])
 
-        return
+        return col_out
 
     df_quantile = df_pro_exp.apply(normalize)
     file_matrix_gtex_expression = \
         os.path.join(path_matrix, 'GTEx_expression_matrix.txt')
-    df_pro_exp.to_csv(file_matrix_gtex_expression, sep='\t')
+    df_quantile.to_csv(file_matrix_gtex_expression, sep='\t')
 
     return
 

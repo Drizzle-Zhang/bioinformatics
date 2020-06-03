@@ -219,7 +219,6 @@ correct.score <- function(df.score) {
     
     df.max.quantile <- apply(df.scores.quantile, 1, max)
     df.out <- as.data.frame(df.max.quantile)
-    names(df.out) <- c('score.combine')
     
     return(df.max.quantile)
     
@@ -258,7 +257,8 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num) {
     # combine score
     df.score <- as.data.frame(df.bed[, col.score])
     row.names(df.score) <- df.bed$V4
-    df.score.correct <- correct.score(df.score)
+    df.score.correct <- as.data.frame(correct.score(df.score))
+    names(df.score.correct) <- c('score.combine')
     df.score.correct$V4 <- row.names(df.score.correct)
     df.bed <- merge(df.bed, df.score.correct, by = 'V4')
     df.bed[df.bed$p.combine == 0, 'score.combine'] <- 0
