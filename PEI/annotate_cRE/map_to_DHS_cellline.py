@@ -100,8 +100,9 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     path_out = dict_in['path_out']
     sub_h3k27ac = dict_in['sub_h3k27ac']
     accessions = sub_h3k27ac['File accession'].tolist()
-    ref_col_num = int(str(check_output(f"wc -l {file_ref}",
-                                       shell=True).strip()).split(' ')[0][2:])
+    ref_col_num = int(
+        check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                     shell=True).strip())
 
     df_ref = pd.read_csv(file_ref, sep='\t', header=None)
     for accession in accessions:

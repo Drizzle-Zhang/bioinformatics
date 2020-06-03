@@ -457,7 +457,7 @@ if __name__ == '__main__':
     na_mode = 'constant'
     path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct'
+    path_mid = path_root + '/mid_data_correct_reg'
 
     file_all_index = \
         path_mid + '/database_feature/DHS_index/all_index.txt'
@@ -481,7 +481,7 @@ if __name__ == '__main__':
     # DHS
     path_dhs_cell = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_stan = path_mid + '/tissue/DHS/GRCh38tohg19_standard'
-    dhs_matrix()
+    # dhs_matrix()
 
     # H3K4me3
     path_h3k4me3_cell = path_mid + '/cell_line/DHS/reference_map'

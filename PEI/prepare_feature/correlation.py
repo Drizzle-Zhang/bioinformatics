@@ -250,7 +250,7 @@ if __name__ == '__main__':
     # path_root = '/local/zy/PEI'
     path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct'
+    path_mid = path_root + '/mid_data_correct_reg'
 
     file_all_index = \
         path_mid + '/database_feature/DHS_index/all_index.txt'
@@ -262,10 +262,10 @@ if __name__ == '__main__':
 
     path_matrix = path_mid + '/database_feature/matrix'
     # matrix_gene = ['DHS', 'H3K4me3', 'expression']
-    matrix_gene = ['DHS']
+    matrix_gene = ['expression']
     # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt',
     # 'GTEx_expression_matrix.txt']
-    files_gene = ['DHS_matrix.promoter.txt']
+    files_gene = ['GTEx_expression_matrix.txt']
     # matrix_dhs = ['DHS', 'H3K27ac']
     # files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
     matrix_dhs = ['DHS']
