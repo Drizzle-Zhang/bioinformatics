@@ -51,6 +51,10 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
     for term in terms:
         term_meta = \
             df_meta.loc[df_meta['Biosample term name'] == term, :]
+        life_stage = pd.unique(
+            meta_out.loc[
+                meta_out['Biosample term name'] == term,
+                'Biosample life stage'])[0]
         accession_ids = \
             list(set(term_meta['Experiment accession'].tolist()))
         path_term = \
@@ -61,6 +65,7 @@ def unique_bed_files(path_in, path_out, flank_percent, num_process):
             dict(path=path_term,
                  term_name=term.replace(' ', '_').replace(
                      '/', '+').replace("'", '--'),
+                 life_stage=life_stage,
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
         # if term == "HTR-8/SVneo":

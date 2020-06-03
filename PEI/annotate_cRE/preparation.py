@@ -722,11 +722,16 @@ def merge_experiment(path_in, path_out, flank_percent, num_process):
     experiments = set(df_meta['Experiment accession'].tolist())
     for experiment in experiments:
         df_exp = df_meta.loc[df_meta['Experiment accession'] == experiment, :]
+        life_stage = pd.unique(
+            df_meta.loc[
+                df_meta['Experiment accession'] == experiment,
+                'Biosample life stage'])[0]
         accession_ids = list(set(df_exp['File accession'].tolist()))
         list_input.append(
             dict(path=path_out,
                  term_name=experiment.replace(' ', '_').replace(
                      '/', '+').replace("'", '--'),
+                 life_stage=life_stage,
                  accession_ids=accession_ids,
                  flank_percent=flank_percent))
 

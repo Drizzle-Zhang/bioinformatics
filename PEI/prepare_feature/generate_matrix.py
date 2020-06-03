@@ -431,8 +431,13 @@ def gtex_expression_matrix():
     df_pro_exp = df_pro_exp.drop([4, 'del_gene', 'Description'], axis=1)
 
     # normalization
+    def normalize(col_in):
+        col_0 = col_in[col_in == 0]
+        col_num = col_in[col_in != 0]
 
+        return
 
+    df_quantile = df_pro_exp.apply(normalize)
     file_matrix_gtex_expression = \
         os.path.join(path_matrix, 'GTEx_expression_matrix.txt')
     df_pro_exp.to_csv(file_matrix_gtex_expression, sep='\t')
