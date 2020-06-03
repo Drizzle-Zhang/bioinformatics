@@ -29,10 +29,10 @@ def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
     file_intersect1 = os.path.join(sub_path_out, f'{gene}.intersect1')
     file_intersect2 = os.path.join(sub_path_out, f'{gene}.intersect2')
     os.system(f"bedtools intersect -wb -a {file_gene_flank} "
-              f"-b {file_enhancer} -sorted "
+              f"-b {file_enhancer} "
               f"| cut -f 4,5,6,7,8,9,10,11,12,13,14 > {file_intersect1}")
     os.system(f"bedtools intersect -wb -a {file_intersect1} "
-              f"-b {file_gene_pro} -sorted -v > {file_intersect2}")
+              f"-b {file_gene_pro} -v > {file_intersect2}")
     len_ref = int(str(check_output(f"wc -l {file_intersect2}",
                                    shell=True).strip()).split(' ')[0][2:])
     if len_ref == 0:
@@ -107,7 +107,8 @@ def sub_generate_pair(dict_in):
     if not os.path.exists(sub_path_out):
         os.mkdir(sub_path_out)
 
-    folders = os.listdir(path_correlation)
+    # folders = os.listdir(path_correlation)
+    folders = ['expression_DHS']
     list_out = []
     for gene in genes:
         dict_out = sub_get_corr(
@@ -182,12 +183,15 @@ def generate_pairs():
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    path_root = '/local/zy/PEI'
-    file_promoter = path_root + '/origin_data/gene/' \
-                                'promoters.up2k.protein.gencode.v19.bed'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
+
+    file_promoter = \
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     file_promoter_uniq = \
-        path_root + '/origin_data/gene/' \
-                    'promoters.up2k.protein.gencode.v19.unique.bed'
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.unique.bed'
     df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
     df_promoter['idx'] = df_promoter.index
     df_promoter['gene'] = df_promoter[3].apply(
@@ -197,16 +201,15 @@ if __name__ == '__main__':
 
     # use genes in GTEx
     file_mat_exp_gtex = \
-        path_root + '/mid_data/database_feature/matrix/' \
-                    'GTEx_expression_matrix.txt'
+        path_mid + '/database_feature/matrix/GTEx_expression_matrix.txt'
     set_genes_gtex = set(pd.read_csv(
         file_mat_exp_gtex, sep='\t', usecols=[0]).iloc[:, 0].tolist())
     # genes not in GTEx
-    file_mat_h3k4me3 = \
-        path_root + '/mid_data/database_feature/matrix/H3K4me3_matrix.txt'
-    set_genes_encode = set(pd.read_csv(
-        file_mat_h3k4me3, sep='\t', usecols=[0]).iloc[:, 0].tolist())
-    set_not_gtex = set_genes_encode.difference(set_genes_gtex)
+    # file_mat_h3k4me3 = \
+    #     path_mid + '/database_feature/matrix/H3K4me3_matrix.txt'
+    # set_genes_encode = set(pd.read_csv(
+    #     file_mat_h3k4me3, sep='\t', usecols=[0]).iloc[:, 0].tolist())
+    # set_not_gtex = set_genes_encode.difference(set_genes_gtex)
 
     dict_gene_pos = {}
     for sub_dict_gene in df_promoter.to_dict('records'):
@@ -214,19 +217,19 @@ if __name__ == '__main__':
             [sub_dict_gene[0], sub_dict_gene[1], sub_dict_gene[2]]
 
     path_dhs_cell = \
-        path_root + '/mid_data/cell_line/DHS/GRCh38tohg19_standard'
+        path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_cluster = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+        path_mid + '/tissue/DHS/GRCh38tohg19_cluster'
     path_dhs_tissue_stan = \
-        path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
+        path_mid + '/tissue/DHS/GRCh38tohg19_standard'
 
-    path_cre_cell = path_root + '/mid_data/cell_line/DHS/cRE_annotation'
-    path_cre_tissue = path_root + '/mid_data/tissue/DHS/cRE_annotation'
+    path_cre_cell = path_mid + '/cell_line/DHS/cRE_annotation'
+    path_cre_tissue = path_mid + '/tissue/DHS/cRE_annotation'
 
-    path_feature_cell = path_root + '/mid_data/cell_line/model_input'
-    path_feature_tissue = path_root + '/mid_data/tissue/model_input'
+    path_feature_cell = path_mid + '/cell_line/model_input'
+    path_feature_tissue = path_mid + '/tissue/model_input'
 
-    path_correlation = path_root + '/mid_data/database_feature/correlation'
+    path_correlation = path_mid + '/database_feature/correlation'
     generate_pairs()
 
     time_end = time()

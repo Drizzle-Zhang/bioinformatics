@@ -4,17 +4,17 @@ library(car)
 library(lattice)
 setwd('/home/drizzle_zhang/driver_mutation/cRE_plot/model_test')
 
-file.in = './score.txt'
+file.in = './score1.txt'
 df.scores <- read.delim(file.in, sep = '\t', header = T,
                         row.names = 'peak_id', stringsAsFactors = F)
 
 # original scatter plot
-df.2 <- df.scores[,c('ENCFF273MVV', 'ENCFF804BNU')]
+df.2 <- df.scores[,c('ENCFF804BNU', 'ENCFF273MVV')]
 df.2 <- na.omit(df.2)
-fit <- lm(ENCFF273MVV ~ ENCFF804BNU, data = df.2)
+fit <- lm(ENCFF804BNU ~ ENCFF273MVV, data = df.2)
 summary(fit)
 
-ggplot(data = df.2, aes(x = ENCFF804BNU, y = ENCFF273MVV)) + 
+ggplot(data = df.2, aes(x = ENCFF273MVV, y = ENCFF804BNU)) + 
     geom_smooth(method = lm, formula = y~(x)) + geom_point(size = 0.1)
 
 # correct (normalization)
@@ -26,19 +26,21 @@ densityplot(~(ENCFF804BNU)^-0.3465, data = df.scores)
 
 df.2$ENCFF273MVV_norm <- (df.2$ENCFF273MVV)^-0.1681
 df.2$ENCFF804BNU_norm <- (df.2$ENCFF804BNU)^-0.3465
+fit <- lm(ENCFF804BNU_norm ~ ENCFF273MVV_norm, data = df.2)
+summary(fit)
 ggplot(data = df.2, aes(x = ENCFF804BNU_norm, y = ENCFF273MVV_norm)) + 
     geom_smooth(method = glm, formula = y~(x)) + geom_point(size = 0.1)
 cor(df.2$ENCFF273MVV, df.2$ENCFF804BNU)
 
 # optimize fitting result
-boxTidwell(ENCFF273MVV_norm ~ ENCFF804BNU_norm, data = df.2)
-df.2$ENCFF804BNU_boxtid <- (df.2$ENCFF804BNU_norm)^0.23244
-fit <- lm(ENCFF273MVV_norm ~ ENCFF804BNU_boxtid, data = df.2)
+boxTidwell(ENCFF804BNU_norm ~ ENCFF273MVV_norm, data = df.2)
+df.2$ENCFF273MVV_boxtid <- (df.2$ENCFF273MVV_norm)^0.37622
+fit <- lm(ENCFF804BNU_norm ~ ENCFF273MVV_boxtid, data = df.2)
 summary(fit)
-ggplot(data = df.2, aes(x = ENCFF804BNU_boxtid, y = ENCFF273MVV_norm)) + 
+ggplot(data = df.2, aes(x = ENCFF273MVV_boxtid, y = ENCFF804BNU_norm)) + 
     geom_smooth(method = lm, formula = y~(x)) + geom_point(size = 0.1)
-df.2$ENCFF804BNU_pred <- 0.908264*df.2$ENCFF804BNU_boxtid - 0.070924
-cor(df.2$ENCFF273MVV_norm, df.2$ENCFF804BNU_pred)
+df.2$ENCFF273MVV_pred <- 0.546467*df.2$ENCFF273MVV_boxtid - 0.262505
+cor(df.2$ENCFF804BNU_norm, df.2$ENCFF273MVV_pred)
 
 outlierTest(fit)
 influencePlot(fit)
@@ -48,22 +50,22 @@ cutoff.hatvalue <- 3*mean(df.2$hatvalue)
 df.2.del <- df.2[(df.2$hatvalue < cutoff.hatvalue) & 
                  (df.2$rstudent < 2) & (df.2$rstudent > -2),]
 
-ggplot(data = df.2.del, aes(x = ENCFF804BNU_boxtid, y = ENCFF273MVV_norm)) + 
+ggplot(data = df.2.del, aes(x = ENCFF273MVV_boxtid, y = ENCFF804BNU_norm)) + 
     geom_smooth(method = lm, formula = y~(x)) + geom_point(size = 0.1)
 
-fit <- lm(ENCFF273MVV_norm ~ ENCFF804BNU_boxtid, data = df.2.del)
+fit <- lm(ENCFF804BNU_norm ~ ENCFF273MVV_boxtid, data = df.2.del)
 summary(fit)
 
-df.2.del$ENCFF804BNU_pred <- 0.966241*df.2.del$ENCFF804BNU_boxtid - 0.110385
-cor(df.2.del$ENCFF273MVV_norm, df.2.del$ENCFF804BNU_pred)
-ggplot() + geom_point(aes(x = ENCFF804BNU_boxtid, y = ENCFF273MVV_norm), 
+df.2.del$ENCFF273MVV_pred <- 0.552689*df.2.del$ENCFF273MVV_boxtid - 0.269196
+cor(df.2.del$ENCFF804BNU_norm, df.2.del$ENCFF273MVV_pred)
+ggplot() + geom_point(aes(x = ENCFF273MVV_boxtid, y = ENCFF804BNU_norm), 
                       data = df.2, size = 0.1) + 
-    geom_smooth(aes(x = ENCFF804BNU_boxtid, y = ENCFF273MVV_norm), 
+    geom_smooth(aes(x = ENCFF273MVV_boxtid, y = ENCFF804BNU_norm), 
                 data = df.2.del, method = lm, formula = y~(x), fullrange = T)
 
-df.2$ENCFF804BNU_pred <- 0.966241*df.2$ENCFF804BNU_boxtid - 0.110385
-df.2.res <- df.2[,c('ENCFF273MVV', 'ENCFF804BNU', 
-                    'ENCFF273MVV_norm', 'ENCFF804BNU_pred')]
+df.2$ENCFF273MVV_pred <- 0.552689*df.2$ENCFF273MVV_boxtid - 0.269196
+df.2.res <- df.2[,c('ENCFF804BNU', 'ENCFF273MVV', 
+                    'ENCFF804BNU_norm', 'ENCFF273MVV_pred')]
 
 
 

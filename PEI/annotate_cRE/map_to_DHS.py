@@ -130,6 +130,148 @@ def sub_annotate_promoter(dict_in):
     return
 
 
+def sub_merge_h3k4me3(dict_in):
+    file_dhs = dict_in['file_dhs']
+    path_out = dict_in['path_out']
+    sub_ref = dict_in['sub_ref']
+    loc_promoter = dict_in['loc_promoter']
+    path_life_organ = dict_in['path_life_organ']
+
+    if sub_ref.shape[0] <= 1:
+        sub_dict = sub_ref.to_dict('records')[0]
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term_origin = f"{str_term}/DHS_promoter_H3K4me3.origin"
+            term = f"{str_term}/DHS_promoter_H3K4me3.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term_origin = \
+                f"{str_suborgan}/{str_term}/DHS_promoter_H3K4me3.origin"
+            term = f"{str_suborgan}/{str_term}/DHS_promoter_H3K4me3.txt"
+
+        file_term_txt = os.path.join(path_life_organ, term)
+        file_term_origin = os.path.join(path_life_organ, term_origin)
+        file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3.origin')
+        file_promoter_out = os.path.join(path_out, 'DHS_promoter_H3K4me3.txt')
+        os.system(f"cp {file_term_txt} {file_promoter_out}")
+        os.system(f"cp {file_term_origin} {file_origin}")
+
+        return
+
+    # promoter
+    file_promoter = os.path.join(path_out, 'ref_promoter.txt')
+    os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
+              f"| cut -f 1,2,3,4,5,12,15 > {file_promoter}")
+    # drop duplicates
+    len_ref = int(str(check_output(f"wc -l {file_dhs}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    len_pro = int(str(check_output(f"wc -l {file_promoter}",
+                                   shell=True).strip()).split(' ')[0][2:])
+
+    def drop_dup_promoter(x):
+        if x.shape[0] == 1:
+            return x
+        else:
+            row_out = x.iloc[0, 0:5]
+            row_out[5] = ','.join([x.iloc[i, 5] for i in range(x.shape[0])])
+            row_out[6] = \
+                ','.join([str(x.iloc[i, 6]) for i in range(x.shape[0])])
+            dict_out = row_out.to_dict()
+            row_out = pd.DataFrame(dict_out, index=[row_out[3]])
+            return row_out
+
+    if len_ref == len_pro:
+        file_ref = file_promoter
+    else:
+        file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
+        file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
+        df_plus = pd.read_csv(file_promoter, sep='\t', header=None,
+                              dtype={6: 'str'})
+        df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == '0', :]
+        df_pn = (df_plus.loc[df_plus[df_plus.shape[1] - 1] != '0', :]).copy()
+        df_pn['key'] = df_pn[3]
+        df_pn_uniq = df_pn.groupby('key').apply(drop_dup_promoter)
+        df_pn_uniq = df_pn_uniq.drop('key', axis=1)
+        df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+        df_uniq = pd.concat([df_0, df_pn_uniq])
+        df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
+        os.system(f"bedtools sort -i {file_promoter_uniq} > "
+                  f"{file_promoter_sort}")
+        os.remove(file_promoter)
+        os.remove(file_promoter_uniq)
+        os.system(f"mv {file_promoter_sort} {file_promoter}")
+        file_ref = file_promoter
+
+    # H3K4me3
+    for sub_dict in sub_ref.to_dict('records'):
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term = f"{str_term}/DHS_promoter_H3K4me3.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term = f"{str_suborgan}/{str_term}/DHS_promoter_H3K4me3.txt"
+
+        file_term = os.path.join(path_life_organ, term)
+        file_plus = os.path.join(path_out, str_term + '.plus')
+        file_uniq = os.path.join(path_out, str_term + '.uniq')
+        file_sort = os.path.join(path_out, str_term + '.sort')
+
+        # map H3K4me3 to DHS
+        col_num = int(
+            check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                         shell=True).strip())
+        use_col_list = list(range(1, col_num + 1))
+        use_col_list.extend([col_num + 4, col_num + 7, col_num + 8,
+                             col_num + 9])
+        use_col = ','.join([str(num) for num in use_col_list])
+        os.system(
+            f"bedtools intersect -a {file_ref} -b {file_term} -wao "
+            f"| cut -f {use_col} > {file_plus}")
+        # drop duplicates
+        len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        len_pro = int(str(check_output(f"wc -l {file_plus}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        if len_ref == len_pro:
+            file_ref = file_plus
+        else:
+            df_plus = pd.read_csv(file_plus, sep='\t', header=None,
+                                  dtype={6: 'str'})
+            df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+            df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
+            df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+            df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+            df_uniq = pd.concat([df_0, df_pn_uniq])
+            df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+            os.system(f"sort -k 1,1 -k2,2n {file_uniq} > {file_sort}")
+
+            os.remove(file_ref)
+            os.remove(file_plus)
+            os.remove(file_uniq)
+            file_ref = file_sort
+
+    file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3.origin')
+    os.system(f"mv {file_ref} {file_origin}")
+
+    # select maximum score and log_p
+    file_promoter_out = os.path.join(path_out, 'DHS_promoter_H3K4me3.txt')
+    df_origin = pd.read_csv(file_origin, sep='\t', header=None)
+    file_num = sub_ref.shape[0]
+    cols_score = [8 + 4*i for i in range(file_num)]
+    cols_pvalue = [9 + 4*i for i in range(file_num)]
+    df_score = np.max(df_origin.loc[:, cols_score].applymap(
+        lambda x: float(x) if x != '.' else 0), axis=1)
+    df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
+        lambda x: float(x) if x != '.' else 0), axis=1)
+    df_out = df_origin.loc[:, :5]
+    df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
+    df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
+
+    return
+
+
 def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
                              loc_promoter, ref_histone, ref_dhs, path_out,
                              num_process):
@@ -159,6 +301,7 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
     life_organs = list(set(df_ref_histone['Biosample life_organ'].tolist()))
 
     list_input = []
+    list_merge = []
     list_ref = []
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
@@ -172,6 +315,28 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
         path_life_organ = os.path.join(path_out, str_life_organ)
         if not os.path.exists(path_life_organ):
             os.mkdir(path_life_organ)
+        file_dhs_life_organ = os.path.join(
+            path_cluster, f"{str_life_organ}/{str_life_organ}.bed"
+        )
+        life_organ_h3k4me3 = pd.merge(
+            sub_ref_histone, df_meta_h3k4me3,
+            on=['Biosample life stage', 'Biosample term name']
+        )
+        life_organ_h3k4me3 = \
+            life_organ_h3k4me3.drop_duplicates('File accession')
+        if life_organ_h3k4me3.shape[0] == 0:
+            continue
+        list_merge.append(dict(
+            file_dhs=file_dhs_life_organ, path_out=path_life_organ,
+            path_life_organ=path_life_organ, sub_ref=sub_ref_histone,
+            loc_promoter=loc_promoter)
+        )
+        list_ref.append(
+            {'Biosample life_organ': life_organ,
+             'Biosample suborgan': 'empty',
+             'Biosample term name': 'empty',
+             'file_ref_dhs': file_dhs_life_organ, 'Level': 'life_organ'})
+
         suborgans = list(set(sub_ref_histone['Biosample suborgan'].tolist()))
         for suborgan in suborgans:
             suborgan_histone = sub_ref_histone.loc[
@@ -200,9 +365,9 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
                     suborgan_h3k4me3.drop_duplicates('File accession')
                 if suborgan_h3k4me3.shape[0] == 0:
                     continue
-                list_input.append(dict(
+                list_merge.append(dict(
                     file_dhs=file_dhs_suborgan, path_out=path_suborgan,
-                    path_h3k4me3=path_h3k4me3, sub_h3k4me3=suborgan_h3k4me3,
+                    path_life_organ=path_life_organ, sub_ref=suborgan_histone,
                     loc_promoter=loc_promoter)
                 )
                 list_ref.append(
@@ -262,6 +427,10 @@ def annotate_promoter_to_dhs(path_cluster, path_dhs, path_h3k4me3,
 
     pool = Pool(processes=num_process)
     pool.map(sub_annotate_promoter, list_input)
+    pool.close()
+
+    pool = Pool(processes=num_process)
+    pool.map(sub_merge_h3k4me3, list_merge)
     pool.close()
 
     return
@@ -380,6 +549,120 @@ def integrate_h3k27ac(path_h3k27ac, dict_in):
         path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
     os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_H3K27ac.R')} "
               f"{file_origin} {file_out} {infer_num} {file_num}")
+
+    return
+
+
+def sub_merge_h3k27ac(dict_in):
+    file_ref = dict_in['file_ref']
+    path_out = dict_in['path_out']
+    sub_ref = dict_in['sub_ref']
+    path_life_organ = dict_in['path_life_organ']
+
+    if sub_ref.shape[0] <= 1:
+        sub_dict = sub_ref.to_dict('records')[0]
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term_origin = f"{str_term}/DHS_promoter_H3K4me3_H3K27ac.origin"
+            term = f"{str_term}/DHS_promoter_H3K4me3_H3K27ac.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term_origin = \
+                f"{str_suborgan}/{str_term}/" \
+                f"DHS_promoter_H3K4me3_H3K27ac.origin"
+            term = f"{str_suborgan}/{str_term}/" \
+                   f"DHS_promoter_H3K4me3_H3K27ac.txt"
+
+        file_term_txt = os.path.join(path_life_organ, term)
+        file_term_origin = os.path.join(path_life_organ, term_origin)
+        file_origin = os.path.join(
+            path_out, 'DHS_promoter_H3K4me3_H3K27ac.origin')
+        file_promoter_out = os.path.join(
+            path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
+        os.system(f"cp {file_term_txt} {file_promoter_out}")
+        os.system(f"cp {file_term_origin} {file_origin}")
+
+        return
+
+    # H3K27ac
+    file_ref_ori = file_ref
+    len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    for sub_dict in sub_ref.to_dict('records'):
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term = f"{str_term}/DHS_promoter_H3K4me3_H3K27ac.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term = f"{str_suborgan}/{str_term}/" \
+                   f"DHS_promoter_H3K4me3_H3K27ac.txt"
+
+        file_term = os.path.join(path_life_organ, term)
+        file_plus = os.path.join(path_out, str_term + '.plus')
+        file_uniq = os.path.join(path_out, str_term + '.uniq')
+        file_sort = os.path.join(path_out, str_term + '.sort')
+
+        # map H3K4me3 to DHS
+        col_num = int(
+            check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                         shell=True).strip())
+        use_col_list = list(range(1, col_num + 1))
+        use_col_list.extend([col_num + 4, col_num + 9, col_num + 10,
+                             col_num + 11])
+        use_col = ','.join([str(num) for num in use_col_list])
+        os.system(
+            f"bedtools intersect -a {file_ref} -b {file_term} -wao "
+            f"| cut -f {use_col} > {file_plus}")
+        # drop duplicates
+        len_pro = int(str(check_output(f"wc -l {file_plus}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        if len_ref == len_pro:
+            file_ref = file_plus
+        else:
+            df_plus = pd.read_csv(file_plus, sep='\t', header=None,
+                                  dtype={6: 'str'})
+            df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+            df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
+            df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+            df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+            df_uniq = pd.concat([df_0, df_pn_uniq])
+            df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+            os.system(f"sort -k 1,1 -k2,2n {file_uniq} > {file_sort}")
+
+            if file_ref != file_ref_ori:
+                os.remove(file_ref)
+            os.remove(file_plus)
+            os.remove(file_uniq)
+            file_ref = file_sort
+
+            # check error
+            len_sort = int(str(check_output(
+                f"wc -l {file_sort}", shell=True).strip()).split(' ')[0][2:])
+            try:
+                assert len_ref == len_sort
+            except AssertionError:
+                print(dict_in)
+                return
+
+    file_origin = os.path.join(path_out, 'DHS_promoter_H3K4me3_H3K27ac.origin')
+    os.system(f"mv {file_ref} {file_origin}")
+
+    # select maximum score and log_p
+    file_promoter_out = os.path.join(
+        path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
+    df_origin = pd.read_csv(file_origin, sep='\t', header=None)
+    file_num = sub_ref.shape[0]
+    cols_score = [10 + 4*i for i in range(file_num)]
+    cols_pvalue = [11 + 4*i for i in range(file_num)]
+    df_score = np.max(df_origin.loc[:, cols_score].applymap(
+        lambda x: float(x) if x != '.' else 0), axis=1)
+    df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
+        lambda x: float(x) if x != '.' else 0), axis=1)
+    df_out = df_origin.loc[:, :7]
+    df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
+    df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
 
     return
 
@@ -604,6 +887,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     life_organs = list(set(df_merge['Biosample life_organ'].tolist()))
 
     list_input = []
+    list_merge = []
     list_ref = []
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
@@ -614,6 +898,27 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
         path_life_organ = os.path.join(path_cre, str_life_organ)
         if not os.path.exists(path_life_organ):
             os.mkdir(path_life_organ)
+        file_ref_life_organ = os.path.join(
+            path_ref, f"{str_life_organ}/DHS_promoter_H3K4me3.txt"
+        )
+        life_organ_h3k27ac = pd.merge(
+            sub_ref_histone, df_meta_h3k27ac,
+            on=['Biosample life stage', 'Biosample term name']
+        )
+        life_organ_h3k27ac = \
+            life_organ_h3k27ac.drop_duplicates('File accession')
+        if life_organ_h3k27ac.shape[0] == 0:
+            continue
+        list_merge.append(dict(
+            file_ref=file_ref_life_organ, path_out=path_life_organ,
+            path_life_organ=path_life_organ, sub_ref=sub_ref_histone)
+        )
+        list_ref.append(
+            {'Biosample life_organ': life_organ,
+             'Biosample suborgan': 'empty',
+             'Biosample term name': 'empty',
+             'file_ref_dhs': file_ref_life_organ, 'Level': 'life_organ'})
+
         suborgans = list(set(sub_ref_histone['Biosample suborgan'].tolist()))
         for suborgan in suborgans:
             str_suborgan = suborgan.replace(' ', '_')
@@ -635,10 +940,10 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                     f"{str_life_organ}/{str_suborgan}/DHS_promoter_H3K4me3.txt"
                 )
                 if os.path.exists(file_ref_suborgan):
-                    list_input.append(dict(
-                        file_ref=file_ref_suborgan,
-                        path_out=path_suborgan,
-                        sub_h3k27ac=suborgan_h3k27ac)
+                    list_merge.append(dict(
+                        file_ref=file_ref_suborgan, path_out=path_suborgan,
+                        path_life_organ=path_life_organ,
+                        sub_ref=suborgan_histone)
                     )
                     list_ref.append(
                         {'Biosample life_organ': life_organ,
@@ -698,6 +1003,10 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     pool = Pool(processes=num_process)
     func_integrate = partial(integrate_h3k27ac, path_h3k27ac)
     pool.map(func_integrate, list_input)
+    pool.close()
+
+    pool = Pool(processes=num_process)
+    pool.map(sub_merge_h3k27ac, list_merge)
     pool.close()
     print('Annotation of H3K27ac is completed!')
 
@@ -818,28 +1127,29 @@ if __name__ == '__main__':
     time_start = time()
     # multiple processes
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
     # annotate DHS by term
-    path_dhs_stan = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_standard'
-    path_dhs_cluster = path_root + '/mid_data/tissue/DHS/GRCh38tohg19_cluster'
+    path_dhs_stan = path_mid + '/tissue/DHS/GRCh38tohg19_standard'
+    path_dhs_cluster = path_mid + '/tissue/DHS/GRCh38tohg19_cluster'
     path_h3k4me3_stan = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
-                    'H3K4me3_standard'
+        path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K4me3_standard'
     path_h3k27ac_stan = \
-        path_root + '/mid_data/tissue/ENCODE/histone_ChIP-seq/' \
-                    'H3K27ac_standard'
+        path_mid + '/tissue/ENCODE/histone_ChIP-seq/H3K27ac_standard'
     path_ctcf_stan = \
-        path_root + '/mid_data/tissue/ENCODE/TF_ChIP-seq/CTCF_standard'
+        path_mid + '/tissue/ENCODE/TF_ChIP-seq/CTCF_standard'
 
     # promoter reference
     promoter_file_hg19 = \
-        path_root + '/origin_data/gene/promoters.up2k.protein.gencode.v19.bed'
+        path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     meta_suborgan_dhs = \
-        path_root + '/origin_data/meta_file/meta.reference.tsv'
+        path_origin + '/meta_file/meta.reference.tsv'
     meta_suborgan_histone = \
-        path_root + '/origin_data/meta_file/meta.reference.histone.tsv'
-    path_ref_promoter = path_root + '/mid_data/tissue/DHS/reference_map'
+        path_origin + '/meta_file/meta.reference.histone.tsv'
+    path_ref_promoter = path_mid + '/tissue/DHS/reference_map'
     annotate_promoter_to_dhs(
         path_dhs_cluster, path_dhs_stan, path_h3k4me3_stan,
         promoter_file_hg19, meta_suborgan_histone, meta_suborgan_dhs,
@@ -849,9 +1159,9 @@ if __name__ == '__main__':
 
     # map H3K27ac to reference
     protein_exon = \
-        path_root + '/origin_data/gene/exon.protein.gencode.v19.bed'
+        path_origin + '/gene/exon.protein.gencode.v19.bed'
     # path_map_h3k27ac = '/local/zy/PEI/mid_data/tissue/DHS/map_H3K27ac'
-    path_combine_h3k27ac = path_root + '/mid_data/tissue/DHS/cRE_annotation'
+    path_combine_h3k27ac = path_mid + '/tissue/DHS/cRE_annotation'
     annotate_cre(path_ref_promoter, path_h3k27ac_stan, path_combine_h3k27ac,
                  num_cpu)
     print('Annotation of genome is completed!')

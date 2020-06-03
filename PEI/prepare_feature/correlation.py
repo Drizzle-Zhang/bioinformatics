@@ -103,15 +103,44 @@ def calculate_corr(path_out, dict_in):
     return
 
 
+def discrete(score):
+    if score <= 0:
+        score_out = 0
+    elif (score > 0) & (score <= 0.1):
+        score_out = 1
+    elif (score > 0.1) & (score <= 0.2):
+        score_out = 2
+    elif (score > 0.2) & (score <= 0.3):
+        score_out = 3
+    elif (score > 0.3) & (score <= 0.4):
+        score_out = 4
+    elif (score > 0.4) & (score <= 0.5):
+        score_out = 5
+    elif (score > 0.5) & (score <= 0.6):
+        score_out = 6
+    elif (score > 0.6) & (score <= 0.7):
+        score_out = 7
+    elif (score > 0.7) & (score <= 0.8):
+        score_out = 8
+    elif (score > 0.8) & (score <= 0.9):
+        score_out = 9
+    elif (score > 0.9) & (score <= 1):
+        score_out = 10
+    else:
+        score_out = np.nan
+
+    return score_out
+
+
 def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
                 file_mat_dhs, path_out):
     df_mat_pro = pd.read_csv(file_mat_promoter, sep='\t', index_col=0)
     if (name_gene_in == 'expression') & (name_dhs_in == 'DHS'):
         meta_transfer_col = \
-            '/local/zy/PEI/origin_data/meta_file/meta_GTEx_DHS.txt'
+            path_origin + '/meta_file/meta_GTEx_DHS.txt'
     elif (name_gene_in == 'expression') & (name_dhs_in == 'H3K27ac'):
         meta_transfer_col = \
-            '/local/zy/PEI/origin_data/meta_file/meta_GTEx_H3K27ac.txt'
+            path_origin + '/meta_file/meta_GTEx_H3K27ac.txt'
     else:
         meta_transfer_col = None
     if meta_transfer_col:
@@ -144,6 +173,7 @@ def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
     col_pro = df_mat_pro.columns
     col_dhs = df_mat_dhs.columns
     col_overlap = set(col_pro).intersection(col_dhs)
+    # record tissue and cell overlaps
     file_corr_variables = os.path.join(path_out, 'variables_corr.txt')
     with open(file_corr_variables, 'w') as w_var:
         for var in col_overlap:
@@ -217,7 +247,8 @@ def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
     path_mid = path_root + '/mid_data_correct'
 
@@ -230,12 +261,15 @@ if __name__ == '__main__':
     dict_gene_pos = generate_promoter_dict()
 
     path_matrix = path_mid + '/database_feature/matrix'
-    # matrix_gene = ['DHS', 'H3K4me3']
-    matrix_gene = ['expression']
-    # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt']
-    files_gene = ['GTEx_expression_matrix.txt']
-    matrix_dhs = ['DHS', 'H3K27ac']
-    files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
+    # matrix_gene = ['DHS', 'H3K4me3', 'expression']
+    matrix_gene = ['DHS']
+    # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt',
+    # 'GTEx_expression_matrix.txt']
+    files_gene = ['DHS_matrix.promoter.txt']
+    # matrix_dhs = ['DHS', 'H3K27ac']
+    # files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
+    matrix_dhs = ['DHS']
+    files_dhs = ['DHS_matrix.txt']
 
     path_correlation = path_mid + '/database_feature/correlation'
 
@@ -249,7 +283,7 @@ if __name__ == '__main__':
                 os.mkdir(sub_path_out)
             # if f"{name_gene}_{name_dhs}" == 'DHS_DHS':
             #     continue
-            # correlation(name_gene, name_dhs, file_gene, file_dhs, sub_path_out)
+            correlation(name_gene, name_dhs, file_gene, file_dhs, sub_path_out)
         #     if j == 0:
         #         break
         # if i == 0:

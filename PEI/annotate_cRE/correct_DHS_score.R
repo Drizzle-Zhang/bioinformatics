@@ -1,123 +1,61 @@
-library(VIM)
-library(Hmisc)
-library(car)
 
-file.in = '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/score.txt'
-file.out =
-    '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/correct_score.txt'
+# file.in = '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/score.txt'
+# file.out =
+#     '/home/drizzle_zhang/driver_mutation/cRE_plot/model_test/correct_score.txt'
+
 correct.dhs.score <- function(file.in, file.out) {
     df.scores <- read.delim(file.in, sep = '\t', header = T,
                             row.names = 'peak_id', stringsAsFactors = F)
-    num.cols <- dim(df.scores)[2]
-    if (num.cols <= 1) {
-        df.scores[,'peak_id'] <- row.names(df.scores)
-        df.sort <- df.scores[order(df.scores[,1]),]
+    df.scores[df.scores == '.'] <- NA
+    df.score.num <- apply(df.scores, 1, as.numeric)
+    if (is.null(dim(df.score.num))) {
+        df.score.num <- as.data.frame(df.score.num)
+        num.cols <- 1
+    } else {
+        df.score.num <- as.data.frame(t(df.score.num))
+        num.cols <- dim(df.score.num)[2]
+    }
+    
+    names(df.score.num) <- names(df.scores)
+    names <- names(df.score.num)
+    i = 1
+    for (col in names) {
+        df.sub <- as.data.frame(df.score.num[,col])
+        df.sub[,'peak_id'] <- row.names(df.score.num)
+        
+        df.sub.na <- df.sub[is.na(df.sub[,1]),]
+        df.na.0 <- as.data.frame(rep(0, dim(df.sub.na)[1]))
+        df.na.0$peak_id <- df.sub.na[,'peak_id']
+        names(df.na.0) <- c(col,'peak_id')
+        
+        df.sub.nona <- df.sub[!is.na(df.sub[,1]),]
+        df.sort <- df.sub.nona[order(df.sub.nona[,1]),]
         func.quantile <- ecdf(df.sort[,1])
         df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
-        row.names(df.sort.out) <- df.sort[,'peak_id']
+        df.sort.out$peak_id <- df.sort[,'peak_id']
+        names(df.sort.out) <- c(col,'peak_id')
         
-        write.table(df.sort.out, file.out, sep = '\t', quote = F, row.names = T,
-                    col.names = F)
+        df.quantile <- rbind(df.sort.out, df.na.0)
         
-    } else {
-        names <- names(df.scores)
-        len.cols <- apply(df.scores, 2, function(x){length(x[!is.na(x)])})
-        
-        # define length
-        len.median <- median(len.cols)
-        names(len.cols) <- names
-        len.cols <- sort(len.cols)
-        # idx.ref <- ceiling(length(len.cols)/2)
-        idx.ref <- length(len.cols)
-        # define reference file
-        name.ref <- names(len.cols[idx.ref])
-        
-        # normalization
-        i = 1
-        for (col in names) {
-            df.sub <- df.scores[,col]
-            box <- summary(powerTransform(df.sub))
-            index <- box$result[4]
-            # if (index > 0 & col == name.ref) {
-            #     print(col)
-            #     print(index)
-            #     return()
-            # }
-            # print(index)
-            if (col == name.ref) {
-                index.ref <- index
-            }
-            df.sub <- df.sub^index
-            if (i == 1) {
-                df.norm <- df.sub
-            } else {
-                df.norm <- cbind(df.norm, df.sub)
-            }
-            i = i + 1
+        if (i == 1) {
+            df.scores.quantile <- df.quantile
+        } else {
+            df.scores.quantile <- 
+                merge.data.frame(df.scores.quantile, df.quantile, 
+                                 by = 'peak_id')
         }
-        dimnames(df.norm)[[1]] <- row.names(df.scores)
-        dimnames(df.norm)[[2]] <- names
-        
-        cols.correct <- setdiff(names, name.ref)
-        df.out <- as.data.frame(df.norm[,name.ref])
-        names(df.out) <- name.ref
-        for (col in cols.correct) {
-            df.sub <- df.norm[,c(name.ref, col)]
-            df.sub.omitna <- as.data.frame(na.omit(df.sub))
-            boxtidwell <- boxTidwell(as.formula(paste0(name.ref, ' ~ ', col)), 
-                                     data = df.sub.omitna)
-            df.sub.omitna$col.boxtidwell <- 
-                (df.sub.omitna[,col])^boxtidwell$result[1]
-            fit <- lm(as.formula(paste0(name.ref, ' ~ col.boxtidwell')), 
-                      data = df.sub.omitna)
-            df.sub.omitna$hatvalue <- hatvalues(fit)
-            df.sub.omitna$rstudent <- rstudent(fit)
-            cutoff.hatvalue <- 3*mean(df.sub.omitna$hatvalue)
-            df.sub.omitna.del <- df.sub.omitna[
-                (df.sub.omitna$hatvalue < cutoff.hatvalue) & 
-                    (df.sub.omitna$rstudent < 2) & (df.sub.omitna$rstudent > -2),]
-            fit <- lm(as.formula(paste0(name.ref, ' ~ col.boxtidwell')), 
-                      data = df.sub.omitna.del)
-            # print(summary(fit)$r.squared)
-            
-            sub.out <- 
-                fit$coefficients[2]*(df.norm[,col]^boxtidwell$result[1]) + 
-                fit$coefficients[1]
-            sub.out <- as.data.frame(sub.out)
-            names(sub.out) <- col
-            df.out <- cbind(df.out, sub.out)
-            
-        }
-        
-        if (index.ref < 0) {
-            df.impute <- df.out
-            for (col in names) {
-                df.impute[,col] <- impute(df.out[,col], fun = max)
-            }
-            df.mean <- rowMeans(df.impute, na.rm = T)
-            df.sort <- sort(df.mean)
-            df.sort <- as.data.frame(df.sort[1:len.median])
-            func.quantile <- ecdf(df.sort[1:len.median,1])
-            df.sort.out <- 
-                as.data.frame(1 - func.quantile(df.sort[,1]) + 1/len.median)
-            row.names(df.sort.out) <- row.names(df.sort)
-        }
-        if (index.ref > 0) {
-            df.impute <- df.out
-            for (col in names) {
-                df.impute[,col] <- impute(df.out[,col], fun = min)
-            }
-            df.mean <- rowMeans(df.impute, na.rm = T)
-            df.sort <- sort(df.mean, decreasing = T)
-            df.sort <- as.data.frame(df.sort[1:len.median])
-            func.quantile <- ecdf(df.sort[1:len.median,1])
-            df.sort.out <- as.data.frame(func.quantile(df.sort[,1]))
-        }
-        
-        row.names(df.sort.out) <- row.names(df.sort)
-        write.table(df.sort.out, file.out, sep = '\t', quote = F, row.names = T,
-                    col.names = F)
+        i = i + 1
     }
+    
+    row.names(df.scores.quantile) <- df.scores.quantile$peak_id
+    df.scores.quantile$peak_id <- NULL
+    
+    df.max.quantile <- apply(df.scores.quantile, 1, max)
+    df.out <- as.data.frame(df.max.quantile)
+
+    write.table(df.out, file.out, sep = '\t', quote = F, row.names = T,
+                col.names = F)
+    
 }
 
 args <- commandArgs(T)

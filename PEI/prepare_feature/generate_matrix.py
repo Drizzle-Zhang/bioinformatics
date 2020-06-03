@@ -51,7 +51,7 @@ def sub_dhs_term(df_all, path_tmp, dict_in):
     if na_mode == 'minus':
         df_merge = df_merge.fillna(np.min(df_term)[0] - 1)
     elif na_mode == 'constant':
-        df_merge = df_merge.fillna(-10)
+        df_merge = df_merge.fillna(0)
     file_tmp = os.path.join(path_tmp, str_term + '.txt')
     if df_merge.shape[0] != df_all.shape[0]:
         print(term)
@@ -170,7 +170,7 @@ def sub_h3k4me3(df_dhs_promoter, path_tmp, df_all_pro, dict_in):
         df_gene_h3k4me3 = df_gene_h3k4me3.fillna(
             np.nanmin(df_gene_h3k4me3['h3k4me3_score']) - 2)
     elif na_mode == 'constant':
-        df_gene_h3k4me3 = df_gene_h3k4me3.fillna(-10)
+        df_gene_h3k4me3 = df_gene_h3k4me3.fillna(0)
     df_gene_uniq = df_gene_h3k4me3.groupby('key').apply(calculate_score)
     df_gene_uniq = df_gene_uniq.drop_duplicates()
     df_gene_uniq = df_gene_uniq.sort_values('idx')
@@ -305,7 +305,7 @@ def sub_h3k27ac(df_all, path_tmp, dict_in):
         df_dhs_h3k27ac = df_dhs_h3k27ac.fillna(
             np.nanmin(df_dhs_h3k27ac['h3k27ac_score']) - 2)
     elif na_mode == 'constant':
-        df_dhs_h3k27ac = df_dhs_h3k27ac.fillna(-10)
+        df_dhs_h3k27ac = df_dhs_h3k27ac.fillna(0)
     df_dhs_uniq = df_dhs_h3k27ac.groupby('key').apply(calculate_score)
     df_dhs_uniq = df_dhs_uniq.drop_duplicates()
     df_dhs_uniq.index = df_dhs_uniq['dhs_idx']
@@ -314,7 +314,7 @@ def sub_h3k27ac(df_all, path_tmp, dict_in):
     if na_mode == 'minus':
         df_out = df_out.fillna(np.nanmin(df_dhs_h3k27ac['h3k27ac_score']) - 2)
     elif na_mode == 'constant':
-        df_out = df_out.fillna(-10)
+        df_out = df_out.fillna(0)
     # df_out = df_out.sort_values('dhs_idx')
     file_tmp = os.path.join(path_tmp, str_term + '.txt')
     df_out = df_out.rename(columns={'h3k27ac_score': term})
@@ -429,6 +429,10 @@ def gtex_expression_matrix():
     df_pro_exp.index = df_pro_exp['gene']
     df_pro_exp = df_pro_exp.rename(columns={'gene': 'del_gene'})
     df_pro_exp = df_pro_exp.drop([4, 'del_gene', 'Description'], axis=1)
+
+    # normalization
+
+
     file_matrix_gtex_expression = \
         os.path.join(path_matrix, 'GTEx_expression_matrix.txt')
     df_pro_exp.to_csv(file_matrix_gtex_expression, sep='\t')
@@ -452,7 +456,7 @@ if __name__ == '__main__':
         path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     file_dhs_promoter = \
         path_mid + '/database_feature/DHS_index/promoter_index.txt'
-    # generate_promoter_file()
+    generate_promoter_file()
 
     file_promoter_uniq = \
         path_origin + '/gene/promoters.up2k.protein.gencode.v19.unique.bed'
@@ -481,7 +485,8 @@ if __name__ == '__main__':
 
     # GETx expression
     file_expression = \
-        path_origin + '/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
+        path_origin + \
+        '/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
     gtex_expression_matrix()
 
     time_end = time()

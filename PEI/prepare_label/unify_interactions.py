@@ -10,6 +10,8 @@ import os
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool
+file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+liftover = '/lustre/tianlab/tools/liftOver'
 
 
 def encode_chiapet(file_in, file_out, cutoff=2):
@@ -165,11 +167,9 @@ def transform_microc(file_in, file_out):
     file_region2_ummap = file_out + '.region2.umap'
     os.system(f"cut -f 1,2,3,7 {file_tmp} > {file_region1}")
     os.system(f"cut -f 4,5,6,7 {file_tmp} > {file_region2}")
-    file_chain = \
-        '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
-    os.system(f"/local/zy/tools/liftOver {file_region1} {file_chain} "
+    os.system(f"{liftover} {file_region1} {file_chain} "
               f"{file_region1_hg19} {file_region1_ummap}")
-    os.system(f"/local/zy/tools/liftOver {file_region2} {file_chain} "
+    os.system(f"{liftover} {file_region2} {file_chain} "
               f"{file_region2_hg19} {file_region2_ummap}")
 
     df_region1 = pd.read_csv(file_region1_hg19, sep='\t', header=None)
@@ -197,7 +197,7 @@ def uniform_file(dict_in):
     source = dict_in['Source']
     filename = dict_in['Filename']
 
-    file_in = os.path.join(path_origin, f"{method}/{source}/{filename}")
+    file_in = os.path.join(path_chrom_inter, f"{method}/{source}/{filename}")
     path_term = os.path.join(path_label, term)
     if not os.path.exists(path_term):
         try:
@@ -226,9 +226,12 @@ def uniform_file(dict_in):
 if __name__ == '__main__':
     time_start = time()
     cutoff_pet = 2
-    path_origin = '/local/zy/PEI/origin_data/Chromatin_interactions/'
-    path_label = \
-        '/local/zy/PEI/mid_data/training_label/label_interactions_V1'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
+
+    path_chrom_inter = path_origin + '/Chromatin_interactions/'
+    path_label = path_mid + '/training_label/label_interactions'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')
