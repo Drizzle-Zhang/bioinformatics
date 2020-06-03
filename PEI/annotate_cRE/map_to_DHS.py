@@ -267,10 +267,12 @@ def sub_merge_h3k4me3(dict_in):
     file_num = sub_ref.shape[0]
     cols_score = [8 + 4*i for i in range(file_num)]
     cols_pvalue = [9 + 4*i for i in range(file_num)]
-    df_score = np.max(df_origin.loc[:, cols_score].applymap(
-        lambda x: float(x) if x != '.' else 0), axis=1)
-    df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
-        lambda x: float(x) if x != '.' else 0), axis=1)
+    # df_score = np.max(df_origin.loc[:, cols_score].applymap(
+    #     lambda x: float(x) if x != '.' else 0), axis=1)
+    # df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
+    #     lambda x: float(x) if x != '.' else 0), axis=1)
+    df_score = np.max(df_origin.loc[:, cols_score], axis=1)
+    df_pvalue = np.max(df_origin.loc[:, cols_pvalue], axis=1)
     df_out = df_origin.loc[:, :5]
     df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
     df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
@@ -665,10 +667,12 @@ def sub_merge_h3k27ac(dict_in):
     file_num = sub_ref.shape[0]
     cols_score = [10 + 4*i for i in range(file_num)]
     cols_pvalue = [11 + 4*i for i in range(file_num)]
-    df_score = np.max(df_origin.loc[:, cols_score].applymap(
-        lambda x: float(x) if x != '.' else 0), axis=1)
-    df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
-        lambda x: float(x) if x != '.' else 0), axis=1)
+    # df_score = np.max(df_origin.loc[:, cols_score].applymap(
+    #     lambda x: float(x) if x != '.' else 0), axis=1)
+    # df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
+    #     lambda x: float(x) if x != '.' else 0), axis=1)
+    df_score = np.max(df_origin.loc[:, cols_score], axis=1)
+    df_pvalue = np.max(df_origin.loc[:, cols_pvalue], axis=1)
     df_out = df_origin.loc[:, :7]
     df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
     df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)

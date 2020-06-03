@@ -130,7 +130,7 @@ def integrate_h3k27ac(path_h3k27ac_map, dict_in):
     file_num = sub_h3k27ac.shape[0]
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
-    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_H3K27ac.R')} "
+    os.system(f"Rscript {os.path.join(root_path, 'adjust_p_value_histone.R')} "
               f"{file_origin} {file_out} {infer_num} {file_num} {ref_col_num}")
 
     return
