@@ -166,7 +166,7 @@ def sub_merge_h3k4me3(dict_in):
         return
 
     # promoter
-    file_promoter = os.path.join(path_out, 'ref_promoter.txt')
+    file_promoter = os.path.join(path_out, 'promoter.txt')
     os.system(f"bedtools intersect -a {file_dhs} -b {loc_promoter} -wao "
               f"| cut -f 1,2,3,4,5,12,15 > {file_promoter}")
     # drop duplicates
@@ -187,9 +187,7 @@ def sub_merge_h3k4me3(dict_in):
             row_out = pd.DataFrame(dict_out, index=[row_out[3]])
             return row_out
 
-    if len_ref == len_pro:
-        file_ref = file_promoter
-    else:
+    if len_ref != len_pro:
         file_promoter_uniq = os.path.join(path_out, 'ref_promoter.uniq.txt')
         file_promoter_sort = os.path.join(path_out, 'ref_promoter.sort.txt')
         df_plus = pd.read_csv(file_promoter, sep='\t', header=None,
@@ -202,12 +200,15 @@ def sub_merge_h3k4me3(dict_in):
         df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
         df_uniq = pd.concat([df_0, df_pn_uniq])
         df_uniq.to_csv(file_promoter_uniq, sep='\t', header=None, index=None)
-        os.system(f"bedtools sort -i {file_promoter_uniq} > "
-                  f"{file_promoter_sort}")
+        os.system(f"bedtools sort -i {file_promoter_uniq} | "
+                  f"cut -f 1,2,3,4,5,6 > {file_promoter_sort}")
         os.remove(file_promoter)
         os.remove(file_promoter_uniq)
         os.system(f"mv {file_promoter_sort} {file_promoter}")
-        file_ref = file_promoter
+
+    file_ref = os.path.join(path_out, 'ref_promoter.txt')
+    os.system(f"cut -f 1,2,3,4,5,6 {file_promoter} > {file_ref}")
+    os.remove(file_promoter)
 
     # H3K4me3
     for sub_dict in sub_ref.to_dict('records'):
@@ -265,14 +266,20 @@ def sub_merge_h3k4me3(dict_in):
     file_promoter_out = os.path.join(path_out, 'DHS_promoter_H3K4me3.txt')
     df_origin = pd.read_csv(file_origin, sep='\t', header=None)
     file_num = sub_ref.shape[0]
-    cols_score = [8 + 4*i for i in range(file_num)]
-    cols_pvalue = [9 + 4*i for i in range(file_num)]
+    cols_score = [7 + 4*i for i in range(file_num)]
+    cols_pvalue = [8 + 4*i for i in range(file_num)]
     # df_score = np.max(df_origin.loc[:, cols_score].applymap(
     #     lambda x: float(x) if x != '.' else 0), axis=1)
     # df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
     #     lambda x: float(x) if x != '.' else 0), axis=1)
-    df_score = np.max(df_origin.loc[:, cols_score], axis=1)
-    df_pvalue = np.max(df_origin.loc[:, cols_pvalue], axis=1)
+    df_scores = df_origin.loc[:, cols_score].applymap(
+        lambda x: float(x) if x != '.' else 0
+    )
+    df_pvalues = df_origin.loc[:, cols_pvalue].applymap(
+        lambda x: float(x) if x != '.' else 0
+    )
+    df_score = np.max(df_scores, axis=1)
+    df_pvalue = np.max(df_pvalues, axis=1)
     df_out = df_origin.loc[:, :5]
     df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
     df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
@@ -665,14 +672,16 @@ def sub_merge_h3k27ac(dict_in):
         path_out, 'DHS_promoter_H3K4me3_H3K27ac.txt')
     df_origin = pd.read_csv(file_origin, sep='\t', header=None)
     file_num = sub_ref.shape[0]
-    cols_score = [10 + 4*i for i in range(file_num)]
-    cols_pvalue = [11 + 4*i for i in range(file_num)]
-    # df_score = np.max(df_origin.loc[:, cols_score].applymap(
-    #     lambda x: float(x) if x != '.' else 0), axis=1)
-    # df_pvalue = np.max(df_origin.loc[:, cols_pvalue].applymap(
-    #     lambda x: float(x) if x != '.' else 0), axis=1)
-    df_score = np.max(df_origin.loc[:, cols_score], axis=1)
-    df_pvalue = np.max(df_origin.loc[:, cols_pvalue], axis=1)
+    cols_score = [9 + 4*i for i in range(file_num)]
+    cols_pvalue = [10 + 4*i for i in range(file_num)]
+    df_scores = df_origin.loc[:, cols_score].applymap(
+        lambda x: float(x) if x != '.' else 0
+    )
+    df_pvalues = df_origin.loc[:, cols_pvalue].applymap(
+        lambda x: float(x) if x != '.' else 0
+    )
+    df_score = np.max(df_scores, axis=1)
+    df_pvalue = np.max(df_pvalues, axis=1)
     df_out = df_origin.loc[:, :7]
     df_out = pd.concat([df_out, df_score, df_pvalue], axis=1)
     df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
@@ -755,7 +764,7 @@ def integrate_ctcf(path_ctcf, dict_in):
     df_origin.index = df_origin[3]
     file_num = sub_ctcf.shape[0]
     cols = [11 + 4*i for i in range(file_num)]
-    df_out = df_origin.iloc[:, :10]
+    df_out = df_origin.iloc[:, :10].copy()
     df_scores = df_origin.loc[:, cols]
     df_scores = df_scores.applymap(lambda x: float(x) if x != '.' else 0)
     df_normalization = df_scores.apply(normalize)
@@ -763,6 +772,132 @@ def integrate_ctcf(path_ctcf, dict_in):
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
     df_out.to_csv(file_out, sep='\t', header=None, index=None)
+
+    return
+
+
+def sub_merge_ctcf(dict_in):
+    file_ref = dict_in['file_ref']
+    path_out = dict_in['path_out']
+    sub_ref = dict_in['sub_ref']
+    path_life_organ = dict_in['path_life_organ']
+
+    if sub_ref.shape[0] <= 1:
+        sub_dict = sub_ref.to_dict('records')[0]
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term_origin = \
+                f"{str_term}/DHS_promoter_H3K4me3_H3K27ac_CTCF.origin"
+            term = f"{str_term}/DHS_promoter_H3K4me3_H3K27ac_CTCF.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term_origin = \
+                f"{str_suborgan}/{str_term}/" \
+                f"DHS_promoter_H3K4me3_H3K27ac_CTCF.origin"
+            term = f"{str_suborgan}/{str_term}/" \
+                   f"DHS_promoter_H3K4me3_H3K27ac_CTCF.txt"
+
+        file_term_txt = os.path.join(path_life_organ, term)
+        file_term_origin = os.path.join(path_life_organ, term_origin)
+        file_origin = os.path.join(
+            path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.origin')
+        file_promoter_out = os.path.join(
+            path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
+        if os.path.exists(file_term_txt):
+            os.system(f"cp {file_term_txt} {file_promoter_out}")
+            os.system(f"cp {file_term_origin} {file_origin}")
+
+        return
+
+    # CTCF
+    file_ref_ori = file_ref
+    len_ref = int(str(check_output(f"wc -l {file_ref}",
+                                   shell=True).strip()).split(' ')[0][2:])
+    for sub_dict in sub_ref.to_dict('records'):
+        str_term = sub_dict['Biosample term name'].replace(
+            ' ', '_').replace('/', '+').replace("'", '--')
+        if sub_dict['Biosample suborgan'] == 'single':
+            term = f"{str_term}/DHS_promoter_H3K4me3_H3K27ac_CTCF.txt"
+        else:
+            str_suborgan = sub_dict['Biosample suborgan'].replace(' ', '_')
+            term = f"{str_suborgan}/{str_term}/" \
+                   f"DHS_promoter_H3K4me3_H3K27ac_CTCF.txt"
+
+        file_term = os.path.join(path_life_organ, term)
+        if not os.path.exists(file_term):
+            continue
+        file_plus = os.path.join(path_out, str_term + '.plus')
+        file_uniq = os.path.join(path_out, str_term + '.uniq')
+        file_sort = os.path.join(path_out, str_term + '.sort')
+
+        # map CTCF to DHS/H3K4me3/H3K27ac
+        col_num = int(
+            check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                         shell=True).strip())
+        use_col_list = list(range(1, col_num + 1))
+        use_col_list.extend([col_num + 4, col_num + 11, col_num + 12])
+        use_col = ','.join([str(num) for num in use_col_list])
+        os.system(
+            f"bedtools intersect -a {file_ref} -b {file_term} -wao "
+            f"| cut -f {use_col} > {file_plus}")
+        # drop duplicates
+        len_pro = int(str(check_output(f"wc -l {file_plus}",
+                                       shell=True).strip()).split(' ')[0][2:])
+        if len_ref == len_pro:
+            file_ref = file_plus
+        else:
+            df_plus = pd.read_csv(file_plus, sep='\t', header=None,
+                                  dtype={6: 'str'})
+            df_0 = df_plus.loc[df_plus[df_plus.shape[1] - 1] == 0, :]
+            df_pn = df_plus.loc[df_plus[df_plus.shape[1] - 1] > 0, :]
+            df_pn_uniq = df_pn.groupby(3).apply(drop_dup)
+            df_pn_uniq = df_pn_uniq.drop_duplicates(subset=3)
+            df_uniq = pd.concat([df_0, df_pn_uniq])
+            df_uniq.to_csv(file_uniq, sep='\t', header=None, index=None)
+            os.system(f"sort -k 1,1 -k2,2n {file_uniq} > {file_sort}")
+
+            if file_ref != file_ref_ori:
+                os.remove(file_ref)
+            os.remove(file_plus)
+            os.remove(file_uniq)
+            file_ref = file_sort
+
+            # check error
+            len_sort = int(str(check_output(
+                f"wc -l {file_sort}", shell=True).strip()).split(' ')[0][2:])
+            try:
+                assert len_ref == len_sort
+            except AssertionError:
+                print(dict_in)
+                return
+
+    col_num_ref = int(
+        check_output("head -n 1 " + file_ref_ori + " | awk '{print NF}'",
+                     shell=True).strip())
+    col_num_merge = int(
+        check_output("head -n 1 " + file_ref + " | awk '{print NF}'",
+                     shell=True).strip())
+    if col_num_merge == col_num_ref:
+        print('No CTCF:   ', path_out)
+        return
+    file_origin = \
+        os.path.join(path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.origin')
+    os.system(f"mv {file_ref} {file_origin}")
+
+    # select maximum score and log_p
+    file_promoter_out = os.path.join(
+        path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
+    df_origin = pd.read_csv(file_origin, sep='\t', header=None)
+    file_num = sub_ref.shape[0]
+    cols_score = [11 + 3*i for i in range(file_num)]
+    df_scores = df_origin.loc[:, cols_score].applymap(
+        lambda x: float(x) if x != '.' else 0
+    )
+    df_score = np.max(df_scores, axis=1)
+    df_out = df_origin.loc[:, :9]
+    df_out = pd.concat([df_out, df_score], axis=1)
+    df_out.to_csv(file_promoter_out, sep='\t', header=None, index=None)
 
     return
 
@@ -847,7 +982,10 @@ def sub_annotate_cre_ctcf(dict_in):
                 dhs_id = list_line[3]
                 dhs_score = float(list_line[4])
                 promoter_id = list_line[5]
-                score_h3k4me3 = float(list_line[6])
+                try:
+                    score_h3k4me3 = float(list_line[6])
+                except ValueError:
+                    print(file_in)
                 p_h3k4me3 = float(list_line[7])
                 score_h3k27ac = float(list_line[8])
                 p_h3k27ac = float(list_line[9])
@@ -935,15 +1073,18 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
             life_organ_h3k27ac.drop_duplicates('File accession')
         if life_organ_h3k27ac.shape[0] == 0:
             continue
-        list_merge.append(dict(
-            file_ref=file_ref_life_organ, path_out=path_life_organ,
-            path_life_organ=path_life_organ, sub_ref=sub_ref_histone)
-        )
-        list_ref.append(
-            {'Biosample life_organ': life_organ,
-             'Biosample suborgan': 'empty',
-             'Biosample term name': 'empty',
-             'file_ref_dhs': file_ref_life_organ, 'Level': 'life_organ'})
+        if os.path.exists(file_ref_life_organ):
+            list_merge.append(dict(
+                file_ref=file_ref_life_organ, path_out=path_life_organ,
+                path_life_organ=path_life_organ, sub_ref=sub_ref_histone)
+            )
+            list_ref.append(
+                {'Biosample life_organ': life_organ,
+                 'Biosample suborgan': 'empty',
+                 'Biosample term name': 'empty',
+                 'file_ref_dhs': file_ref_life_organ, 'Level': 'life_organ'})
+        else:
+            print(life_organ)
 
         suborgans = list(set(sub_ref_histone['Biosample suborgan'].tolist()))
         for suborgan in suborgans:
@@ -1053,6 +1194,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     life_organs = list(set(df_merge_ctcf['Biosample life_organ'].tolist()))
 
     list_input_ctcf = []
+    list_merge_ctcf = []
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
         sub_ref_histone = \
@@ -1062,6 +1204,24 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
         path_life_organ = os.path.join(path_cre, str_life_organ)
         if not os.path.exists(path_life_organ):
             os.mkdir(path_life_organ)
+        file_ref_life_organ = os.path.join(
+            path_cre, f"{str_life_organ}/DHS_promoter_H3K4me3_H3K27ac.txt"
+        )
+        life_organ_ctcf = pd.merge(
+            sub_ref_histone, df_meta_ctcf,
+            on=['Biosample life stage', 'Biosample term name']
+        )
+        life_organ_ctcf = \
+            life_organ_ctcf.drop_duplicates('File accession')
+        if life_organ_ctcf.shape[0] == 0:
+            continue
+        if os.path.exists(file_ref_life_organ):
+            list_merge_ctcf.append(dict(
+                file_ref=file_ref_life_organ, path_out=path_life_organ,
+                path_life_organ=path_life_organ, sub_ref=sub_ref_histone)
+            )
+        else:
+            print('CTCF', life_organ)
         suborgans = list(set(sub_ref_histone['Biosample suborgan'].tolist()))
         for suborgan in suborgans:
             str_suborgan = suborgan.replace(' ', '_')
@@ -1085,13 +1245,13 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                     f"DHS_promoter_H3K4me3_H3K27ac.txt"
                 )
                 if os.path.exists(file_ref_suborgan):
-                    list_input_ctcf.append(dict(
-                        file_ref=file_ref_suborgan,
-                        path_out=path_suborgan,
-                        sub_ctcf=suborgan_ctcf)
+                    list_merge_ctcf.append(dict(
+                        file_ref=file_ref_suborgan, path_out=path_suborgan,
+                        path_life_organ=path_life_organ,
+                        sub_ref=suborgan_histone)
                     )
                 else:
-                    print(life_organ, suborgan)
+                    print('CTCF', life_organ, suborgan)
             else:
                 path_suborgan = path_life_organ
             if not os.path.exists(path_suborgan):
@@ -1115,7 +1275,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                         f"DHS_promoter_H3K4me3_H3K27ac.txt"
                     )
                 if not os.path.exists(file_ref):
-                    print(life_organ, term)
+                    print('CTCF', life_organ, term)
                     continue
                 path_term = os.path.join(path_suborgan, str_term)
                 if not os.path.exists(path_term):
@@ -1136,14 +1296,20 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     func_integrate = partial(integrate_ctcf, path_ctcf_stan)
     pool.map(func_integrate, list_input_ctcf)
     pool.close()
+
+    pool = Pool(processes=num_process)
+    pool.map(sub_merge_ctcf, list_merge_ctcf)
+    pool.close()
     print('Annotation of CTCF is completed!')
 
+    list_h3k27ac = list_input + list_merge
     pool = Pool(processes=num_process)
-    pool.map(sub_annotate_cre, list_input)
+    pool.map(sub_annotate_cre, list_h3k27ac)
     pool.close()
 
+    list_ctcf = list_input_ctcf + list_merge_ctcf
     pool = Pool(processes=num_process)
-    pool.map(sub_annotate_cre_ctcf, list_input_ctcf)
+    pool.map(sub_annotate_cre_ctcf, list_ctcf)
     pool.close()
 
     return
