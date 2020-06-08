@@ -1263,8 +1263,8 @@ def sub_merge(dict_in):
             accession_ids=accession_ids,
             flank_percent=0.5)]
         merge_standard_bed(sub_path_in, dict_merge, num_process)
-        labels = [f"{sub_dict['Biosample organ']}|"
-                  f"{sub_dict['Biosample life stage']}|"
+        labels = [f"{sub_dict['Biosample life stage']}_"
+                  f"{sub_dict['Biosample organ']}|"
                   f"{sub_dict['Biosample term name']}"
                   for sub_dict in list_meta]
         list_bed = \
