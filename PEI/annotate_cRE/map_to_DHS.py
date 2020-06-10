@@ -814,6 +814,7 @@ def sub_merge_ctcf(dict_in):
     file_ref_ori = file_ref
     len_ref = int(str(check_output(f"wc -l {file_ref}",
                                    shell=True).strip()).split(' ')[0][2:])
+    file_num = 0
     for sub_dict in sub_ref.to_dict('records'):
         str_term = sub_dict['Biosample term name'].replace(
             ' ', '_').replace('/', '+').replace("'", '--')
@@ -871,6 +872,7 @@ def sub_merge_ctcf(dict_in):
             except AssertionError:
                 print(dict_in)
                 return
+        file_num = file_num + 1
 
     col_num_ref = int(
         check_output("head -n 1 " + file_ref_ori + " | awk '{print NF}'",
@@ -889,7 +891,6 @@ def sub_merge_ctcf(dict_in):
     file_promoter_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
     df_origin = pd.read_csv(file_origin, sep='\t', header=None)
-    file_num = sub_ref.shape[0]
     cols_score = [11 + 3*i for i in range(file_num)]
     df_scores = df_origin.loc[:, cols_score].applymap(
         lambda x: float(x) if x != '.' else 0
@@ -919,22 +920,22 @@ def sub_annotate_cre(dict_in):
                 start = list_line[1]
                 end = list_line[2]
                 dhs_id = list_line[3]
-                dhs_score = list_line[4]
+                dhs_score = float(list_line[4])
                 promoter_id = list_line[5]
-                score_h3k4me3 = list_line[6]
-                p_h3k4me3 = list_line[7]
-                score_h3k27ac = list_line[8]
-                p_h3k27ac = list_line[9]
-                if (promoter_id != '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
+                score_h3k4me3 = float(list_line[6])
+                p_h3k4me3 = float(list_line[7])
+                score_h3k27ac = float(list_line[8])
+                p_h3k27ac = float(list_line[9])
+                if (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
                     cre = 'Protein-Promoter(Enhancer)'
-                elif (promoter_id == '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac != '0'):
+                elif (promoter_id == '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac != 0):
                     cre = 'Other-Promoter(Enhancer)'
-                elif (promoter_id != '.') & (p_h3k4me3 != '0') & \
-                        (p_h3k27ac == '0'):
+                elif (promoter_id != '.') & (p_h3k4me3 != 0) & \
+                        (p_h3k27ac == 0):
                     cre = 'Protein-Promoter'
-                elif (p_h3k4me3 == '0') & (p_h3k27ac != '0'):
+                elif (p_h3k4me3 == 0) & (p_h3k27ac != 0):
                     cre = 'Enhancer'
                 else:
                     cre = '.'
@@ -982,10 +983,7 @@ def sub_annotate_cre_ctcf(dict_in):
                 dhs_id = list_line[3]
                 dhs_score = float(list_line[4])
                 promoter_id = list_line[5]
-                try:
-                    score_h3k4me3 = float(list_line[6])
-                except ValueError:
-                    print(file_in)
+                score_h3k4me3 = float(list_line[6])
                 p_h3k4me3 = float(list_line[7])
                 score_h3k27ac = float(list_line[8])
                 p_h3k27ac = float(list_line[9])
@@ -1001,7 +999,7 @@ def sub_annotate_cre_ctcf(dict_in):
                     cre = 'Protein-Promoter'
                 elif (p_h3k4me3 == 0) & (p_h3k27ac != 0):
                     cre = 'Enhancer'
-                elif (p_h3k27ac == 0) & (score_ctcf != -10000):
+                elif (p_h3k27ac == 0) & (score_ctcf != 0):
                     cre = 'Insulator'
                 else:
                     cre = '.'
@@ -1082,7 +1080,8 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
                 {'Biosample life_organ': life_organ,
                  'Biosample suborgan': 'empty',
                  'Biosample term name': 'empty',
-                 'file_ref_dhs': file_ref_life_organ, 'Level': 'life_organ'})
+                 'file_ref_h3k4me3': file_ref_life_organ,
+                 'Level': 'life_organ'})
         else:
             print(life_organ)
 

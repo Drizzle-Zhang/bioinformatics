@@ -57,9 +57,13 @@ def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
             path_correlation, f"{folder}/gene_corr/{gene}_corr.txt")
         df_gene_corr = pd.read_csv(
             file_corr_gene, sep='\t',
-            names=['gene', 'ref_dhs_id', 'Pearson', 'Spearman', 'Kendall'])
-        df_gene_corr = df_gene_corr.rename(columns={method: folder})
-        df_gene_corr = df_gene_corr.loc[:, ['gene', 'ref_dhs_id', folder]]
+            names=['gene', 'ref_dhs_id', f'{folder}_Pearson',
+                   f'{folder}_Spearman', f'{folder}_Kendall'])
+        # df_gene_corr = pd.read_csv(
+        #     file_corr_gene, sep='\t',
+        #     names=['gene', 'ref_dhs_id', 'Pearson', 'Spearman', 'Kendall'])
+        # df_gene_corr = df_gene_corr.rename(columns={method: folder})
+        # df_gene_corr = df_gene_corr.loc[:, ['gene', 'ref_dhs_id', folder]]
         df_merge_corr = pd.merge(df_merge_corr, df_gene_corr,
                                  how='left', on=['gene', 'ref_dhs_id'])
 

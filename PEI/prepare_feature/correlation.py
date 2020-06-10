@@ -12,6 +12,7 @@ import numpy as np
 from multiprocessing import Pool
 from functools import partial
 from scipy.stats import spearmanr, pearsonr, kendalltau
+import json
 
 
 def generate_promoter_dict():
@@ -58,7 +59,13 @@ def get_dhs(path_out, gene):
     os.remove(file_intersect1)
     os.remove(file_intersect2)
 
-    return {'gene': gene, 'list_dhs': list_dhs}
+    dict_out = {'gene': gene, 'list_dhs': list_dhs}
+    str_json = json.dumps(dict_out)
+    file_json = os.path.join(path_out, f"{gene}.json")
+    with open(file_json, 'w') as w_json:
+        w_json.write(str_json)
+
+    return file_json
 
 
 def calculate_corr(path_out, dict_in):
@@ -187,22 +194,16 @@ def correlation(name_gene_in, name_dhs_in, file_mat_promoter,
 
     pool = Pool(num_cpu)
     func_get_dhs = partial(get_dhs, path_gene)
-    list_dict = pool.map(func_get_dhs, genes)
+    files_json = pool.map(func_get_dhs, genes)
     pool.close()
-    #
-    # # save tmp result
-    # df_tmp = pd.DataFrame(list_dict)
-    # df_tmp.to_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    # df_tmp = pd.read_csv(os.path.join(path_out, 'tmp.txt'), sep='\t')
-    # list_dict = df_tmp.to_dict('records')
 
     list_input = []
-    for idx, dict_in in enumerate(list_dict):
-        sub_dict = dict_in.copy()
+    for idx, file_json in enumerate(files_json):
+        with open(file_json, 'r') as r_json:
+            str_json = r_json.readline()
+            sub_dict = json.loads(str_json)
         gene = sub_dict['gene']
         list_dhs = sub_dict['list_dhs']
-        # tmp
-        # list_dhs = list_dhs[2:-2].split("', '")
         vec_gene = df_mat_pro.loc[gene, :]
         mat_dhs = df_mat_dhs.loc[list_dhs, :].T
         sub_dict['vec_gene'] = vec_gene
@@ -250,7 +251,7 @@ if __name__ == '__main__':
     # path_root = '/local/zy/PEI'
     path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct_reg'
+    path_mid = path_root + '/mid_data_correct'
 
     file_all_index = \
         path_mid + '/database_feature/DHS_index/all_index.txt'
@@ -262,14 +263,14 @@ if __name__ == '__main__':
 
     path_matrix = path_mid + '/database_feature/matrix'
     # matrix_gene = ['DHS', 'H3K4me3', 'expression']
-    matrix_gene = ['expression']
+    matrix_gene = ['H3K4me3']
     # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt',
     # 'GTEx_expression_matrix.txt']
-    files_gene = ['GTEx_expression_matrix.txt']
+    files_gene = ['H3K4me3_matrix.txt']
     # matrix_dhs = ['DHS', 'H3K27ac']
     # files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
-    matrix_dhs = ['DHS']
-    files_dhs = ['DHS_matrix.txt']
+    matrix_dhs = ['H3K27ac']
+    files_dhs = ['H3K27ac_matrix.txt']
 
     path_correlation = path_mid + '/database_feature/correlation'
 

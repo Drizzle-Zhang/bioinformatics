@@ -457,7 +457,7 @@ if __name__ == '__main__':
     na_mode = 'constant'
     path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct_reg'
+    path_mid = path_root + '/mid_data_correct'
 
     file_all_index = \
         path_mid + '/database_feature/DHS_index/all_index.txt'
@@ -466,7 +466,7 @@ if __name__ == '__main__':
         path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'
     file_dhs_promoter = \
         path_mid + '/database_feature/DHS_index/promoter_index.txt'
-    generate_promoter_file()
+    # generate_promoter_file()
 
     file_promoter_uniq = \
         path_origin + '/gene/promoters.up2k.protein.gencode.v19.unique.bed'
@@ -482,22 +482,26 @@ if __name__ == '__main__':
     path_dhs_cell = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     path_dhs_tissue_stan = path_mid + '/tissue/DHS/GRCh38tohg19_standard'
     # dhs_matrix()
+    print('DHS matrix')
 
     # H3K4me3
     path_h3k4me3_cell = path_mid + '/cell_line/DHS/reference_map'
     path_h3k4me3_tissue = path_mid + '/tissue/DHS/reference_map'
     # h3k4me3_matrix()
+    print('H3K4me3 matrix')
 
     # H3K27ac
     path_h3k27ac_cell = path_mid + '/cell_line/DHS/cRE_annotation'
     path_h3k27ac_tissue = path_mid + '/tissue/DHS/cRE_annotation'
-    # h3k27ac_matrix()
+    h3k27ac_matrix()
+    print('H3K27ac matrix')
 
     # GETx expression
     file_expression = \
         path_origin + \
         '/GTEx/GTEx_Analysis_2016-01-15_v7_RNASeQCv1.1.8_gene_median_tpm.gct'
-    gtex_expression_matrix()
+    # gtex_expression_matrix()
+    print('expression matrix')
 
     time_end = time()
     print(time_end - time_start)

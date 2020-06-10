@@ -119,29 +119,10 @@ def sub_generate_index(dict_in):
 def generate_index_file():
     file_ref = os.path.join(path_dhs_merge, 'all_index.txt')
     list_input = []
-    # cell line
-    df_meta_cell = pd.read_csv(
-        os.path.join(path_dhs_cell, 'meta.reference.tsv'), sep='\t')
-    for term in (df_meta_cell['Biosample term name'].unique()).tolist():
-        str_term = term.replace(' ', '_').replace('/', '+')
-        path_term = os.path.join(path_dhs_cell, str_term)
-        list_input.append({'str_term': str_term, 'path_term': path_term,
-                           'file_ref': file_ref})
-
     # tissue
     df_meta_tissue = pd.read_csv(
         os.path.join(path_dhs_tissue_stan, 'meta.reference.tsv'), sep='\t')
-    for i in range(df_meta_tissue.shape[0]):
-        str_life_organ = \
-            (df_meta_tissue.loc[i, 'Biosample life_organ']).replace(' ', '_')
-        str_term = (df_meta_tissue.loc[i, 'Biosample term name']).replace(
-            ' ', '_').replace('/', '+').replace("'", "--")
-        path_term = os.path.join(
-            path_dhs_tissue_stan, f"{str_life_organ}/{str_term}")
-        list_input.append(
-            {'str_term': str_term, 'path_term': path_term,
-             'file_ref': file_ref})
-
+    # organ
     life_organs = list(set(df_meta_tissue['Biosample life_organ'].tolist()))
     for life_organ in life_organs:
         str_life_organ = life_organ.replace(' ', '_')
@@ -169,6 +150,27 @@ def generate_index_file():
             {'str_term': str_term, 'path_term': path_term,
              'file_ref': file_ref})
 
+    # tissue
+    for i in range(df_meta_tissue.shape[0]):
+        str_life_organ = \
+            (df_meta_tissue.loc[i, 'Biosample life_organ']).replace(' ', '_')
+        str_term = (df_meta_tissue.loc[i, 'Biosample term name']).replace(
+            ' ', '_').replace('/', '+').replace("'", "--")
+        path_term = os.path.join(
+            path_dhs_tissue_stan, f"{str_life_organ}/{str_term}")
+        list_input.append(
+            {'str_term': str_term, 'path_term': path_term,
+             'file_ref': file_ref})
+
+    # cell line
+    df_meta_cell = pd.read_csv(
+        os.path.join(path_dhs_cell, 'meta.reference.tsv'), sep='\t')
+    for term in (df_meta_cell['Biosample term name'].unique()).tolist():
+        str_term = term.replace(' ', '_').replace('/', '+')
+        path_term = os.path.join(path_dhs_cell, str_term)
+        list_input.append({'str_term': str_term, 'path_term': path_term,
+                           'file_ref': file_ref})
+
     pool = Pool(processes=num_cpu)
     pool.map(sub_generate_index, list_input)
     pool.close()
@@ -178,7 +180,7 @@ def generate_index_file():
 
 if __name__ == '__main__':
     time_start = time()
-    num_cpu = 40
+    num_cpu = 30
     # path_root = '/local/zy/PEI'
     path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
@@ -193,7 +195,7 @@ if __name__ == '__main__':
     path_dhs_merge = path_mid + '/database_feature/DHS_index'
     meta_suborgan = path_origin + '/meta_file/meta.reference.tsv'
 
-    merge_cell_tissue()
+    # merge_cell_tissue()
     print(
         'Bed file incorperating cell line and tissue data has been generated')
 
