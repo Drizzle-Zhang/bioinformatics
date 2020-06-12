@@ -111,11 +111,12 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num, ref.col.num) {
                       cutoff.lgp = cutoff.lgp))
     df.bed$p.combine <- vec.combine.lgp
     # combine score
-    df.score <- as.data.frame(df.bed[, col.score])
+    df.score <- df.bed[, col.score]
     vec.combine.score <-
         unlist(alply(.data = df.score, .margins = 1, .fun = max.score))
     vec.combine.score[vec.combine.lgp == 0] <- -0
     df.bed$score.combine <- vec.combine.score
+    # df.score <- as.data.frame(df.bed[, col.score])
     # row.names(df.score) <- df.bed$V4
     # df.score.correct <- as.data.frame(max.score(df.score))
     # names(df.score.correct) <- c('score.combine')
