@@ -112,12 +112,16 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num, ref.col.num) {
     df.bed$p.combine <- vec.combine.lgp
     # combine score
     df.score <- as.data.frame(df.bed[, col.score])
-    row.names(df.score) <- df.bed$V4
-    df.score.correct <- as.data.frame(max.score(df.score))
-    names(df.score.correct) <- c('score.combine')
-    df.score.correct$V4 <- row.names(df.score.correct)
-    df.bed <- merge(df.bed, df.score.correct, by = 'V4', sort = F)
-    df.bed[df.bed$p.combine == 0, 'score.combine'] <- 0
+    vec.combine.score <-
+        unlist(alply(.data = df.score, .margins = 1, .fun = max.score))
+    vec.combine.score[vec.combine.lgp == 0] <- -0
+    df.bed$score.combine <- vec.combine.score
+    # row.names(df.score) <- df.bed$V4
+    # df.score.correct <- as.data.frame(max.score(df.score))
+    # names(df.score.correct) <- c('score.combine')
+    # df.score.correct$V4 <- row.names(df.score.correct)
+    # df.bed <- merge(df.bed, df.score.correct, by = 'V4', sort = F)
+    # df.bed[df.bed$p.combine == 0, 'score.combine'] <- 0
 
     df.out <- df.bed[, c(paste0('V', as.character(1:ref.col.num)), 
                          'score.combine', 'p.combine')]
