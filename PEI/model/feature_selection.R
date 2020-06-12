@@ -50,3 +50,72 @@ my.plot <-
     )
 ggsave('./expression_DHS.pdf', my.plot)
 
+# z-score
+# assay
+file.assay <- './Assay_comparation_1_0.txt'
+df.compare <- read.delim(file.assay, stringsAsFactors = F)
+ggplot(df.compare, aes(x = feature, y = diff_median, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = 'Diff of median', fill = 'Methods of correlation')
+
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = '-log(p-value)', fill = 'Methods of correlation')
+
+# Cell
+file.cell <- './Cell_comparation_1_0.txt'
+df.compare <- read.delim(file.cell, stringsAsFactors = F)
+ggplot(df.compare, aes(x = feature, y = diff_median, 
+                       color = correlation, shape = label)) + 
+    geom_point(size = 4) + 
+    labs(x = 'Feature', y = 'Diff of median', color = 'Methods of correlation',
+         shape = 'Cell line')
+
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, 
+                       fill = correlation, shape = label)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = '-log(p-value)', fill = 'Methods of correlation')
+
+
+# quantile
+# assay
+file.assay <- './Assay_comparation_1_0.txt'
+df.compare <- read.delim(file.assay, stringsAsFactors = F)
+ggplot(df.compare, aes(x = feature, y = diff_median, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = 'Diff of median', fill = 'Methods of correlation')
+
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = '-log(p-value)', fill = 'Methods of correlation')
+
+# Cell
+file.cell <- './Cell_comparation_1_0_quantile.txt'
+df.compare <- read.delim(file.cell, stringsAsFactors = F)
+ggplot(df.compare, aes(x = feature, y = diff_median, 
+                       color = correlation, shape = label)) + 
+    geom_point(size = 4) + 
+    labs(x = 'Feature', y = 'Diff of median', color = 'Methods of correlation',
+         shape = 'Cell line')
+
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, 
+                       color = correlation, shape = label)) + 
+    geom_point(size = 4) + 
+    labs(x = 'Feature', y = '-log(p-value)', color = 'Methods of correlation',
+         shape = 'Cell line')
+
+
+
+
+
+
+
+

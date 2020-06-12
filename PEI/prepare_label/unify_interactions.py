@@ -10,8 +10,10 @@ import os
 import pandas as pd
 import numpy as np
 from multiprocessing import Pool
-file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
-liftover = '/lustre/tianlab/tools/liftOver'
+# file_chain = '/lustre/tianlab/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+# liftover = '/lustre/tianlab/tools/liftOver'
+file_chain = '/local/zy/tools/files_liftOver/hg38ToHg19.over.chain.gz'
+liftover = '/local/zy/tools/liftOver'
 
 
 def encode_chiapet(file_in, file_out, cutoff=2):
@@ -226,12 +228,16 @@ def uniform_file(dict_in):
 if __name__ == '__main__':
     time_start = time()
     cutoff_pet = 2
-    path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_origin = path_root + '/origin_data'
+    # path_mid = path_root + '/mid_data_correct'
+    path_root = '/local/zy/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct'
+    path_mid = path_root + '/mid_data'
 
     path_chrom_inter = path_origin + '/Chromatin_interactions/'
-    path_label = path_mid + '/training_label/label_interactions'
+    # path_label = path_mid + '/training_label/label_interactions'
+    path_label = path_mid + '/training_label/label_interactions_V1'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')

@@ -10,6 +10,7 @@ import pandas as pd
 import os
 from multiprocessing import Pool
 from subprocess import check_output
+import glob
 
 
 def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
@@ -36,6 +37,10 @@ def sub_get_corr(file_enhancer, df_index, sub_path_out, folders, gene,
     len_ref = int(str(check_output(f"wc -l {file_intersect2}",
                                    shell=True).strip()).split(' ')[0][2:])
     if len_ref == 0:
+        os.remove(file_gene_pro)
+        os.remove(file_gene_flank)
+        os.remove(file_intersect1)
+        os.remove(file_intersect2)
         return
     df_gene_dhs = pd.read_csv(file_intersect2, sep='\t', header=None)
     distance = (df_gene_dhs[1] + df_gene_dhs[2]) / 2 - (int(start_pro) + 2000)
@@ -111,16 +116,18 @@ def sub_generate_pair(dict_in):
     if not os.path.exists(sub_path_out):
         os.mkdir(sub_path_out)
 
-    # folders = os.listdir(path_correlation)
-    folders = ['expression_DHS']
-    list_out = []
-    for gene in genes:
-        dict_out = sub_get_corr(
-            file_cre_enh, df_index, sub_path_out, folders, gene, 'Spearman')
-        list_out.append(dict_out)
+    folders = os.listdir(path_correlation)
+    # folders = ['expression_DHS']
+    # list_out = []
+    # for gene in genes:
+    #     dict_out = sub_get_corr(
+    #         file_cre_enh, df_index, sub_path_out, folders, gene, 'Spearman')
+    #     list_out.append(dict_out)
 
-    corr_files = [sub_dict['file_corr'] for sub_dict in list_out
-                  if sub_dict is not None]
+    # corr_files = [sub_dict['file_corr'] for sub_dict in list_out
+    #               if sub_dict is not None]
+    corr_files = glob.glob(os.path.join(sub_path_out, '*_corr.txt'))
+
     # for sub_dict in list_out:
     #     try:
     #         a = sub_dict['file_corr']
@@ -129,8 +136,17 @@ def sub_generate_pair(dict_in):
     #         print(sub_dict is not None)
     file_header = os.path.join(path_out, 'header.txt')
     with open(file_header, 'w') as w_header:
+        # list_header = \
+        #     ['gene', 'dhs_id', 'type_cre', 'ref_dhs_id', 'distance'] + folders
+        all_corr_folders = []
+        # for folder in folders:
+        #     for corr in ['Pearson', 'Spearman', 'Kendall']:
+        #         all_corr_folders.append(f"{folder}|{corr}")
+        for folder in folders:
+            for corr in ['Spearman']:
+                all_corr_folders.append(f"{folder}|{corr}")
         list_header = \
-            ['gene', 'dhs_id', 'type_cre', 'ref_dhs_id', 'distance'] + folders
+            ['gene', 'dhs_id', 'type_cre', 'ref_dhs_id', 'distance'] + all_corr_folders
         w_header.write('\t'.join(list_header) + '\n')
     list_cat = [file_header]
     for idx in range(len(corr_files)//200):
@@ -144,7 +160,7 @@ def sub_generate_pair(dict_in):
         os.system(f"cat {sub_cat_in} > {sub_cat_out}")
         list_cat.append(sub_cat_out)
     cat_in = ' '.join(list_cat)
-    cat_out = os.path.join(path_out, 'correlation.txt')
+    cat_out = os.path.join(path_out, 'correlation.txt.bak')
     if os.path.isfile(cat_out):
         os.remove(cat_out)
     os.system(f"cat {cat_in} > {cat_out}")
@@ -187,10 +203,12 @@ def generate_pairs():
 if __name__ == '__main__':
     time_start = time()
     num_cpu = 40
-    # path_root = '/local/zy/PEI'
-    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_root = '/local/zy/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct'
+    path_mid = path_root + '/mid_data'
+    # path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_origin = path_root + '/origin_data'
+    # path_mid = path_root + '/mid_data_correct'
 
     file_promoter = \
         path_origin + '/gene/promoters.up2k.protein.gencode.v19.bed'

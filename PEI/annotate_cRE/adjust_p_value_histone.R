@@ -18,6 +18,13 @@ fisher.combine <- function(vec.lgp, cutoff.lgp) {
 }
 
 
+max.score <- function(vec.score) {
+    vec.score[vec.score == '.'] <- '0'
+    vec.score.num <- as.numeric(vec.score)
+    score.combine <- max(vec.score.num)
+}
+
+
 correct.score <- function(df.score) {
     df.score[df.score == '.'] <- NA
     df.score.num <- apply(df.score, 1, as.numeric)
@@ -105,7 +112,7 @@ Adjust.pValue <- function(path.in, path.out, peak.num, file.num, ref.col.num) {
     # combine score
     df.score <- as.data.frame(df.bed[, col.score])
     row.names(df.score) <- df.bed$V4
-    df.score.correct <- as.data.frame(correct.score(df.score))
+    df.score.correct <- as.data.frame(max.score(df.score))
     names(df.score.correct) <- c('score.combine')
     df.score.correct$V4 <- row.names(df.score.correct)
     df.bed <- merge(df.bed, df.score.correct, by = 'V4', sort = F)

@@ -16,6 +16,7 @@ from subprocess import check_output
 from itertools import combinations
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import StandardScaler
+from statsmodels.api import distributions
 import glob
 import sys
 # sys.path.append('/local/zy/my_git/bioinformatics/PEI/annotate_cRE')
@@ -861,6 +862,10 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
         set_dhs_id = set(df_quantile.index)
     else:
         file_in = os.path.join(path_in, dict_in['File accession'] + '.bed')
+        # normalization
+        df_bed = pd.read_csv(file_in, sep='\t', header=None, usecols=[6])
+        ecdf = distributions.ECDF(df_bed.iloc[:, 0])
+        df_quantile = pd.Series(ecdf(df_bed.iloc[:, 0]), index=df_bed.index)
         file_out_unsort = \
             os.path.join(path_out, dict_in['File accession'] + '.unsort.bed')
         file_out = os.path.join(path_out, dict_in['File accession'] + '.bed')
@@ -871,7 +876,7 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                       "{file_label}\t{accessions}\n"
             fmt_chip = "{chrom}\t{start}\t{end}\t{label}\t" \
                        "{score}\t{pvalue}\t{accessions}\n"
-            for line in r_f:
+            for idx, line in enumerate(r_f):
                 list_line = line.strip().split('\t')
                 chrom = list_line[0]
                 start = list_line[1]
@@ -886,11 +891,11 @@ def sub_stan(type_bed, path_in, path_out, dict_in):
                         continue
                     w_f.write(fmt_dhs.format(**locals()))
                 elif type_bed in {'H3K4me3', 'H3K27ac'}:
-                    score = list_line[6]
+                    score = df_quantile.loc[idx]
                     pvalue = list_line[7]
                     w_f.write(fmt_chip.format(**locals()))
                 elif type_bed == 'CTCF':
-                    score = list_line[6]
+                    score = df_quantile.loc[idx]
                     pvalue = list_line[8]
                     w_f.write(fmt_chip.format(**locals()))
 

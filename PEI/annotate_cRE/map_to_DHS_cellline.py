@@ -38,7 +38,7 @@ def annotate_promoter_to_dhs(path_dhs, path_h3k4me3,
     )
 
     list_input = []
-    for term in list_terms:
+    for term in list_terms_h3k4me3:
         str_term = term.replace(' ', '_').replace('/', '+')
         path_term = os.path.join(path_out, str_term)
         if not os.path.exists(path_term):
@@ -151,7 +151,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
     )
     df_merge = df_meta_h3k27ac.loc[
         df_meta_h3k27ac['Biosample term name'].apply(
-            lambda x: x in set(list_terms)), :]
+            lambda x: x in set(list_terms_h3k27ac)), :]
 
     # map H3K27ac to sample
     pool = Pool(processes=num_process)
@@ -169,7 +169,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
               f"{os.path.join(path_cre, 'meta.reference.tsv')}")
 
     list_input = []
-    for term in list_terms:
+    for term in list_terms_h3k27ac:
         str_term = term.replace(' ', '_').replace('/', '+')
         path_term = os.path.join(path_cre, str_term)
         if not os.path.exists(path_term):
@@ -199,7 +199,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_ctcf,
         os.path.join(path_ctcf, 'metadata.simple.tsv'), sep='\t')
     list_terms_ctcf = \
         set(df_meta_ctcf['Biosample term name'].tolist()).intersection(
-            list_terms)
+            list_terms_h3k27ac)
 
     list_input_ctcf = []
     for term in list_terms_ctcf:
@@ -260,7 +260,11 @@ if __name__ == '__main__':
     df_h3k27ac = pd.read_csv(
         os.path.join(path_h3k27ac_stan, 'metadata.simple.tsv'), sep='\t'
     )
-    list_terms = list(
+    list_terms_h3k4me3 = list(
+        (set(df_dhs['Biosample term name'].tolist()).intersection(
+            set(df_h3k4me3['Biosample term name'].tolist())
+        )))
+    list_terms_h3k27ac = list(
         (set(df_dhs['Biosample term name'].tolist()).intersection(
             set(df_h3k4me3['Biosample term name'].tolist())
         )).intersection(

@@ -370,13 +370,17 @@ def merge_files():
 
 if __name__ == '__main__':
     time_start = time()
-    path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_origin = path_root + '/origin_data'
+    # path_mid = path_root + '/mid_data_correct'
+    path_root = '/local/zy/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data_correct'
+    path_mid = path_root + '/mid_data'
 
     path_ref_cellline = path_mid + '/cell_line/DHS/cRE_annotation'
     path_dhs_cell = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
-    path_label = path_mid + '/training_label/label_interactions'
+    # path_label = path_mid + '/training_label/label_interactions'
+    path_label = path_mid + '/training_label/label_interactions_V1'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')
