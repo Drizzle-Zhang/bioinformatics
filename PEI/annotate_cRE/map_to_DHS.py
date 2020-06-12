@@ -767,8 +767,9 @@ def integrate_ctcf(path_ctcf, dict_in):
     df_out = df_origin.iloc[:, :10].copy()
     df_scores = df_origin.loc[:, cols]
     df_scores = df_scores.applymap(lambda x: float(x) if x != '.' else 0)
-    df_normalization = df_scores.apply(normalize)
-    df_out[10] = np.max(df_normalization, axis=1)
+    # df_normalization = df_scores.apply(normalize)
+    # df_out[10] = np.max(df_normalization, axis=1)
+    df_out[10] = np.max(df_scores, axis=1)
     file_out = os.path.join(
         path_out, 'DHS_promoter_H3K4me3_H3K27ac_CTCF.txt')
     df_out.to_csv(file_out, sep='\t', header=None, index=None)

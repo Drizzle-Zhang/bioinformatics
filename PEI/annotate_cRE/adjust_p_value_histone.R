@@ -22,6 +22,7 @@ max.score <- function(vec.score) {
     vec.score[vec.score == '.'] <- '0'
     vec.score.num <- as.numeric(vec.score)
     score.combine <- max(vec.score.num)
+    return(score.combine)
 }
 
 
