@@ -1297,7 +1297,7 @@ def annotate_cre(path_ref, path_h3k27ac, path_cre, num_process):
     pool.map(func_integrate, list_input_ctcf)
     pool.close()
 
-    pool = Pool(processes=num_process)
+    pool = Pool(processes=20)
     pool.map(sub_merge_ctcf, list_merge_ctcf)
     pool.close()
     print('Annotation of CTCF is completed!')

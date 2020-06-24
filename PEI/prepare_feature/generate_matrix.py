@@ -487,7 +487,7 @@ if __name__ == '__main__':
     # H3K4me3
     path_h3k4me3_cell = path_mid + '/cell_line/DHS/reference_map'
     path_h3k4me3_tissue = path_mid + '/tissue/DHS/reference_map'
-    # h3k4me3_matrix()
+    h3k4me3_matrix()
     print('H3K4me3 matrix')
 
     # H3K27ac

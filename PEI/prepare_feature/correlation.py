@@ -263,14 +263,14 @@ if __name__ == '__main__':
 
     path_matrix = path_mid + '/database_feature/matrix'
     # matrix_gene = ['DHS', 'H3K4me3', 'expression']
-    matrix_gene = ['H3K4me3']
+    matrix_gene = ['DHS']
     # files_gene = ['DHS_matrix.promoter.txt', 'H3K4me3_matrix.txt',
     # 'GTEx_expression_matrix.txt']
-    files_gene = ['H3K4me3_matrix.txt']
+    files_gene = ['DHS_matrix.promoter.txt']
     # matrix_dhs = ['DHS', 'H3K27ac']
     # files_dhs = ['DHS_matrix.txt', 'H3K27ac_matrix.txt']
-    matrix_dhs = ['H3K27ac']
-    files_dhs = ['H3K27ac_matrix.txt']
+    matrix_dhs = ['DHS']
+    files_dhs = ['DHS_matrix.txt']
 
     path_correlation = path_mid + '/database_feature/correlation'
 

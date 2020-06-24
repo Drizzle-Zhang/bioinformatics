@@ -32,7 +32,7 @@ def combine_corr_label(dict_in):
     df_combine = df_combine.fillna(0)
     df_combine.to_csv(file_fea_label, sep='\t', index=None)
 
-    cols = df_combine.columns[5:-1]
+    cols = df_combine.columns[4:-1]
     list_res = []
     for col in cols:
         df_sub = df_combine.loc[:, [col, 'label']]
@@ -40,8 +40,8 @@ def combine_corr_label(dict_in):
         array_neg = df_sub.loc[df_sub['label'] == 0, col]
         _, pval = mannwhitneyu(array_pos, array_neg, alternative='greater')
         diff_median = np.median(array_pos) - np.median(array_neg)
-        feature, corr = col.split('|')
-        list_res.append({'feature': feature, 'correlation': corr,
+        # feature, corr = col.split('|')
+        list_res.append({'feature': col, 'correlation': 'Spearman',
                          'diff_median': diff_median, 'pval': pval,
                          'label': label})
     df_res = pd.DataFrame(list_res)
@@ -59,12 +59,14 @@ def test_features_cell():
     for sub_dict in df_meta_assay.to_dict('records'):
         term = sub_dict['Biosample term name']
         label = sub_dict['Assay']
-        file_corr = os.path.join(path_model_input, f"{term}/correlation.txt.bak")
+        file_corr = os.path.join(path_model_input, f"{term}/input_file.txt")
         file_label = os.path.join(path_label, f"{term}/{label}.txt")
         file_fea_label = os.path.join(
             path_model_input, f"{term}/{label}_feature_label.txt")
         file_res = os.path.join(
             path_model_input, f"{term}/{label}_result.txt")
+        if not os.path.exists(file_corr):
+            continue
         list_assay.append({
             'term': term, 'label': label, 'file_corr': file_corr,
             'file_label': file_label, 'file_fea_label': file_fea_label,
@@ -81,7 +83,7 @@ def test_features_cell():
     terms = df_meta_assay['Biosample term name'].unique().tolist()
     list_term = []
     for term in terms:
-        file_corr = os.path.join(path_model_input, f"{term}/correlation.txt.bak")
+        file_corr = os.path.join(path_model_input, f"{term}/input_file.txt")
         file_label = os.path.join(path_label, f"{term}/{term}.txt")
         file_fea_label = os.path.join(
             path_model_input, f"{term}/{term}_feature_label.txt")
@@ -105,16 +107,16 @@ def test_features_cell():
 
 if __name__ == '__main__':
     time_start = time()
-    path_root = '/local/zy/PEI'
-    # path_root = '/lustre/tianlab/zhangyu/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data'
-    # path_mid = path_root + '/mid_data_correct'
+    # path_mid = path_root + '/mid_data'
+    path_mid = path_root + '/mid_data_correct'
 
     # high-resolution
     path_model_input = path_mid + '/cell_line/model_input'
     path_label = \
-        path_mid + '/training_label/label_interactions_V1'
+        path_mid + '/training_label/label_interactions'
     test_features_cell()
 
     # example
@@ -126,8 +128,10 @@ if __name__ == '__main__':
         path_mid + '/cell_line/model_input/GM12878/selection.txt'
     file_res_GM12878 = \
         path_mid + '/cell_line/model_input/GM12878/comparation_1_0.txt'
-    # combine_corr_label(file_corr_GM12878, file_label_GM12878,
-    #                    file_out_GM12878, file_res_GM12878)
-
+    # dict_in = {
+    #     'label': term, 'file_corr': file_corr,
+    #     'file_label': file_label, 'file_fea_label': file_fea_label,
+    #     'file_res': file_res
+    # }
     time_end = time()
     print(time_end - time_start)

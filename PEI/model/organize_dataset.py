@@ -54,7 +54,7 @@ def build_dataset(dict_in):
     def unique_ctcf(df_in):
         if df_in.shape[0] == 1:
             if np.isnan(df_in.iloc[0, 5]):
-                df_in.iloc[0, 5] = -10
+                df_in.iloc[0, 5] = 0
                 df_out = df_in.loc[:, [0, 1, 5]]
             else:
                 df_out = df_in.loc[:, [0, 1, 5]]
@@ -73,7 +73,7 @@ def build_dataset(dict_in):
     df_uniq = df_uniq.drop_duplicates()
     df_genome_ctcf = pd.merge(df_pre, df_uniq, on=['gene', 'dhs_id'],
                               how='left')
-    df_genome_ctcf = df_genome_ctcf.fillna(-10)
+    df_genome_ctcf = df_genome_ctcf.fillna(0)
 
     os.remove(file_tmp)
     os.remove(file_cre_ctcf)
@@ -171,14 +171,42 @@ def build_test_set(file_label, file_feature, file_out):
     return
 
 
+def build_one_training_set(dict_in):
+    cell_in = dict_in['cell']
+    file_label = dict_in['file_label']
+    file_feature = dict_in['file_feature']
+    file_out = dict_in['file_out']
+    fold = dict_in['fold']
+
+    df_label = pd.read_csv(file_label, sep='\t', usecols=[0, 1, 2, 3])
+    df_label['label'] = np.full(df_label.shape[0], 1)
+    df_feature = pd.read_csv(file_feature, sep='\t')
+    df_out = pd.merge(df_feature, df_label, how='left',
+                      on=['gene', 'dhs_id', 'ref_dhs_id', 'type_cre'])
+    df_out = df_out.fillna(0)
+
+    df_out_pos = df_out.loc[df_out['label'] == 1, :]
+    num_neg = fold * df_out_pos.shape[0]
+    print(cell_in, ':   ', np.max(df_out_pos['distance']))
+    df_out_neg = (df_out.loc[df_out['label'] == 0, :]).sample(
+        num_neg, random_state=123)
+    df_out = pd.concat([df_out_pos, df_out_neg], sort=False)
+    df_out.to_csv(file_out, sep='\t', index=None)
+
+    return
+
+
 if __name__ == '__main__':
     time_start = time()
-    path_root = '/local/zy/PEI'
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
-    path_cre_cell = path_root + '/mid_data/cell_line/DHS/cRE_annotation'
-    path_feature_cell = path_root + '/mid_data/cell_line/model_input'
-    file_promoter = path_root + '/origin_data/gene/' \
-                                'promoters.up2k.protein.gencode.v19.unique.bed'
+    path_cre_cell = path_mid + '/cell_line/DHS/cRE_annotation'
+    path_feature_cell = path_mid + '/cell_line/model_input'
+    file_promoter = path_origin + \
+                    '/gene/promoters.up2k.protein.gencode.v19.unique.bed'
     df_promoter = pd.read_csv(file_promoter, sep='\t', header=None)
 
     df_meta_cell = pd.read_csv(
@@ -191,19 +219,40 @@ if __name__ == '__main__':
     # sub_meta = cell_dicts[4]
     # build_dataset(sub_meta)
 
-    path_label = \
-        path_root + '/mid_data/training_label/label_interactions_V1'
+    path_label = path_mid + '/training_label/label_interactions'
     build_training_set()
 
-    file_label_h1 = path_label + '/H1/H1.merge.tmp'
-    file_feature_h1 = path_feature_cell + '/H1/input_file.txt'
-    file_out_h1 = path_label + '/H1/test_set.txt'
-    build_test_set(file_label_h1, file_feature_h1, file_out_h1)
+    # file_label_h1 = path_label + '/H1/H1.merge.tmp'
+    # file_feature_h1 = path_feature_cell + '/H1/input_file.txt'
+    # file_out_h1 = path_label + '/H1/test_set.txt'
+    # build_test_set(file_label_h1, file_feature_h1, file_out_h1)
+    #
+    # file_label_IMR90 = path_label + '/IMR-90/IMR-90.merge.tmp'
+    # file_feature_IMR90 = path_feature_cell + '/IMR-90/input_file.txt'
+    # file_out_IMR90 = path_label + '/IMR-90/test_set.txt'
+    # build_test_set(file_label_IMR90, file_feature_IMR90, file_out_IMR90)
 
-    file_label_IMR90 = path_label + '/IMR-90/IMR-90.merge.tmp'
-    file_feature_IMR90 = path_feature_cell + '/IMR-90/input_file.txt'
-    file_out_IMR90 = path_label + '/IMR-90/test_set.txt'
-    build_test_set(file_label_IMR90, file_feature_IMR90, file_out_IMR90)
+    # feature+label cell lines
+    list_input = []
+    for cell in ['GM12878', 'MCF-7', 'K562', 'HeLa-S3']:
+        list_input.append(
+            {'cell': cell, 'file_label': f"{path_label}/{cell}/{cell}.txt",
+             'file_feature': f"{path_feature_cell}/{cell}/input_file.txt",
+             'file_out': f"{path_feature_cell}/{cell}/training_set.txt",
+             'fold': 20}
+        )
+    pool = Pool(10)
+    pool.map(build_one_training_set, list_input)
+    pool.close()
+
+    # MCF-7 RNAP2
+    cell = 'MCF-7'
+    dict_in_MCF7 = \
+        {'cell': cell, 'file_label': f"{path_label}/{cell}/{cell}.txt",
+         'file_feature': f"{path_feature_cell}/{cell}/input_file.txt",
+         'file_out': f"{path_feature_cell}/{cell}/training_set.txt",
+         'fold': 20}
+    build_one_training_set(dict_in_MCF7)
 
     time_end = time()
     print(time_end - time_start)

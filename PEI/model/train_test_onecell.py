@@ -6,6 +6,7 @@
 # @time: 2020/3/11 18:16
 
 from time import time
+import math
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
@@ -16,8 +17,6 @@ from sklearn.preprocessing import StandardScaler
 
 
 def train_model(clf, x_train, y_train, class_cv):
-    x_train.index = list(range(x_train.shape[0]))
-    y_train.index = list(range(x_train.shape[0]))
     probs_test = np.zeros((x_train.shape[0], 2), dtype=np.float)
     preds_test = np.zeros(x_train.shape[0], dtype=np.int)
     f1_train, f1_test = [], []
@@ -28,19 +27,25 @@ def train_model(clf, x_train, y_train, class_cv):
     feature_importance = []
 
     i = 1
-    for idx_train, idx_test in class_cv.split(x_train, y_train):
+    for idx_train, idx_test in class_cv:
         sub_x_train, sub_y_train = x_train.loc[idx_train, :], \
             y_train.loc[idx_train]
         sub_x_test, sub_y_test = x_train.loc[idx_test, :], \
             y_train.loc[idx_test]
 
-        clf.fit(sub_x_train, sub_y_train, eval_set=[(sub_x_test, sub_y_test)],
-                early_stopping_rounds=500, verbose=False)
+        # random prediction
+        if clf == 'random':
+            pred_y_train = np.random.rand(sub_x_train.shape[0], 2)
+            pred_y_test = np.random.rand(sub_x_test.shape[0], 2)
+        else:
+            clf.fit(sub_x_train, sub_y_train,
+                    eval_set=[(sub_x_test, sub_y_test)],
+                    early_stopping_rounds=500, verbose=False)
 
-        pred_y_train = clf.predict_proba(sub_x_train)
-        pred_y_test = clf.predict_proba(sub_x_test)
-        feature_importance.append(clf.feature_importances_)
-        print(clf.feature_importances_)
+            pred_y_train = clf.predict_proba(sub_x_train)
+            pred_y_test = clf.predict_proba(sub_x_test)
+            feature_importance.append(clf.feature_importances_)
+            print(clf.feature_importances_)
         sub_pred_y_train = np.argmax(pred_y_train, axis=1)
         sub_pred_y_test = np.argmax(pred_y_test, axis=1)
         f1_train.append(f1_score(sub_y_train, sub_pred_y_train))
@@ -121,20 +126,51 @@ def predict_metric(file_input_predict, model_in):
     return
 
 
+def chrom_split(df_train):
+    list_chroms = ['chr1', 'chr2', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7',
+                   'chr8', 'chr9', 'chr10', 'chr11', 'chr12', 'chr13',
+                   'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19',
+                   'chr20', 'chr21', 'chr22', 'chrX', 'chrY']
+    idxs_chrom = np.arange(len(list_chroms))
+
+    list_index = []
+    size_sample = math.ceil(len(list_chroms) / n_fold)
+    df_train_in = df_train.copy()
+    df_train_in['chrom'] = df_train['dhs_id'].apply(
+        lambda x: x.split('<-')[1].split(':')[0])
+    df_train_index = set(df_train.index)
+    for i in range(n_fold):
+        # np.random.seed(622)
+        idx_chrom_valid = np.random.choice(
+            idxs_chrom, size_sample, replace=False)
+        chrom_valid = set([list_chroms[idx] for idx in idx_chrom_valid])
+        index_valid = list(df_train.loc[
+            df_train_in['chrom'].apply(lambda x: x in chrom_valid), :].index)
+        index_train = list(df_train_index.difference(set(index_valid)))
+        list_index.append((index_train, index_valid))
+
+    return list_index
+
+
 if __name__ == '__main__':
     time_start = time()
     # parameters
-    n_fold = 10
-    skf = StratifiedKFold(n_splits=n_fold, shuffle=True)
-    path_root = '/local/zy/PEI'
+    n_fold = 8
+    # skf = StratifiedKFold(n_splits=n_fold, shuffle=True)
+    # path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
+    path_origin = path_root + '/origin_data'
+    path_mid = path_root + '/mid_data_correct'
 
     # dataset
-    path_label = \
-        path_root + '/mid_data/training_label/label_interactions_V1'
+    path_label = path_mid + '/training_label/label_interactions_V1'
     file_input = path_label + '/training_set.txt'
-    df_input = pd.read_csv(file_input, sep='\t')
+
+    path_input = path_mid + '/cell_line/model_input'
+    file_cell = path_input + '/GM12878/training_set.txt'
+    df_input = pd.read_csv(file_cell, sep='\t')
     df_label = df_input['label']
-    df_features = (df_input.iloc[:, 3:]).drop('label', axis=1)
+    df_features = df_input.drop('label', axis=1)
     # df_features = df_features.loc[
     #               :, ['score_dhs_enhancer',
     #                   'score_h3k27ac_enhancer', 'pval_h3k27ac_enhancer',
@@ -156,7 +192,8 @@ if __name__ == '__main__':
     # use_col = ['DHS_DHS', 'H3K4me3_DHS', 'DHS_H3K27ac',
     #            'H3K4me3_H3K27ac', 'score_ctcf_insulator']
     # use_col = ['score_ctcf_insulator']
-    use_col = df_input.columns[:, 5:-1]
+    # use_col = df_input.columns[4:-1]
+    use_col = df_input.columns[-2:-1]
     # scale_scores = StandardScaler().fit_transform(df_features)
     df_x_train_pre, df_x_test_pre, df_y_train, df_y_test = train_test_split(
         df_features, df_label, test_size=0.1, random_state=331)
@@ -182,7 +219,7 @@ if __name__ == '__main__':
         'bagging_fraction': .85,
         'bagging_freq': 3,
         'seed': 99,
-        'num_threads': 20,
+        'num_threads': 50,
         'verbose': -1,
     }
     # params = {
@@ -193,8 +230,19 @@ if __name__ == '__main__':
     # }
     model_lgb = lgb.LGBMClassifier(**params)
     # train and cross validation
-    res_pred = train_model(model_lgb, df_x_train, df_y_train, skf)
+    # generate training set and validation set
+    df_x_train.index = list(range(df_x_train.shape[0]))
+    df_y_train.index = list(range(df_y_train.shape[0]))
+    df_x_train_pre.index = list(range(df_x_train_pre.shape[0]))
+    index_chrom_split = chrom_split(df_x_train_pre)
+
+    res_pred = train_model(
+        model_lgb, df_x_train, df_y_train, index_chrom_split)
     df_res_train = pd.concat([df_x_train, df_y_train, res_pred], axis=1)
+
+    # background
+    _ = train_model(
+        'random', df_x_train, df_y_train, index_chrom_split)
 
     # train model
     model_all = lgb.LGBMClassifier(**params)
