@@ -196,16 +196,16 @@ for (cell in cells) {
 }
 
 # similarity of DEGs
-mtx.similar <- matrix(1:36, nrow = 6)
-dimnames(mtx.similar)[[1]] <- cells
-dimnames(mtx.similar)[[2]] <- cells
-for (cell1 in cells) {
-    for (cell2 in cells) {
-        mtx.similar[cell1, cell2] <- 
-            length(intersect(list.cell.genes[[cell1]], list.cell.genes[[cell2]])) / 
-            min(length(list.cell.genes[[cell1]]), length(list.cell.genes[[cell2]]))
-    }
-}
+# mtx.similar <- matrix(1:36, nrow = 6)
+# dimnames(mtx.similar)[[1]] <- cells
+# dimnames(mtx.similar)[[2]] <- cells
+# for (cell1 in cells) {
+#     for (cell2 in cells) {
+#         mtx.similar[cell1, cell2] <- 
+#             length(intersect(list.cell.genes[[cell1]], list.cell.genes[[cell2]])) / 
+#             min(length(list.cell.genes[[cell1]]), length(list.cell.genes[[cell2]]))
+#     }
+# }
 
 # confirm label
 exp_sc_mat <- exp_sc_mat[gene_over,]
