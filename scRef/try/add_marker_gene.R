@@ -127,21 +127,21 @@ getDEgeneF <- function(esetm=NULL,group=NULL,pair=FALSE,block=NULL,p_adj="fdr",f
 # }
 
 ######################### limma
-cells <- names(exp_ref_mat)
-cutoff.fc <- 2
-cutoff.pval <- 0.01
-list.cell.genes <- list()
-for (cell in cells) {
-    bool.cell <- cells
-    bool.cell[bool.cell == cell] <- '2'
-    bool.cell[bool.cell != '2'] <- '1'
-    bool.cell <- as.factor(bool.cell)
-    res.limma <- getDEgeneF(exp_ref_mat, bool.cell)
-    df.diff <- res.limma[
-        ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
-    genes.diff <- row.names(df.diff)
-    list.cell.genes[[cell]] <- genes.diff
-}
+# cells <- names(exp_ref_mat)
+# cutoff.fc <- 2
+# cutoff.pval <- 0.01
+# list.cell.genes <- list()
+# for (cell in cells) {
+#     bool.cell <- cells
+#     bool.cell[bool.cell == cell] <- '2'
+#     bool.cell[bool.cell != '2'] <- '1'
+#     bool.cell <- as.factor(bool.cell)
+#     res.limma <- getDEgeneF(exp_ref_mat, bool.cell)
+#     df.diff <- res.limma[
+#         ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
+#     genes.diff <- row.names(df.diff)
+#     list.cell.genes[[cell]] <- genes.diff
+# }
 
 ###### regard MCA as reference of DEG
 file.MCA <- '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/MCA_combined_mouse.txt'
