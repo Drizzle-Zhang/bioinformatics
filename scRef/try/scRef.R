@@ -818,7 +818,7 @@ comfirm.label <- function(exp_sc_mat, ori.tag, scRef.tag, method.test = 'wilcox'
   library(coin)
   # confirm label
   meta.tag <- data.frame(ori.tag, scRef.tag, row.names = dimnames(exp_sc_mat)[[2]])
-  registerDoParallel(10)
+  registerDoParallel(6)
   confirm.classify <- function(exp_sc_mat, list.cell.genes, meta.tag, method.test, barcode) {
     expression.barcode <- exp_sc_mat[, barcode]
     bool.mark.gene <- rep(1, dim(exp_sc_mat)[1])
