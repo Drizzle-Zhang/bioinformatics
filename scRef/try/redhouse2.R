@@ -7,14 +7,32 @@ source('/home/zy/my_git/bioinformatics/scRef/try/scRef.R')
 num.cpu <- 6
 
 # reference (science advance)
+# placenta
 exp_ref_mat=read.table('/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/SA.villi.csv',
-                       header=T,row.names=1,sep='\t')
+                       header=T, sep='\t',row.names = 1)
+# exp_ref_mat[,'dS1'] <- NULL
+# row.names(exp_ref_mat) <- exp_ref_mat[, 'Gene']
 exp_ref_mat.origin <- exp_ref_mat
 # HCA cell name
-names(exp_ref_mat.origin) <- c("Villous trophoblast cell", "Syncytiotrophoblast cell", 
-                               "Extravillous trophoblast", "Hofbauer cell", 
-                               "Erythroid cell", "Fibroblast cell", "Fibroblast cell", 
+names(exp_ref_mat.origin) <- c("Villous trophoblast cell", "Syncytiotrophoblast cell",
+                               "Extravillous trophoblast", "Hofbauer cell",
+                               "Erythroid cell", "Fibroblast cell", "Fibroblast cell",
                                "Fibroblast cell", "Vascular endothelial cell")
+# names(exp_ref_mat.origin) <- c("Stromal cell", "Villous trophoblast cell",
+#                                "NK cell", "Stromal cell", "NK cell", "Macrophage",
+#                                "Macrophage", "T cell", "Fibroblast cell",
+#                                "Extravillous trophoblast", "NK cell", "Hofbauer cell", 
+#                                "Syncytiotrophoblast cell", "Macrophage", "Monocyte",
+#                                "NK cell", "Plasma", "Dendritic cell",
+#                                "Dendritic cell", "Granulocyte", "Lymphocyte",
+#                                "Endothelial cell", "Lymphatic endothelial cell", 
+#                                "Endothelial cell", "Epithelial cell", "Epithelial cell")
+# names(exp_ref_mat.origin) <- c("Stromal cell", "Villous trophoblast cell",
+#                                "NK cell", "Macrophage", "T cell", "Fibroblast cell",
+#                                "Extravillous trophoblast", "NK cell", "Hofbauer cell",
+#                                "Syncytiotrophoblast cell", "Monocyte",  "Plasma", 
+#                                "Dendritic cell", "Granulocyte", "Lymphocyte",
+#                                "Endothelial cell", "Epithelial cell")
 
 find.markers <- function(exp_ref_mat) {
     ###### regard MCA as reference of DEG
@@ -84,10 +102,11 @@ list.cell.genes <- out.markers[['list.cell.genes']]
 genes.ref <- dimnames(out.markers[['exp_ref_mat']])[[1]]
 
 ######################### unlabeled data
-file.data <- '/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/scRef/a1.csv'
+# file.data <- '/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/workspac2_FOLD_pla/DATA.AGG.RDS'
 # file.label.unlabeled <- '/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/E-MTAB-6701.processed.2'
 file.data <- file.data
 data.unlabeled <- read.delim(file.data, row.names=1, sep = ' ')
+data.unlabeled <- readRDS('/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/workspac2_FOLD_pla/DATA.AGG.RDS')
 # colnames <- names(data.unlabeled)
 # list.colnames <- strsplit(colnames, '.', fixed = T)
 # colnames <- c()
@@ -181,7 +200,7 @@ fb=meta.tag[meta.tag$ori.tag %in% c('fFB1', 'fFB2'),]
 ### plot
 library(Seurat)
 # data preparing
-seurat.unlabeled <- CreateSeuratObject(counts = data.filter, project = "pbmc3k", min.cells = 3, min.features = 200)
+seurat.unlabeled <- CreateSeuratObject(counts = data.filter, project = "pbmc3k", min.cells = 0, min.features = 0)
 seurat.unlabeled <- NormalizeData(seurat.unlabeled, normalization.method = "LogNormalize", scale.factor = 10000)
 seurat.unlabeled <- FindVariableFeatures(seurat.unlabeled, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(seurat.unlabeled)
@@ -204,5 +223,5 @@ DimPlot(seurat.unlabeled, reduction = "umap", label = T, group.by = 'scRef.tag')
 # figure3: scRef plus label
 DimPlot(seurat.unlabeled, reduction = "umap", label = T, group.by = 'new.tag')
 
-write.table(meta.tag, file = '/home/zy/scRef/try_data/tags.txt', sep = '\t', quote = F)
+write.table(meta.tag, file = '/home/zy/scRef/try_data/tags2.txt', sep = '\t', quote = F)
 
