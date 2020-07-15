@@ -4,7 +4,7 @@ library(reticulate)
 Sys.setenv(RETICULATE_PYTHON = "/home/zy/tools/anaconda3/bin/python3")
 source('/home/zy/my_git/bioinformatics/scRef/try/scRef.R')
 
-num.cpu <- 6
+num.cpu <- 10
 
 # reference (science advance)
 exp_ref_mat=read.table('/home/yjingjing/project/hfz2020adjust/pla_adjust/4th_combNA_SA_scRef/SA.villi.csv',
@@ -101,9 +101,9 @@ file.label.unlabeled <- file.label.unlabeled
 label.unlabeled <- read.delim(file.label.unlabeled, row.names=1)
 row.names(label.unlabeled) <- str_replace_all(row.names(label.unlabeled), '_', '.')
 # filter data
-# use.cols <- row.names(label.unlabeled)[label.unlabeled[,1] != 'Unclassified']
-data.filter <- data.unlabeled
-label.filter <- data.frame(label.unlabeled[, 'annotation'], row.names = row.names(label.unlabeled))
+use.cols <- row.names(label.unlabeled)[label.unlabeled$location == 'Placenta']
+data.filter <- data.unlabeled[,use.cols]
+label.filter <- data.frame(label.unlabeled[use.cols, 'annotation'], row.names = use.cols)
 # label.filter <- data.frame(label.unlabeled[use.cols,], row.names = use.cols)
 
 # get overlap genes
@@ -127,8 +127,8 @@ tag <- result.scref$tag2
 exp_sc_mat <- exp_sc_mat[gene_over,]
 ori.tag = label.filter[names(exp_sc_mat), 1]
 scRef.tag = tag[,2]
-# method.test <- 'wilcox'
-method.test <- 't.test'
+method.test <- 'wilcox'
+# method.test <- 't.test'
 # method.test <- 'oneway_test'
 meta.tag <- comfirm.label(exp_sc_mat, ori.tag, scRef.tag, method.test)
 
@@ -160,7 +160,7 @@ for (i in 1:length(vec.cutoff)) {
 
 # best cutoff
 best.cutoff <- df.metrics$cutoff[df.metrics$weighted.f1 == max(df.metrics$weighted.f1)][1]
-best.cutoff <- 0.00001
+best.cutoff <- 0.01
 new.tag <- meta.tag$scRef.tag
 new.tag[meta.tag$qvalue > best.cutoff] <- 'unknown'
 meta.tag$new.tag <- new.tag
@@ -194,7 +194,7 @@ seurat.unlabeled@meta.data$new.tag <- new.tag
 seurat.unlabeled <- RunPCA(seurat.unlabeled, features = VariableFeatures(object = seurat.unlabeled), verbose = F)
 
 # UMAP
-seurat.unlabeled <- RunUMAP(seurat.unlabeled, dims = 1:20, n.neighbors = 30)
+seurat.unlabeled <- RunUMAP(seurat.unlabeled, dims = 1:15, n.neighbors = 30)
 # figure1: ture label
 DimPlot(seurat.unlabeled, reduction = "umap", label = T, group.by = 'original.label')
 # figure2: scRef label

@@ -4,6 +4,95 @@ library(reticulate)
 Sys.setenv(RETICULATE_PYTHON = "/home/zy/tools/anaconda3/bin/python3")
 source('/home/zy/my_git/bioinformatics/scRef/try/scRef.R')
 
+# limma function
+.getDEgeneF <- function(esetm=NULL,group=NULL,pair=FALSE,block=NULL,p_adj="fdr",fpkm=T){
+    if (is.null(esetm)) {
+        cat("esetm: gene expression matrix",
+            "group: factor: \"c\"/\"d\"",
+            "pair: TRUE/FALSE*",
+            "block: e.g.1 2 2 1 if paired; blank if not",
+            "p_adj: p.adjust, fdr* ",
+            "fpkm: TRUE/FALSE*",        
+            sep="\n")
+    }else{
+        library(limma)
+        if(pair){
+            design<-model.matrix(~block+group)
+        }else{
+            design<-model.matrix(~group)
+        }
+        fit<-lmFit(esetm,design)
+        if(fpkm){
+            fit<-eBayes(fit,trend=T,robust=T)
+        }else{
+            fit<-eBayes(fit)
+        }
+        x<-topTable(fit,number=nrow(esetm),adjust.method=p_adj,coef="group2")
+        x<-x[!is.na(row.names(x)),]
+        x<-x[!duplicated(row.names(x)),]
+        return(x)    
+    }
+}
+
+
+find.markers <- function(exp_ref_mat) {
+    ###### regard MCA as reference of DEG
+    file.MCA <- '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/MCA_combined_mouse.txt'
+    df.MCA <- read.table(file.MCA, header=T, row.names=1, sep='\t', check.name=F)
+    library(DESeq2)
+    coldata.MCA <- DataFrame(row.names = names(df.MCA))
+    obj.DESeq.MCA <- DESeqDataSetFromMatrix(countData = df.MCA, colData = coldata.MCA, 
+                                            design = ~ 1)
+    fpm.MCA <- fpm(obj.DESeq.MCA, robust = T)
+    # overlap genes
+    fpm.MCA=fpm.MCA[order(rownames(fpm.MCA)),]
+    exp_ref_mat=exp_ref_mat[order(rownames(exp_ref_mat)),]
+    gene_MCA=rownames(fpm.MCA)
+    gene_ref=rownames(exp_ref_mat)
+    gene_over= gene_MCA[which(gene_MCA %in% gene_ref)]
+    fpm.MCA=fpm.MCA[which(gene_MCA %in% gene_over),]
+    exp_ref_mat=exp_ref_mat[which(gene_ref %in% gene_over),]
+    print('Number of overlapped genes:')
+    print(nrow(exp_ref_mat))
+    
+    cell.MCA <- dimnames(fpm.MCA)[[2]]
+    cell.ref <- names(exp_ref_mat)
+    cell.overlap <- intersect(cell.MCA, cell.ref)
+    # combat
+    library(sva)
+    mtx.in <- cbind(fpm.MCA, exp_ref_mat)
+    names(mtx.in) <- c(paste0('MCA.', cell.MCA), paste0('Ref.', cell.ref))
+    batch <- c(rep(1, dim(fpm.MCA)[2]), rep(2, dim(exp_ref_mat)[2]))
+    cov.cell <- c(cell.MCA, names(exp_ref_mat))
+    mod <- model.matrix(~ as.factor(cov.cell))
+    mtx.combat <- ComBat(mtx.in, batch, mod, par.prior = T)
+    
+    mtx.MCA <- mtx.combat[,paste0('MCA.', cell.MCA)]
+    
+    cells <- names(exp_ref_mat)
+    cutoff.fc <- 1
+    cutoff.pval <- 0.05
+    list.cell.genes <- list()
+    for (cell in cells) {
+        vec.cell <- exp_ref_mat[, cell]
+        exp.top10 <- quantile(vec.cell, 0.9)
+        genes.high <- gene_over[vec.cell > exp.top10]
+        mtx.in <- cbind(mtx.MCA, vec.cell)
+        bool.cell <- as.factor(c(rep('1', dim(mtx.MCA)[2]), '2'))
+        res.limma <- .getDEgeneF(mtx.in, bool.cell)
+        df.diff <- res.limma[
+            ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
+        genes.diff <- row.names(df.diff)
+        list.cell.genes[[cell]] <- genes.diff
+    }
+    
+    out <- list()
+    out[['list.cell.genes']] <- list.cell.genes
+    out[['exp_ref_mat']] <- exp_ref_mat
+    return(out)
+    
+}
+
 setwd('/home/zy/scRef/try_data')
 # input file
 file.ref <- './scRef/Reference/MouseBrain_Bulk_Zhang2014/Reference_expression.txt'
@@ -21,12 +110,13 @@ names(exp_ref_mat.origin) <- c("Astrocyte", "Neuron", "Oligodendrocyte precursor
                                "Microglia", "Endothelial cell")
 
 ######################### delete specific cell
-cell.delete <- "Astrocyte"
+# cell.delete <- "Astrocyte"
+cell.delete <- ""
 exp_ref_mat.origin <- exp_ref_mat.origin[, setdiff(names(exp_ref_mat.origin), c(cell.delete))]
 
 out.markers <- find.markers(exp_ref_mat.origin)
 list.cell.genes <- out.markers[['list.cell.genes']]
-exp_ref_mat.origin <- out.markers[['exp_ref_mat']]
+genes.ref <- dimnames(out.markers[['exp_ref_mat']])[[1]]
 
 ######################### unlabeled data
 ######################################################################################
@@ -53,7 +143,7 @@ label.filter <- data.frame(label.unlabeled[use.cols,], row.names = use.cols)
 
 # get overlap genes
 exp_sc_mat = data.filter
-exp_ref_mat <- exp_ref_mat.origin
+exp_ref_mat <- exp_ref_mat.origin[genes.ref,]
 exp_sc_mat=exp_sc_mat[order(rownames(exp_sc_mat)),]
 exp_ref_mat=exp_ref_mat[order(rownames(exp_ref_mat)),]
 gene_sc=rownames(exp_sc_mat)
