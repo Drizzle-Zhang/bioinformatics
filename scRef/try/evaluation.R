@@ -162,6 +162,11 @@ tag <- result.scref$tag2
 exp_sc_mat <- exp_sc_mat[gene_over,]
 ori.tag = label.filter[names(exp_sc_mat), 1]
 scRef.tag = tag[,2]
+# save txt file
+df.tags <- data.frame(ori.tag = ori.tag, scRef.tag = scRef.tag)
+write.table(meta.tag, '/home/zy/scRef/try_data/tags_Zeisel1.txt', 
+            sep = '\t', quote = F)
+
 # method.test <- 'wilcox'
 method.test <- 't.test'
 # method.test <- 'oneway_test'
@@ -206,6 +211,11 @@ true.tag[true.tag == cell.delete] <- 'unknown'
 meta.tag$ori.tag <- true.tag
 metrics$f1_score(true.tag, scRef.tag, average = 'weighted')
 metrics$f1_score(true.tag, new.tag, average = 'weighted')
+
+# save txt file
+write.table(meta.tag, '/home/zy/scRef/try_data/tags_Zeisel.txt', 
+            sep = '\t', quote = F)
+
 
 # remove neuron
 meta.tag.remove <- meta.tag[meta.tag$ori.tag != "neurons", c("ori.tag", "scRef.tag", "qvalue")]
