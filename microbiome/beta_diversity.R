@@ -22,10 +22,11 @@ mtx_bray_curtis <- read.table(file_bray_curtis, header = T,
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
 df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
+df.meta$Dose <- as.factor(df.meta$Dose)
 
 sel.meta <- df.meta
 # sel.meta <- df.meta[df.meta$Time == 'A',]
-sel.meta <- df.meta[df.meta$Dose %in% c(0, 3),]
+# sel.meta <- df.meta[df.meta$Dose %in% c(0, 3),]
 
 mtx.in <- mtx_bray_curtis
 use.pc <- 3
@@ -35,9 +36,11 @@ names(mat.plot) <- paste0('PC', 1:use.pc)
 mat.plot <- cbind(mat.plot, sel.meta)
 ### 2D plot
 # plot.unweighted_unifrac <- 
-ggplot(mat.plot, aes(x = PC1, y = PC3, color = Group)) + 
+ggplot(mat.plot, aes(x = PC1, y = PC3, color = Dose)) + 
     geom_point(size = 2)
 ggplot(mat.plot, aes(x = PC1, y = PC3, color = Time)) + 
+    geom_point(size = 2)
+ggplot(mat.plot, aes(x = PC1, y = PC2, color = Gender)) + 
     geom_point(size = 2)
 
 # theta=60
