@@ -170,4 +170,41 @@ ggplot(df_feature_corr, aes(x = Dataset, y = AUROC)) +
     theme(axis.title = element_text(size = 17)) +   
     theme(axis.text = element_text(size = 12)) +   
     coord_cartesian(ylim = c(0.50, 1)) +   
-    theme(panel.background = element_blank())   
+    theme(panel.background = element_blank()) 
+
+################################# 
+df.accuracy <- data.frame(
+    TestMethod = c(rep('Random split', 6),
+                   rep('Chrom split', 6)),
+    Model = c(rep('Full model', 2),
+              rep('Full model - CTCF', 2),
+              rep('Only CTCF', 2),
+              rep('Full model', 2),
+              rep('Full model - CTCF', 2),
+              rep('Only CTCF', 2)),
+    Evaluator = c('AUC of PRC', 'AUC of ROC',
+                  'AUC of PRC', 'AUC of ROC',
+                  'AUC of PRC', 'AUC of ROC',
+                  'AUC of PRC', 'AUC of ROC',
+                  'AUC of PRC', 'AUC of ROC',
+                  'AUC of PRC', 'AUC of ROC'),
+    Value = c(0.55136, 0.95148, 0.23839, 0.78941, 0.50187,
+              0.92050, 0.45323, 0.92791, 0.13468, 0.72471,
+              0.40021, 0.88268)
+)
+
+ggplot(df.accuracy,
+       aes(x = Model, y = Value, fill = TestMethod)) +
+    geom_bar(position = 'dodge', stat = 'identity') +
+    facet_wrap(~ Evaluator, scales = 'free_x', ncol = 2) +
+    labs(title = "", y = '', x = '') + 
+    theme(axis.text = element_text(size = 12),
+          axis.text.x = element_text(angle = 45, hjust = 1))   
+    
+    # coord_cartesian(ylim = c(0, 1))
+
+
+
+
+
+
