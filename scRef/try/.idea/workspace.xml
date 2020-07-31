@@ -2,13 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="b535cb4d-f527-4aab-8508-0f96ad82b829" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/try.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HCA.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../PEI/cluster/find_cluster.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection_2step.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../microbiome/build_KEGG_database.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../microbiome/find_KO.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../microbiome/picrust.R" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../microbiome/picrust_KO.R" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../microbiome/picrust_KO_gender_diff.R" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../PEI/model/feature_selection.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection.R" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../PEI/model/feature_selection.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../PEI/model/organize_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/organize_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../PEI/prepare_label/map_cre_interactions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/prepare_label/map_cre_interactions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../microbiome/CS_relative.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/CS_relative.R" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../microbiome/beta_diversity_from_distance.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/beta_diversity_from_distance.R" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../microbiome/combine_Lefse_results.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/combine_Lefse_results.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pair_marker.py" beforeDir="false" afterPath="$PROJECT_DIR$/pair_marker.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
