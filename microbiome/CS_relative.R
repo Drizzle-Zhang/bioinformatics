@@ -1,8 +1,15 @@
 library(tidyverse)
+library(RColorBrewer)
 
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
 df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
+
+# gender
+gender = 'male'
+df.meta <- df.meta[df.meta$Gender == gender, ]
+# vec.dose <- c(0, 1, 2, 3)
+vec.dose <- c(0, 3)
 
 level = 'family'
 ################################### class
@@ -15,12 +22,15 @@ class <- read.table(file = file, header = TRUE, row.names = 1,
 # time series
 path.plot <- paste0('/home/drizzle_zhang/microbiome/result/3.Community_Structure/barplot_',
                     level)
+if (!file.exists(path.plot)) {
+    dir.create(path.plot)
+}
 series.time <- unique(df.meta$Time)
 df.plot.point <- data.frame()
 for (sub.time in series.time) {
     # select meta
     sel.meta <- df.meta[df.meta$Time == sub.time,]
-    sel.meta <- sel.meta[sel.meta$Dose %in% c(0, 3),]
+    sel.meta <- sel.meta[sel.meta$Dose %in% vec.dose,]
     row.names(sel.meta) <- sel.meta$Sample
     
     # select sample
@@ -28,7 +38,7 @@ for (sub.time in series.time) {
     sub.class <- class[row.names(class) != 'Other', use.sample]
     
     # 挑选 top10 门类群，并将 top10 外的类群合并为“Others”
-    class_top10 <- sub.class[1:10, ]
+    class_top10 <- sub.class[1:20, ]
     class_top10['Others', ] <- 1 - colSums(class_top10)
     class_top10.diff <- class_top10
     class_top10$Taxonomy <- fct_inorder(rownames(class_top10))
@@ -43,19 +53,35 @@ for (sub.time in series.time) {
     class_top10 <- merge(class_top10, group, by = 'variable')
     
     # 绘制带分面的柱状图
+    colourCount = length(unique(class_top10$Taxonomy))
+    getPalette = colorRampPalette(brewer.pal(9, "Set1"))
     plot.species <- 
         ggplot(data = class_top10, aes(variable, 100 * value, fill = Taxonomy)) + geom_col(position = 'stack', width = 0.6) +
         # 利用facet_wrap 按组分面并排
-        facet_wrap(~ group, scales = 'free_x', ncol = 2) +
+        # facet_wrap(~ group, scales = 'free_x', ncol = 2) +
+        facet_grid(~ group, scales = 'free_x', space = 'free') +
         # 用 scale_fill_brewer 的默认11色配色板
-        scale_fill_brewer(palette = "Set3") +
+        # scale_fill_brewer(palette = "Set3") +
+        # more than 11 kinds of color
+        scale_fill_manual(values = getPalette(colourCount)) + 
         labs(x = '', y = 'Relative Abundance(%)') +
         # 去掉背景网格，但保留横网线利于比较各组数据，一目了然
-        theme(panel.grid.minor.y = element_line(colour = "black"),
+        theme(axis.text.x = element_text(size = 6),
+              legend.text = element_text(size = 5),
+              legend.key.size = unit(0.5, 'cm'),
+              panel.grid.minor.y = element_line(colour = "black"),
               panel.background = element_rect(color = 'black', 
-                                              fill = 'transparent'))
+                                              fill = 'transparent')) + 
+        guides(fill = guide_legend(ncol = 2))
+        
     ggsave(plot = plot.species, path = path.plot, 
-           filename = paste0('relative_species', sub.time, '_0vs3.png'))
+           # filename = paste0('gender_diff_relative_species_',
+           #                   paste0(as.character(vec.dose), collapse = ''), 
+           #                   '_', sub.time, '.png'),
+           filename = paste0(gender, '_relative_species_',
+                             paste0(as.character(vec.dose), collapse = ''), 
+                             '_', sub.time, '.png'),
+           height = 10, width = 20, units = 'cm')
     
     # degree of difference
     # class_top10.diff <- class[1:10, ]
@@ -67,8 +93,11 @@ for (sub.time in series.time) {
         sub.in <- diff.in[, c(type, 'Group')]
         fold.change <- log10(mean(sub.in[sub.in$Group == 'Treat', type]) / 
                                  mean(sub.in[sub.in$Group == 'Control', type]))
-        out.wilcox <- 
+        out.wilcox <-
             wilcox.test(as.formula(paste0(type, ' ~ Group')), data = sub.in)
+        # a = sub.in[sub.in$Group == 'Treat', type]
+        # b = sub.in[sub.in$Group == 'Control',type]
+        # out.wilcox <- ks.test(a, b, data = sub.in)
         p.value <- out.wilcox$p.value
         p.value.round <- round(out.wilcox$p.value, 4)
         if (fold.change < 0) {
@@ -86,11 +115,14 @@ for (sub.time in series.time) {
         geom_bar(stat = 'identity', width = 0.5) + 
         theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
         geom_text(aes(label = paste0('p = ', p.value.round), y = position), 
-                  size = 3) + 
+                  size = 2) + 
         labs(x = '', y = 'log10(fold change)')
     
     ggsave(plot = plot.fc, path = path.plot, 
-           filename = paste0('relative_foldchange_', sub.time, '_0vs3.png'))
+           filename = paste0(gender, '_relative_foldchange_',
+                             paste0(as.character(vec.dose), collapse = ''), 
+                             '_', sub.time, '.png'),
+           height = 10, width = 20, units = 'cm')
     
     df.plot.point <- rbind(df.plot.point, df.out)
     
@@ -98,8 +130,17 @@ for (sub.time in series.time) {
 
 df.plot.point$log.pval <- -log10(df.plot.point$p.value)
 # df.plot.point[df.plot.point$log.pval == Inf, 'log.pval'] <- 4
+file.bubble <- paste0(path.plot, '/', gender, '_Bubble_',
+                      paste0(as.character(vec.dose), collapse = ''), '.txt')
+write.table(df.plot.point, sep = '\t', file = file.bubble, quote = F, row.names = F)
 plot.bubble <- 
     ggplot(data = df.plot.point, 
            aes(x = time, y = type, size = log.pval, color = fold.change)) + 
     geom_point(fill = 'cornsilk') + 
-    scale_color_gradient(low = 'blue', high = 'red')
+    scale_color_gradient(low = 'blue', high = 'red') + 
+    labs(x = 'Time', y = 'Family', color = 'Fold Change', size = 'P Value')
+ggsave(plot = plot.bubble, path = path.plot, 
+       filename = paste0(gender, '_Bubble_',
+                         paste0(as.character(vec.dose), collapse = ''), '.png'),
+       height = 15, width = 20, units = 'cm')
+
