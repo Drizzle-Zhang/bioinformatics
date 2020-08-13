@@ -753,9 +753,79 @@ SCREF <- function(exp_sc_mat, exp_ref_mat, method1='kendall', method2='multinomi
 }
 
 
-find.markers <- function(exp_ref_mat) {
+find.markers.rank <- function(exp_ref_mat, topN = NULL, cutoff.fc = NULL, cutoff.pval = NULL) {
   ###### regard MCA as reference of DEG
-  file.MCA <- '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/MCA_combined_mouse.txt'
+  file.MCA <- '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/MCA_combined_mouse_uniform.txt'
+  df.MCA <- read.table(file.MCA, header=T, row.names=1, sep='\t', check.name=F)
+  
+  # overlap genes
+  df.MCA=df.MCA[order(rownames(df.MCA)),]
+  exp_ref_mat=exp_ref_mat[order(rownames(exp_ref_mat)),]
+  gene_MCA=rownames(df.MCA)
+  gene_ref=rownames(exp_ref_mat)
+  gene_over= gene_MCA[which(gene_MCA %in% gene_ref)]
+  df.MCA=df.MCA[which(gene_MCA %in% gene_over),]
+  exp_ref_mat=exp_ref_mat[which(gene_ref %in% gene_over),]
+  print('Number of overlapped genes:')
+  print(nrow(exp_ref_mat))
+  
+  # rank
+  cell.ref <- names(exp_ref_mat)
+  df.MCA.rank <- as.data.frame(apply(df.MCA, 2, rank, ties.method = 'random'))
+  names(df.MCA.rank) <- paste0('MCA.', cell.MCA)
+  exp_ref_mat.rank <- as.data.frame(apply(exp_ref_mat, 2, rank, ties.method = 'random'))
+
+  cutoff.fc <- 2
+  cutoff.pval <- 0.01
+  list.cell.genes <- list()
+  for (cell in cell.ref) {
+    vec.cell <- exp_ref_mat.rank[, cell]
+    names(vec.cell) <- row.names(exp_ref_mat.rank)
+    exp.top10 <- quantile(vec.cell, 0.9)
+    genes.high <- gene_over[vec.cell > exp.top10]
+    mtx.MCA.use <- df.MCA.rank[genes.high, names(df.MCA.rank) != paste0('MCA.', cell)]
+    df.diff <- data.frame(stringsAsFactors = F)
+    for (gene in genes.high) {
+      exp.cell <- vec.cell[gene]
+      exp.other <- as.numeric(mtx.MCA.use[gene, ])
+      sub.out <- wilcox.test(exp.cell, exp.other, alternative = 'greater')
+      df.diff <- rbind(df.diff, data.frame(gene = gene, pvalue = sub.out$p.value,
+                                           diff = exp.cell - mean(exp.other)))
+    }
+    df.diff$qvalue <- p.adjust(df.diff$pvalue, method = 'fdr')
+    df.diff <- df.diff[order(df.diff$pvalue),]
+    
+    res.limma <- .getDEgeneF(mtx.in, bool.cell)
+    if (is.null(topN) & (!is.null(cutoff.fc) & !is.null(cutoff.pval))) {
+      df.diff <- res.limma[
+        ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
+      genes.diff <- row.names(df.diff)
+    }
+    if (!is.null(topN) & (is.null(cutoff.fc) & is.null(cutoff.pval))) {
+      genes.diff <- row.names(res.limma)[1:topN]
+    }
+    if (!is.null(topN) & (!is.null(cutoff.fc) & !is.null(cutoff.pval))) {
+      print('Error: provide too many parameters')
+      return()
+    }
+    if (is.null(topN) & (is.null(cutoff.fc) & is.null(cutoff.pval))) {
+      print('Error: provide too few parameters')
+      return()
+    }
+    list.cell.genes[[cell]] <- genes.diff
+  }
+  
+  out <- list()
+  out[['list.cell.genes']] <- list.cell.genes
+  out[['exp_ref_mat']] <- exp_ref_mat
+  return(out)
+  
+}
+
+
+find.markers <- function(exp_ref_mat, topN = NULL, cutoff.fc = NULL, cutoff.pval = NULL) {
+  ###### regard MCA as reference of DEG
+  file.MCA <- '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/MCA_combined_mouse_uniform.txt'
   df.MCA <- read.table(file.MCA, header=T, row.names=1, sep='\t', check.name=F)
   library(DESeq2)
   coldata.MCA <- DataFrame(row.names = names(df.MCA))
@@ -783,24 +853,43 @@ find.markers <- function(exp_ref_mat) {
   batch <- c(rep(1, dim(fpm.MCA)[2]), rep(2, dim(exp_ref_mat)[2]))
   cov.cell <- c(cell.MCA, names(exp_ref_mat))
   mod <- model.matrix(~ as.factor(cov.cell))
-  mtx.combat <- ComBat(mtx.in, batch, mod, par.prior = T)
+  mtx.combat <- ComBat(mtx.in, batch, mod, par.prior = T, ref.batch = 1)
+  mtx.combat <- scale(mtx.combat)
   
-  mtx.MCA <- mtx.combat[,paste0('MCA.', cell.MCA)]
-  
+  mtx.MCA <- as.data.frame(mtx.combat[,paste0('MCA.', cell.MCA)])
   cells <- names(exp_ref_mat)
-  cutoff.fc <- 1
-  cutoff.pval <- 0.05
+
+  # cutoff.fc <- 1.5
+  # cutoff.pval <- 0.05
+  # topN <- 100
+  # cutoff.fc <- NULL
+  # cutoff.pval <- NULL
   list.cell.genes <- list()
   for (cell in cells) {
-    vec.cell <- exp_ref_mat[, cell]
+    vec.cell <- mtx.combat[, paste0('Ref.', cell)]
     exp.top10 <- quantile(vec.cell, 0.9)
     genes.high <- gene_over[vec.cell > exp.top10]
-    mtx.in <- cbind(mtx.MCA, vec.cell)
-    bool.cell <- as.factor(c(rep('1', dim(mtx.MCA)[2]), '2'))
-    res.limma <- .getDEgeneF(mtx.in, bool.cell)
-    df.diff <- res.limma[
-      ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
-    genes.diff <- row.names(df.diff)
+    mtx.MCA.use <- mtx.MCA[, names(mtx.MCA) != paste0('MCA.', cell)]
+    mtx.limma <- cbind(mtx.MCA.use, vec.cell)
+    mtx.limma.in <- mtx.limma[genes.high,]
+    bool.cell <- as.factor(c(rep('1', dim(mtx.MCA.use)[2]), '2'))
+    res.limma <- .getDEgeneF(mtx.limma.in, bool.cell)
+    if (is.null(topN) & (!is.null(cutoff.fc) & !is.null(cutoff.pval))) {
+      df.diff <- res.limma[
+        ((res.limma$logFC > cutoff.fc) & (res.limma$adj.P.Val < cutoff.pval)),]
+      genes.diff <- row.names(df.diff)
+    }
+    if (!is.null(topN) & (is.null(cutoff.fc) & is.null(cutoff.pval))) {
+      genes.diff <- row.names(res.limma)[1:topN]
+    }
+    if (!is.null(topN) & (!is.null(cutoff.fc) & !is.null(cutoff.pval))) {
+      print('Error: provide too many parameters')
+      return()
+    }
+    if (is.null(topN) & (is.null(cutoff.fc) & is.null(cutoff.pval))) {
+      print('Error: provide too few parameters')
+      return()
+    }
     list.cell.genes[[cell]] <- genes.diff
   }
   
@@ -812,13 +901,14 @@ find.markers <- function(exp_ref_mat) {
 }
 
 
-comfirm.label <- function(exp_sc_mat, ori.tag, scRef.tag, method.test = 'wilcox', iter.permutation = NULL) {
+comfirm.label <- function(exp_sc_mat, list.cell.genes, ori.tag, scRef.tag, 
+                          method.test = 't.test', iter.permutation = NULL) {
   library(foreach)
   library(doParallel)
   library(coin)
   # confirm label
   meta.tag <- data.frame(ori.tag, scRef.tag, row.names = dimnames(exp_sc_mat)[[2]])
-  registerDoParallel(6)
+  registerDoParallel(20)
   confirm.classify <- function(exp_sc_mat, list.cell.genes, meta.tag, method.test, barcode) {
     expression.barcode <- exp_sc_mat[, barcode]
     bool.mark.gene <- rep(1, dim(exp_sc_mat)[1])
@@ -829,22 +919,34 @@ comfirm.label <- function(exp_sc_mat, ori.tag, scRef.tag, method.test = 'wilcox'
     test.in <- as.data.frame(test.in)
     names(test.in) <- c('expression.level', 'factor.mark.gene')
     test.in$factor.mark.gene <- as.factor(test.in$factor.mark.gene)
-    if (method.test == 'wilcox') {
-      out.test <- wilcox.test(expression.level ~ factor.mark.gene, data = test.in, 
-                              alternative = 'less')
-      pvalue <- out.test$p.value
+    num.permutation <- 200
+    num.sample <- min(20, length(genes.marker))
+    mean.background <- c()
+    for (i in 1:num.permutation) {
+      mean.background <- 
+        c(mean.background, 
+          mean(sample(test.in[test.in$factor.mark.gene == 1, 'expression.level'], num.sample)))
     }
+    mean.marker <- c()
+    for (i in 1:10) {
+      mean.marker <- 
+        c(mean.marker, 
+          mean(sample(test.in[test.in$factor.mark.gene == 2, 'expression.level'], num.sample)))
+    }
+    # if (method.test == 'wilcox') {
+    #   out.test <- wilcox.test(mean.marker, mean.background, alternative = 'greater')
+    #   pvalue <- out.test$p.value
+    # }
     if (method.test == 't.test') {
-      out.test <- t.test(expression.level ~ factor.mark.gene, data = test.in, 
-                         alternative = 'less', var.equal = T)
+      out.test <- t.test(mean.marker, mean.background, alternative = 'greater')
       pvalue <- out.test$p.value
     }
-    if (method.test == 'oneway_test') {
-      if (is.null(iter.permutation)) {iter.permutation = 1000}
-      out.test <- oneway_test(formula = expression.level ~ factor.mark.gene, data = test.in, 
-                              alternative = 'less', distribution = approximate(B=iter.permutation))
-      pvalue <- pvalue(out.test)
-    }
+    # if (method.test == 'oneway_test') {
+    #   if (is.null(iter.permutation)) {iter.permutation = 1000}
+    #   out.test <- oneway_test(formula = expression.level ~ factor.mark.gene, data = test.in, 
+    #                           alternative = 'less', distribution = approximate(B=iter.permutation))
+    #   pvalue <- pvalue(out.test)
+    # }
     # if (method.test == 'kendall_permutation') {
     #     
     # }
@@ -855,7 +957,8 @@ comfirm.label <- function(exp_sc_mat, ori.tag, scRef.tag, method.test = 'wilcox'
     
   }
   
-  out.par <- foreach(barcode = dimnames(exp_sc_mat)[[2]], .combine = rbind) %dopar% confirm.classify(exp_sc_mat, list.cell.genes, meta.tag, method.test, barcode)
+  out.par <- foreach(barcode = dimnames(exp_sc_mat)[[2]], .combine = rbind) %dopar% 
+    confirm.classify(exp_sc_mat, list.cell.genes, meta.tag, method.test, barcode)
   meta.tag <- cbind(meta.tag, out.par)
   meta.tag$qvalue <- p.adjust(meta.tag$pvalue, method = 'BH')
   
