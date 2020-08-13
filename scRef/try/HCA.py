@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import os
 from multiprocessing import Pool
+import random
 import codecs
 import chardet
 
@@ -55,7 +56,7 @@ file_count_annotation = os.path.join(path_HCA, 'count_annotation.txt')
 df_tissue.to_csv(file_count_annotation, sep='\t', index=None, na_rep='NA')
 
 
-def sum_count(dict_in):
+def sum_count_and_sample(dict_in):
     file_count = os.path.join(path_count, dict_in['count_file'])
     file_annotation = \
         os.path.join(path_annotation, dict_in['annotation_file'])
@@ -68,28 +69,39 @@ def sum_count(dict_in):
     tissue = mtx_annotation.loc[1, 'Sample']
     mtx_annotation = mtx_annotation.loc[:, ['Cell_id', 'Celltype']]
     celltypes = mtx_annotation['Celltype'].unique().tolist()
-    list_series = []
-    for cell in celltypes:
-        cell_ids = mtx_annotation.loc[
-            mtx_annotation['Celltype'] == cell, 'Cell_id'].tolist()
-        try:
-            sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
-        except KeyError:
-            pre_cell_id = mtx_count.columns[0].split('.')[0]
-            cell_ids = \
-                [pre_cell_id + '.' + cell.split('.')[1] for cell in cell_ids]
-            sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
-        sub_mtx.name = cell + '_' + tissue
-        list_series.append(sub_mtx)
-    mtx_out = pd.concat(list_series, sort=False, axis=1)
-    mtx_out.to_csv(file_sum, sep='\t')
+    # list_series = []
+    # for cell in celltypes:
+    #     cell_ids = mtx_annotation.loc[
+    #         mtx_annotation['Celltype'] == cell, 'Cell_id'].tolist()
+    #     try:
+    #         sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
+    #     except KeyError:
+    #         pre_cell_id = mtx_count.columns[0].split('.')[0]
+    #         cell_ids = \
+    #             [pre_cell_id + '.' + cell.split('.')[1] for cell in cell_ids]
+    #         sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
+    #     sub_mtx.name = cell + '_' + tissue
+    #     list_series.append(sub_mtx)
+    # mtx_out = pd.concat(list_series, sort=False, axis=1)
+    # mtx_out.to_csv(file_sum, sep='\t')
 
-    return
+    # sample
+    all_cell_ids = list(mtx_count.columns)
+    num_sample = int(len(all_cell_ids) / 100)
+    print(dict_in['tissue'], '          ', num_sample)
+    sample_cell_ids = random.sample(all_cell_ids, num_sample)
+    sample_mtx_count = mtx_count.loc[:, sample_cell_ids]
+
+    return sample_mtx_count
 
 
 pool = Pool(30)
-pool.map(sum_count, df_tissue.to_dict('records'))
+list_sample = pool.map(sum_count_and_sample, df_tissue.to_dict('records'))
 pool.close()
+
+df_sample = pd.concat(list_sample, axis=1, join='inner')
+file_sample = os.path.join(path_combine, 'sample.txt')
+df_sample.to_csv(file_sample, sep='\t')
 
 sum_files = os.listdir(path_tissue)
 list_df_sum = []

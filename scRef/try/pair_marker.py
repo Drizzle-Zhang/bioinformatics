@@ -145,16 +145,44 @@ def unfold_dict(dict_ref, set_genes, cell_ref):
     return dict_cell
 
 
+def sub_background(dict_in):
+    sub_col = dict_in['sub_col']
+
+    cells = dict_cell_pairs.keys()
+    dict_out = {}
+    for cell in cells:
+        pairs_marker = dict_cell_ref[cell]
+        num_batch = 10000
+        num_permutation_marker = 10
+        list_gene1 = pairs_marker['gene1']
+        list_gene2 = pairs_marker['gene2']
+        array_idx_marker = np.arange(len(list_gene2))
+        list_num_1_marker = []
+        for i in range(num_permutation_marker):
+            sub_array_idx = np.random.choice(array_idx_marker, num_batch)
+            sub_gene1 = [list_gene1[j] for j in sub_array_idx]
+            sub_gene2 = [list_gene2[j] for j in sub_array_idx]
+            array_diff = \
+                np.array(sub_col.loc[sub_gene1]) - np.array(
+                    sub_col.loc[sub_gene2])
+            list_num_1_marker.append(np.sum(array_diff > 0))
+        dict_out[cell] = sum(list_num_1_marker) / num_permutation_marker
+
+    return dict_out
+
+
 def sub_test(dict_in):
     sub_col = dict_in['sub_col']
     sub_tag = dict_in['sub_tag']
     scref_tag = sub_tag.loc['scRef.tag']
     pairs_marker = dict_cell_ref[scref_tag]
     cell_id = sub_col.name
+    # num of background
+    cell_background = (df_background.sample(100)).loc[:, scref_tag]
 
     # num of 1 (marker)
-    num_batch = 20000
-    num_permutation_marker = 20
+    num_batch = 10000
+    num_permutation_marker = 100
     list_gene1 = pairs_marker['gene1']
     list_gene2 = pairs_marker['gene2']
     array_idx_marker = np.arange(len(list_gene2))
@@ -167,26 +195,12 @@ def sub_test(dict_in):
             np.array(sub_col.loc[sub_gene1]) - np.array(sub_col.loc[sub_gene2])
         list_num_1_marker.append(np.sum(array_diff > 0))
 
-    # num of 1 (permutation)
-    sub_col = np.array(sub_col)
-    mat_diff = ((sub_col[:, np.newaxis] - sub_col[np.newaxis, :]) > 0)
-    idx_triu = np.triu_indices_from(mat_diff, k=1)
-
-    num_permutation = 100
-    array_idx = np.arange(len(idx_triu[0]))
-    list_num_1 = []
-    for i in range(num_permutation):
-        sub_array_idx = np.random.choice(array_idx, num_batch)
-        array_diff = [mat_diff[idx_triu[0][j], idx_triu[1][j]]
-                      for j in sub_array_idx]
-        list_num_1.append(np.sum(array_diff))
-
-    _, pval = mannwhitneyu(list_num_1_marker, list_num_1,
+    _, pval = mannwhitneyu(list_num_1_marker, cell_background,
                            alternative='greater')
     # ttest_1samp(np.array(list_num_1), num_1_marker)
 
     return {'cell_id': cell_id, 'p_value': pval,
-            'fold_change': np.mean(list_num_1_marker)/np.mean(list_num_1)}
+            'fold_change': np.mean(list_num_1_marker)/np.mean(cell_background)}
 
 
 if __name__ == '__main__':
@@ -194,11 +208,17 @@ if __name__ == '__main__':
 
     dict_cell_pairs, overlap_genes = get_pairs_marker()
 
+    # MCA samples
+    file_samples_HCA = \
+        '/home/disk/scRef/MouseAtlas_SingleCell_Han2018/combinedMCA/sample.txt'
+    df_samples = pd.read_csv(file_samples_HCA, sep='\t', index_col=0)
+
     # Zeisel
     file_exp_sc = '/home/zy/scRef/try_data/summary/Zeisel_exp_sc_mat.txt'
     mat_sc = pd.read_csv(file_exp_sc, sep='\t', index_col=0)
     mat_sc = mat_sc.astype(np.int32)
-    overlap_genes_sc = list(set(overlap_genes).intersection(set(mat_sc.index)))
+    overlap_genes_sc = list((set(overlap_genes).intersection(
+        set(mat_sc.index))).intersection(set(df_samples.index)))
     set_overlap_genes_sc = set(overlap_genes_sc)
     # simplify dict
     cells_ref = dict_cell_pairs.keys()
@@ -207,6 +227,17 @@ if __name__ == '__main__':
         dict_cell = unfold_dict(
             dict_cell_pairs, set_overlap_genes_sc, cell_ref)
         dict_cell_ref[cell_ref] = dict_cell
+
+    # background distribution
+    df_samples_1 = (df_samples.loc[overlap_genes_sc, :]).sample(1000, axis=1)
+    list_input = []
+    for col in df_samples.columns:
+        sub_dict = dict(sub_col=df_samples.loc[:, col])
+        list_input.append(sub_dict)
+    pool = Pool(40)
+    list_background = pool.map(sub_background, list_input)
+    pool.close()
+    df_background = pd.DataFrame(list_background, index=df_samples.columns)
 
     mat_sc = mat_sc.loc[overlap_genes_sc, :]
     mat_sc.columns = [f"X{col.replace('_', '.')}" for col in mat_sc.columns]
@@ -218,7 +249,19 @@ if __name__ == '__main__':
     for col in mat_sc.columns:
         sub_dict = dict(sub_col=mat_sc.loc[:, col], sub_tag=df_tag.loc[col, :])
         list_input.append(sub_dict)
-    pool = Pool(20)
+    pool = Pool(40)
+    # func_test = partial(sub_test, dict_cell_ref)
+    list_pval = pool.map(sub_test, list_input[-40:])
+    pool.close()
+
+    # test
+    df_samples_2 = (df_samples.loc[overlap_genes_sc, :]).sample(100, axis=1)
+    list_input = []
+    for col in df_samples_2.columns:
+        sub_dict = dict(sub_col=df_samples_2.loc[:, col],
+                        sub_tag=df_tag.iloc[0, :])
+        list_input.append(sub_dict)
+    pool = Pool(40)
     # func_test = partial(sub_test, dict_cell_ref)
     list_pval = pool.map(sub_test, list_input)
     pool.close()
@@ -226,7 +269,7 @@ if __name__ == '__main__':
     df_pval = pd.DataFrame(list_pval)
     df_pval.index = df_pval['cell_id']
     df_pval = df_pval.drop('cell_id', axis=1)
-    df_meta = pd.concat([df_tag, df_pval], axis=1)
+    df_meta = pd.concat([df_tag, df_pval], axis=1, join='inner')
     file_res = '/home/zy/scRef/try_data/tags_Zeisel.res1.txt'
     df_meta.to_csv(file_res, sep='\t')
 
