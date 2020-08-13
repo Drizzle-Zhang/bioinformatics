@@ -36,8 +36,8 @@ df.meta.gender <- df.meta[df.meta$Gender == gender, ]
 type.cutoff <- 'fdr'
 
 # dose
-# vec.dose <- c(0, 1, 2, 3)
-vec.dose <- c(0, 3)
+vec.dose <- c(0, 1, 2, 3)
+# vec.dose <- c(0, 3)
 
 # edgeR and heatmap
 find.sig.KO <- function(df.meta.gender, df.db.KEGG.L2, df.db.KEGG.L3, 
@@ -226,10 +226,10 @@ find.sig.KO <- function(df.meta.gender, df.db.KEGG.L2, df.db.KEGG.L3,
         row.names(res.edgeR.L) <- res.edgeR.L$KO_id
         # res.edgeR.L$pvalue <- res.edgeR.L$PValue
         # res.edgeR.L$pvalue[res.edgeR.L$mean_counts < 5] <- 1
-        res.edgeR.L <- res.edgeR.L[res.edgeR.L$mean_counts > 5,]
+        res.edgeR.L <- res.edgeR.L[res.edgeR.L$mean_counts > 10,]
         # res.edgeR.L$qvalue <- p.adjust(res.edgeR.L$PValue, method = 'fdr')
         
-        res.edgeR.L$logPval <- -log10(res.edgeR.L$PValue) * 
+        res.edgeR.L$logPval <- log10(res.edgeR.L$PValue) * 
             (res.edgeR.L$logFC / abs(res.edgeR.L$logFC))
         geneList <- res.edgeR.L$logPval
         names(geneList) <- row.names(res.edgeR.L)

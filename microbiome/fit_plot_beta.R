@@ -2,8 +2,8 @@ library(ggplot2)
 
 # gender
 type.distance <- 'bray_curtis'
-str.dose <- '0123'
-use.dim <- '5'
+str.dose <- '03'
+use.dim <- '3'
 
 gender <- 'male'
 path.plot <- paste0(
@@ -42,7 +42,7 @@ plot.fit <-
 file.fit <- 
     paste0('/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/PCoA/', 
            'distance_compare_', type.distance, '_', str.dose, '_', use.dim, '.png')
-
+ggsave(filename = file.fit, plot = plot.fit)
 
 # dose
 type.distance <- 'bray_curtis'
