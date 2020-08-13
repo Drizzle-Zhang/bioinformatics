@@ -345,7 +345,9 @@ def merge_files():
         df_merge.to_csv(tmp_merge, sep='\t', index=None)
         df_merge['sum'] = np.sum(df_merge.iloc[4:], axis=1)
         file_cell = os.path.join(path_term, cell + '.txt')
-        df_merge = df_merge.loc[df_merge['sum'] > 1,
+        # df_merge = df_merge.loc[df_merge['sum'] > 1,
+        #                         ['gene', 'dhs_id', 'ref_dhs_id', 'type_cre']]
+        df_merge = df_merge.loc[df_merge['sum'] > 0,
                                 ['gene', 'dhs_id', 'ref_dhs_id', 'type_cre']]
         df_merge.to_csv(file_cell, sep='\t', index=None)
         list_cell.append({'Cell line': cell,
@@ -370,26 +372,26 @@ def merge_files():
 
 if __name__ == '__main__':
     time_start = time()
-    # path_root = '/lustre/tianlab/zhangyu/PEI'
-    # path_origin = path_root + '/origin_data'
-    # path_mid = path_root + '/mid_data_correct'
-    path_root = '/local/zy/PEI'
+    path_root = '/lustre/tianlab/zhangyu/PEI'
     path_origin = path_root + '/origin_data'
-    path_mid = path_root + '/mid_data'
+    path_mid = path_root + '/mid_data_correct'
+    # path_root = '/local/zy/PEI'
+    # path_origin = path_root + '/origin_data'
+    # path_mid = path_root + '/mid_data'
 
     path_ref_cellline = path_mid + '/cell_line/DHS/cRE_annotation'
     path_dhs_cell = path_mid + '/cell_line/DHS/GRCh38tohg19_standard'
     # path_label = path_mid + '/training_label/label_interactions'
-    path_label = path_mid + '/training_label/label_interactions_V1'
+    path_label = path_mid + '/training_label/label_interactions'
 
     flie_meta = os.path.join(path_label, 'meta_label.txt')
     df_meta = pd.read_csv(flie_meta, sep='\t')
 
-    pool = Pool(processes=40)
-    pool.map(prepare_interaction_data, df_meta.to_dict('records'))
-    pool.close()
-
-    generate_heatmap_data(os.path.join(path_label, 'heatmap.txt'))
+    # pool = Pool(processes=40)
+    # pool.map(prepare_interaction_data, df_meta.to_dict('records'))
+    # pool.close()
+    #
+    # generate_heatmap_data(os.path.join(path_label, 'heatmap.txt'))
 
     merge_files()
 

@@ -134,5 +134,82 @@ cutoff.DHS_DHS <- quantile(df.feature.label$DHS_DHS, 0.9)
 
 
 
+######################################################### two-step
+library(ggplot2)
+setwd('/home/drizzle_zhang/driver_mutation/cRE_plot/model_test')
+# assay
+file.assay <- './Assay_2step_comparation_1_0.txt'
+df.compare <- read.delim(file.assay, stringsAsFactors = F)
+df.compare <- df.compare[df.compare$feature != 'CTCF_pred',]
+df.compare$diff_median <- abs(df.compare$diff_median)
+ggplot(df.compare, aes(x = feature, y = diff_median, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = 'Diff of median', fill = 'Methods of correlation') +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, fill = correlation)) + 
+    geom_boxplot() + 
+    labs(x = 'Feature', y = '-log(p-value)', fill = 'Methods of correlation') +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Cell
+file.cell <- './Cell_2step_comparation_1_0.txt'
+df.compare <- read.delim(file.cell, stringsAsFactors = F)
+df.compare <- df.compare[df.compare$feature != 'CTCF_pred',]
+ggplot(df.compare, aes(x = feature, y = diff_median, 
+                       color = correlation, shape = label)) + 
+    geom_point(size = 4) + 
+    labs(x = 'Feature', y = 'Diff of median', color = 'Methods of correlation',
+         shape = 'Cell line')
+
+df.compare$pval[df.compare$pval == 0] <- 10^-300
+df.compare$logp <- -log10(df.compare$pval)
+ggplot(df.compare, aes(x = feature, y = logp, 
+                       color = correlation, shape = label)) + 
+    geom_point(size = 4) + 
+    labs(x = 'Feature', y = '-log(p-value)', color = 'Methods of correlation',
+         shape = 'Cell line')
+
+# precision recall
+# assay
+file.assay <- './Assay_2step_comparation_1_0.txt'
+df.compare <- read.delim(file.assay, stringsAsFactors = F)
+df.compare <- df.compare[df.compare$feature == 'CTCF_pred',]
+df.plot <- data.frame()
+for (i in row.names(df.compare)) {
+    df.plot <- rbind(df.plot, 
+                     data.frame(Value = df.compare[i, 'diff_median'],
+                                Method = 'Precision',
+                                Dataset = df.compare[i, 'label']))
+    df.plot <- rbind(df.plot, 
+                     data.frame(Value = df.compare[i, 'pval'],
+                                Method = 'Recall',
+                                Dataset = df.compare[i, 'label']))
+}
+ggplot(df.plot, aes(x = Dataset, y = Value, fill = Method)) + 
+    geom_bar(stat = 'identity', position = 'dodge') + 
+    labs(x = 'Dataset', y = 'Performance', fill = 'Methods of Evaluation') +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Cell
+file.cell <- './Cell_2step_comparation_1_0.txt'
+df.compare <- read.delim(file.cell, stringsAsFactors = F)
+df.compare <- df.compare[df.compare$feature == 'CTCF_pred',]
+df.plot <- data.frame()
+for (i in row.names(df.compare)) {
+    df.plot <- rbind(df.plot, 
+                     data.frame(Value = df.compare[i, 'diff_median'],
+                                Method = 'Precision',
+                                Dataset = df.compare[i, 'label']))
+    df.plot <- rbind(df.plot, 
+                     data.frame(Value = df.compare[i, 'pval'],
+                                Method = 'Recall',
+                                Dataset = df.compare[i, 'label']))
+}
+ggplot(df.plot, aes(x = Dataset, y = Value, fill = Method)) + 
+    geom_bar(stat = 'identity', position = 'dodge') + 
+    labs(x = 'Dataset', y = 'Performance', fill = 'Methods of Evaluation') +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
 

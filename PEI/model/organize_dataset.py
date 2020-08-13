@@ -23,7 +23,7 @@ def build_dataset(dict_in):
     file_pre = os.path.join(path_term, "correlation.txt")
     df_pre = pd.read_csv(file_pre, sep='\t')
     abs_distance = np.abs(df_pre['distance'])
-    df_pre = df_pre.loc[abs_distance > 3000, :]
+    df_pre = df_pre.loc[abs_distance > 5000, :]
 
     file_tmp = os.path.join(path_term, "input_file.tmp")
     df_tmp = df_pre.loc[:, ['gene', 'dhs_id']]
@@ -216,8 +216,8 @@ if __name__ == '__main__':
     pool.map(build_dataset, cell_dicts)
     pool.close()
 
-    # sub_meta = cell_dicts[4]
-    # build_dataset(sub_meta)
+    sub_meta = {'Biosample term name': 'GM12878'}
+    build_dataset(sub_meta)
 
     path_label = path_mid + '/training_label/label_interactions'
     build_training_set()

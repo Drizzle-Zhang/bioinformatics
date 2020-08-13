@@ -22,6 +22,9 @@ def combine_corr_label(dict_in):
 
     df_corr = pd.read_csv(file_corr, sep='\t')
     df_label = pd.read_csv(file_label, sep='\t')
+    # only select distal enhancer
+    df_corr = \
+        df_corr.loc[df_corr['type_cre'] != 'Protein-Promoter(Enhancer)', ]
     if df_label.shape[0] == 0:
         return
     df_label['label'] = np.full(df_label.shape[0], 1)
