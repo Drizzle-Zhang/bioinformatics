@@ -69,21 +69,21 @@ def sum_count_and_sample(dict_in):
     tissue = mtx_annotation.loc[1, 'Sample']
     mtx_annotation = mtx_annotation.loc[:, ['Cell_id', 'Celltype']]
     celltypes = mtx_annotation['Celltype'].unique().tolist()
-    # list_series = []
-    # for cell in celltypes:
-    #     cell_ids = mtx_annotation.loc[
-    #         mtx_annotation['Celltype'] == cell, 'Cell_id'].tolist()
-    #     try:
-    #         sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
-    #     except KeyError:
-    #         pre_cell_id = mtx_count.columns[0].split('.')[0]
-    #         cell_ids = \
-    #             [pre_cell_id + '.' + cell.split('.')[1] for cell in cell_ids]
-    #         sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
-    #     sub_mtx.name = cell + '_' + tissue
-    #     list_series.append(sub_mtx)
-    # mtx_out = pd.concat(list_series, sort=False, axis=1)
-    # mtx_out.to_csv(file_sum, sep='\t')
+    list_series = []
+    for cell in celltypes:
+        cell_ids = mtx_annotation.loc[
+            mtx_annotation['Celltype'] == cell, 'Cell_id'].tolist()
+        try:
+            sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
+        except KeyError:
+            pre_cell_id = mtx_count.columns[0].split('.')[0]
+            cell_ids = \
+                [pre_cell_id + '.' + cell.split('.')[1] for cell in cell_ids]
+            sub_mtx = np.sum(mtx_count.loc[:, cell_ids], axis=1)
+        sub_mtx.name = cell + '_' + tissue
+        list_series.append(sub_mtx)
+    mtx_out = pd.concat(list_series, sort=False, axis=1)
+    mtx_out.to_csv(file_sum, sep='\t')
 
     # sample
     all_cell_ids = list(mtx_count.columns)
@@ -127,6 +127,31 @@ file_combine = os.path.join(path_combine, 'HCA_combined.txt')
 file_combine_cell = os.path.join(path_combine, 'HCA_combined_by_cell.txt')
 df_combine.to_csv(file_combine, sep='\t')
 df_combine_cell.to_csv(file_combine_cell, sep='\t')
+
+# uniform cell names
+file_mat = os.path.join(path_combine, 'HCA_combined_by_cell.txt')
+df_mat = pd.read_csv(file_mat, sep='\t', index_col=0)
+file_name = os.path.join(path_combine, 'HCA_combined_uniformCellName.txt')
+df_name = pd.read_csv(file_name, sep='\t', header=None)
+df_name = df_name.dropna()
+uniform_names = df_name[1].unique().tolist()
+uniform_names.sort()
+
+list_series = []
+for cell_name in uniform_names:
+    ori_names = df_name.loc[df_name[1] == cell_name, 0].tolist()
+    if len(ori_names) == 1:
+        sub_series = df_mat.loc[:, ori_names]
+        sub_series.name = cell_name
+        list_series.append(sub_series)
+    else:
+        sub_series = np.sum(df_mat.loc[:, ori_names], axis=1)
+        sub_series.name = cell_name
+        list_series.append(sub_series)
+
+df_mat_uniform = pd.concat(list_series, axis=1)
+file_uniform = os.path.join(path_combine, 'HCA_combined_uniform.txt')
+df_mat_uniform.to_csv(file_uniform, sep='\t')
 
 time_end = time()
 print(time_end - time_start)

@@ -2,23 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="b535cb4d-f527-4aab-8508-0f96ad82b829" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/../../PEI/cluster/find_cluster.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/cluster/find_cluster.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../PEI/model/feature_selection.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection.R" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../PEI/model/feature_selection.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../PEI/model/feature_selection_2step.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/feature_selection_2step.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../PEI/model/organize_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/model/organize_dataset.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../PEI/prepare_label/map_cre_interactions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../PEI/prepare_label/map_cre_interactions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../microbiome/beta_diversity.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/beta_diversity.R" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../microbiome/build_phylogeny.py" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/build_phylogeny.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../microbiome/enrich_change.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/enrich_change.R" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../microbiome/fit_plot_beta.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/fit_plot_beta.R" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/MCA.bak.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../../microbiome/picrust_KO.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/picrust_KO.R" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../microbiome/plot_tree.R" beforeDir="false" afterPath="$PROJECT_DIR$/../../microbiome/plot_tree.R" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/HCA.py" beforeDir="false" afterPath="$PROJECT_DIR$/HCA.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/MCA.py" beforeDir="false" afterPath="$PROJECT_DIR$/MCA.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/barplot.R" beforeDir="false" afterPath="$PROJECT_DIR$/barplot.R" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pair_marker.py" beforeDir="false" afterPath="$PROJECT_DIR$/pair_marker.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,7 +33,7 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../microbiome" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
@@ -67,10 +56,11 @@
     <servers />
   </component>
   <component name="WindowStateProjectService">
-    <state x="2696" y="364" width="424" height="484" key="FileChooserDialogImpl" timestamp="1594105759663">
-      <screen x="1920" y="0" width="1920" height="1080" />
+    <state x="2955" y="485" width="424" height="484" key="FileChooserDialogImpl" timestamp="1599641689938">
+      <screen x="1920" y="0" width="2560" height="1440" />
     </state>
     <state x="2696" y="364" width="424" height="484" key="FileChooserDialogImpl/1920.0.1920.1080/0.27.1920.1053@1920.0.1920.1080" timestamp="1594105759663" />
+    <state x="2955" y="485" key="FileChooserDialogImpl/67.27.1853.1053/1920.0.2560.1440@1920.0.2560.1440" timestamp="1599641689938" />
     <state x="2402" y="241" key="SettingsEditor" timestamp="1593745909083">
       <screen x="1920" y="0" width="1920" height="1080" />
     </state>

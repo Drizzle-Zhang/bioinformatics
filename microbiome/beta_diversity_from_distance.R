@@ -1,6 +1,7 @@
 # PcoA from distance
 library(amplicon)
 library(cluster)
+library(ggplot2)
 
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
@@ -12,10 +13,10 @@ setwd('/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/Distance')
 type.distance <- 'bray_curtis'
 # type.distance <- 'euclidean'
 # type.distance <- 'unweighted_unifrac'
-gender <- 'male'
+gender <- 'female'
 use.dim <- 5
 vec.dose <- c(0, 1, 2, 3)
-# vec.dose <- c(0, 1)
+# vec.dose <- c(0, 3)
 file.distance <- paste0('./', type.distance, '_otu_table_even.txt')
 mat.distance <- read.table(file.distance, sep = '\t', header = T, row.names = 1)
 
@@ -34,18 +35,19 @@ for (sub.time in series.time) {
     sel.meta <- df.meta[df.meta$Time == sub.time,]
     sel.meta <- sel.meta[sel.meta$Dose %in% vec.dose,]
     sel.meta <- sel.meta[sel.meta$Gender == gender,]
-    row.names(sel.meta) <- sel.meta$Sample
+    row.names(sel.meta) <- sel.meta$SampleName
     
     # select sample
-    use.sample <- sel.meta$Sample
+    use.sample <- sel.meta$SampleName
     mat.select <- mat.distance[use.sample, use.sample]
     
     # PcoA
-    plot.beta <- beta_pcoa(mat.select, sel.meta, groupID = 'Group')
-        ggsave(plot = plot.beta, path = path.plot, 
-               filename = paste0(
-                   paste0(as.character(vec.dose), collapse = ''), '_', sub.time, 
-                   '.png'))
+    plot.beta <- 
+        beta_pcoa(mat.select, sel.meta, groupID = 'Dose') + 
+        geom_text(aes(label = use.sample))
+    ggsave(plot = plot.beta, path = path.plot, 
+           filename = paste0(
+           paste0(as.character(vec.dose), collapse = ''), '_', sub.time, '.png'))
     
     # calcaulate distance in plot
     pcoa = cmdscale(mat.select, k = use.dim, eig = T)
@@ -57,7 +59,7 @@ for (sub.time in series.time) {
 }
 
 plot.fit <- data.frame(Distance = vector.sil[2:length(vector.sil)],
-                       Time = as.numeric(as.factor(series.time))[2:length(series.time)])
+                       Time = as.numeric(series.time)[2:length(series.time)])
 ggplot(data = plot.fit, aes(x = Time, y = Distance)) +
     geom_smooth(method = lm, formula = y ~ poly(x, 3)) +
     geom_point() +
@@ -67,7 +69,7 @@ ggplot(data = plot.fit, aes(x = Time, y = Distance)) +
     ylab('Silhouette Distance')
 
 df.save <- data.frame(Distance = vector.sil,
-                      Time = as.numeric(as.factor(series.time)),
+                      Time = series.time,
                       Gender = rep(gender, length(series.time)))
 file.save <- paste0(
     path.plot, paste0('/diastance_', as.character(use.dim), '_',

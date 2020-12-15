@@ -10,9 +10,12 @@ import pandas as pd
 import numpy as np
 
 time_start = time()
+# file_mat_otu = \
+#     '/home/drizzle_zhang/microbiome/result/2.OTUs/OTUs_stat/OTUs_tax_even.csv'
+# df_otu = pd.read_csv(file_mat_otu, sep=',', usecols=['OTU_ID', 'taxonomy'])
 file_mat_otu = \
-    '/home/drizzle_zhang/microbiome/result/2.OTUs/OTUs_stat/OTUs_tax_even.csv'
-df_otu = pd.read_csv(file_mat_otu, sep=',', usecols=['OTU_ID', 'taxonomy'])
+    '/home/drizzle_zhang/microbiome/result/2.OTUs/OTUs_stat/OTUs_tax_even.txt'
+df_otu = pd.read_csv(file_mat_otu, sep='\t', usecols=['OTU_ID', 'taxonomy'])
 
 # classification
 df_otu['kindom'] = df_otu['taxonomy'].apply(
