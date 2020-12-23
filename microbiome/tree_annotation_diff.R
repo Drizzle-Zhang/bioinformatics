@@ -56,14 +56,15 @@ df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
 # delete unclassified families
 idx.del <- df.taxonomy[, 'family'] %in% c('Unassigned', 'f__uncultured')
 df.tax.filter <- df.taxonomy[!idx.del, ]
-idx.del <- df.tax.filter[, 'genus'] %in% c('Unassigned', 'g__uncultured', 'g__uncultured_bacterium')
+idx.del <- df.tax.filter[, 'genus'] %in% c('Unassigned', 'g__uncultured', 
+                                           'g__uncultured_bacterium', 'Ambiguous_taxa')
 df.tax.filter <- df.tax.filter[!idx.del, ]
 
 # gender
-# gender = 'female'
-# sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
-gender = 'male'
-sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41)
+gender = 'female'
+sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
+# gender = 'male'
+# sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41)
 df.meta.gender <- df.meta[df.meta$Gender == gender, ]
 # dose
 # vec.dose <- c(0, 1, 2, 3)

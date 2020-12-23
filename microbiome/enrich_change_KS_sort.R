@@ -18,7 +18,7 @@ type.cutoff <- 'fdr'
 
 # dose
 # vec.dose <- c(0, 1, 2, 3)
-vec.dose <- c(0, 2)
+vec.dose <- c(0, 1)
 
 # time series
 # series.time <- unique(df.meta$Time)
@@ -47,7 +47,7 @@ for (sub.time in series.time) {
     #                     paste0(as.character(vec.dose), collapse = ''), 
     #                     ".txt")
     sub.GSEA <- read.delim(file.GSEA, row.names = 1)
-    sub.GSEA$logPval <- log10(sub.GSEA$pvalue) * 
+    sub.GSEA$logPval <- -log10(sub.GSEA$pvalue) * 
         (sub.GSEA$enrichmentScore / abs(sub.GSEA$enrichmentScore))
     sub.GSEA <- sub.GSEA[, c("Description", "logPval")]
     names(sub.GSEA) <- c("ID", sub.time)
@@ -74,8 +74,8 @@ sort.value <- df.sort$value
 df.ks <- data.frame(stringsAsFactors = F)
 for (pathway in names.KEGG.L3) {
     sub.sort <- df.sort[df.sort$pathway == pathway, 'value']
-    enrich.control <- ks.test(sub.sort, sort.value, alternative = 'less')
-    enrich.treat <- ks.test(sub.sort, sort.value, alternative = 'greater')
+    enrich.control <- ks.test(sub.sort, sort.value, alternative = 'greater')
+    enrich.treat <- ks.test(sub.sort, sort.value, alternative = 'less')
     df.ks <- rbind(df.ks, data.frame(pathway = pathway, 
                                      pvalue.control = enrich.control$p.value,
                                      pvalue.treat = enrich.treat$p.value))
@@ -86,15 +86,21 @@ df.ks$qvalue.treat <- p.adjust(df.ks$pvalue.treat, method = 'fdr')
 # use ks score to plot
 df.ks.male <- df.ks
 df.ks.male.filter <- df.ks.male[
-    df.ks.male$pvalue.control < 0.1 | df.ks.male$qvalue.treat < 0.1,]
+    df.ks.male$pvalue.control < 0.02 | df.ks.male$pvalue.treat < 0.06,]
+# df.ks.male.filter <- df.ks.male[
+#     df.ks.male$pvalue.control < 0.1 | df.ks.male$pvalue.treat < 0.03,]
+# df.ks.male.filter <- df.ks.male[
+#     df.ks.male$pvalue.control < 0.01 | df.ks.male$pvalue.treat < 0.01,]
+df.ks.male.filter <- df.ks.male.filter[
+    df.ks.male.filter$pathway != 'ABC transporters',]
 log10Pval <- c()
 for (i in row.names(df.ks.male.filter)) {
     pvalue.control <- -log10(df.ks.male.filter[i, 'pvalue.control'])
     pvalue.treat <- -log10(df.ks.male.filter[i, 'pvalue.treat'])
     if (pvalue.control > pvalue.treat) {
-        log10Pval <- c(log10Pval, pvalue.control)
+        log10Pval <- c(log10Pval, -pvalue.control)
     } else {
-        log10Pval <- c(log10Pval, -pvalue.treat)
+        log10Pval <- c(log10Pval, pvalue.treat)
     }
 }
 df.ks.male.filter$log10Pval <- log10Pval
@@ -102,13 +108,14 @@ df.ks.male.filter <- df.ks.male.filter[
     order(df.ks.male.filter$log10Pval, decreasing = T), ]
 vec.color <- c()
 for (pval in df.ks.male.filter$log10Pval) {
-    if (pval > 0) {
+    if (pval < 0) {
         vec.color <- c(vec.color, 'Enrich in Control')
     } else {
         vec.color <- c(vec.color, 'Enrich in Treatment')
     }
 }
-df.ks.male.filter$color <- vec.color
+df.ks.male.filter$color <- factor(vec.color, 
+                                  levels = c('Enrich in Treatment', 'Enrich in Control'))
 plot.male <- 
     ggplot(data = df.ks.male.filter, aes(x = reorder(pathway, X = log10Pval), 
                                    y = log10Pval, fill = color)) + 
@@ -172,7 +179,7 @@ for (sub.time in series.time) {
                         paste0(as.character(vec.dose), collapse = ''), 
                         ".txt")
     sub.GSEA <- read.delim(file.GSEA, row.names = 1)
-    sub.GSEA$logPval <- log10(sub.GSEA$pvalue) * 
+    sub.GSEA$logPval <- -log10(sub.GSEA$pvalue) * 
         (sub.GSEA$enrichmentScore / abs(sub.GSEA$enrichmentScore))
     sub.GSEA <- sub.GSEA[, c("Description", "logPval")]
     names(sub.GSEA) <- c("ID", sub.time)
@@ -199,8 +206,8 @@ sort.value <- df.sort$value
 df.ks <- data.frame(stringsAsFactors = F)
 for (pathway in names.KEGG.L3) {
     sub.sort <- df.sort[df.sort$pathway == pathway, 'value']
-    enrich.control <- ks.test(sub.sort, sort.value, alternative = 'less')
-    enrich.treat <- ks.test(sub.sort, sort.value, alternative = 'greater')
+    enrich.control <- ks.test(sub.sort, sort.value, alternative = 'greater')
+    enrich.treat <- ks.test(sub.sort, sort.value, alternative = 'less')
     df.ks <- rbind(df.ks, data.frame(pathway = pathway, 
                                      pvalue.control = enrich.control$p.value,
                                      pvalue.treat = enrich.treat$p.value))
@@ -211,15 +218,21 @@ df.ks$qvalue.treat <- p.adjust(df.ks$pvalue.treat, method = 'fdr')
 # use ks score to plot
 df.ks.female <- df.ks
 df.ks.female.filter <- df.ks.female[
-    df.ks.female$pvalue.control < 0.01 | df.ks.female$pvalue.treat < 0.003,]
+    df.ks.female$pvalue.control < 0.03 | df.ks.female$pvalue.treat < 0.03,]
+# df.ks.female.filter <- df.ks.female[
+#     df.ks.female$pvalue.control < 0.01 | df.ks.female$pvalue.treat < 0.003,]
+# df.ks.female.filter <- df.ks.female[
+#     df.ks.female$pvalue.control < 0.01 | df.ks.female$pvalue.treat < 0.01,]
+df.ks.female.filter <- df.ks.female.filter[
+    df.ks.female.filter$pathway != 'ABC transporters',]
 log10Pval <- c()
 for (i in row.names(df.ks.female.filter)) {
     pvalue.control <- -log10(df.ks.female.filter[i, 'pvalue.control'])
     pvalue.treat <- -log10(df.ks.female.filter[i, 'pvalue.treat'])
     if (pvalue.control > pvalue.treat) {
-        log10Pval <- c(log10Pval, pvalue.control)
+        log10Pval <- c(log10Pval, -pvalue.control)
     } else {
-        log10Pval <- c(log10Pval, -pvalue.treat)
+        log10Pval <- c(log10Pval, pvalue.treat)
     }
 }
 df.ks.female.filter$log10Pval <- log10Pval
@@ -228,12 +241,13 @@ df.ks.female.filter <- df.ks.female.filter[
 vec.color <- c()
 for (pval in df.ks.female.filter$log10Pval) {
     if (pval > 0) {
-        vec.color <- c(vec.color, 'Enrich in Control')
-    } else {
         vec.color <- c(vec.color, 'Enrich in Treatment')
+    } else {
+        vec.color <- c(vec.color, 'Enrich in Control')
     }
 }
-df.ks.female.filter$color <- vec.color
+df.ks.female.filter$color <- factor(vec.color, 
+                                    levels = c('Enrich in Treatment', 'Enrich in Control'))
 plot.female <- 
     ggplot(data = df.ks.female.filter, aes(x = reorder(pathway, X = log10Pval), 
                                          y = log10Pval, fill = color)) + 
