@@ -24,12 +24,13 @@ meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
 df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
 df.meta$Dose <- as.factor(df.meta$Dose)
 
-sel.meta <- df.meta
+sel.meta <- df.meta[df.meta$Time %in% c(52, 60, 68, 76, 84, 90),]
 # sel.meta <- df.meta[df.meta$Time == 'A',]
 # sel.meta <- df.meta[df.meta$Dose %in% c(1, 2, 3),]
 
 # decomposition from distance matrix
 type.distance <- 'bray_curtis'
+type.distance <- 'unweighted_unifrac'
 file.distance <- 
     paste0('/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/Distance/', 
            type.distance, '_otu_table_even.txt')
@@ -49,7 +50,7 @@ mat.plot <- cbind(mat.plot, sel.meta)
 mat.plot.dose <- mat.plot[mat.plot$Dose %in% c(1, 2, 3),]
 ### 2D plot
 # plot.unweighted_unifrac <- 
-ggplot(mat.plot, aes(x = PCo1, y = PCo5, color = Group)) + 
+ggplot(mat.plot, aes(x = PCo1, y = PCo4, color = Group)) + 
     geom_point(size = 2)
 ggplot(mat.plot, aes(x = PCo3, y = PCo5, color = Group)) + 
     geom_point(size = 2)
@@ -57,11 +58,15 @@ ggplot(mat.plot.dose, aes(x = PCo1, y = PCo5, color = Dose)) +
     geom_point(size = 2)
 ggplot(mat.plot.dose, aes(x = PCo5, y = PCo10, color = Dose)) +
     geom_point(size = 2)
-ggplot(mat.plot, aes(x = PCo1, y = PCo5, color = Time)) + 
+ggplot(mat.plot, aes(x = PCo1, y = PCo2, color = as.factor(Time))) + 
+    geom_point(size = 2)
+ggplot(mat.plot, aes(x = PCo1, y = PCo4, color = as.factor(Time))) + 
     geom_point(size = 2)
 ggplot(mat.plot, aes(x = PCo5, y = PCo6, color = Gender)) +
     geom_point(size = 2)
 ggplot(mat.plot, aes(x = PCo1, y = PCo5, color = Gender)) + 
+    geom_point(size = 2)
+ggplot(mat.plot, aes(x = PCo1, y = PCo2, color = as.factor(Group))) + 
     geom_point(size = 2)
 
 df.pc <- data.frame()

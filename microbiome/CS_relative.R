@@ -1,5 +1,6 @@
 library(tidyverse)
 library(RColorBrewer)
+library(stringr)
 
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
@@ -11,13 +12,15 @@ df.meta <- df.meta[df.meta$Gender == gender, ]
 # vec.dose <- c(0, 1, 2, 3)
 vec.dose <- c(0, 3)
 
-level = 'family'
+# level = 'family'
+level = 'genus'
 ################################### class
 file = paste0('/home/drizzle_zhang/microbiome/result/3.Community_Structure/barplot/Top30_', 
               level, '.csv')
 class <- read.table(file = file, header = TRUE, row.names = 1,
-                    sep = ',', stringsAsFactors = FALSE,
+                    sep = '\t', stringsAsFactors = FALSE,
                     check.names = FALSE)
+row.names(class) <- str_replace_all(row.names(class), '-', '_')
 
 # time series
 path.plot <- paste0('/home/drizzle_zhang/microbiome/result/3.Community_Structure/barplot_',
@@ -26,6 +29,8 @@ if (!file.exists(path.plot)) {
     dir.create(path.plot)
 }
 series.time <- unique(df.meta$Time)
+series.time <- c(-1, 1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
+mod <- 'sel'
 df.plot.point <- data.frame()
 for (sub.time in series.time) {
     # select meta
@@ -34,11 +39,12 @@ for (sub.time in series.time) {
     row.names(sel.meta) <- sel.meta$Sample
     
     # select sample
-    use.sample <- sel.meta$Sample
+    use.sample <- sel.meta$SampleName
     sub.class <- class[row.names(class) != 'Other', use.sample]
     
     # 挑选 top10 门类群，并将 top10 外的类群合并为“Others”
     class_top10 <- sub.class[1:20, ]
+    names(class_top10) <- sel.meta$Sample
     class_top10['Others', ] <- 1 - colSums(class_top10)
     class_top10.diff <- class_top10
     class_top10$Taxonomy <- fct_inorder(rownames(class_top10))
@@ -66,7 +72,8 @@ for (sub.time in series.time) {
         scale_fill_manual(values = getPalette(colourCount)) + 
         labs(x = '', y = 'Relative Abundance(%)') +
         # 去掉背景网格，但保留横网线利于比较各组数据，一目了然
-        theme(axis.text.x = element_text(size = 6),
+        theme(axis.text.x = element_text(size = 6, angle = 45, 
+                                         vjust = 1, hjust = 1),
               legend.text = element_text(size = 5),
               legend.key.size = unit(0.5, 'cm'),
               panel.grid.minor.y = element_line(colour = "black"),
@@ -130,17 +137,19 @@ for (sub.time in series.time) {
 
 df.plot.point$log.pval <- -log10(df.plot.point$p.value)
 # df.plot.point[df.plot.point$log.pval == Inf, 'log.pval'] <- 4
-file.bubble <- paste0(path.plot, '/', gender, '_Bubble_',
+file.bubble <- paste0(path.plot, '/', gender, '_Bubble_', mod, '_',
                       paste0(as.character(vec.dose), collapse = ''), '.txt')
 write.table(df.plot.point, sep = '\t', file = file.bubble, quote = F, row.names = F)
 plot.bubble <- 
     ggplot(data = df.plot.point, 
            aes(x = time, y = type, size = log.pval, color = fold.change)) + 
     geom_point(fill = 'cornsilk') + 
-    scale_color_gradient(low = 'blue', high = 'red') + 
-    labs(x = 'Time', y = 'Family', color = 'Fold Change', size = 'P Value')
+    scale_colour_gradient2(low = 'blue', mid = "white", high = 'red') + 
+    labs(x = 'Time', y = 'Family', color = 'Fold Change', size = 'P Value') + 
+    theme(panel.background = element_rect(color = 'gray',
+                                          fill = 'transparent'))
 ggsave(plot = plot.bubble, path = path.plot, 
-       filename = paste0(gender, '_Bubble_',
+       filename = paste0(gender, '_Bubble_', mod, '_',
                          paste0(as.character(vec.dose), collapse = ''), '.png'),
        height = 15, width = 20, units = 'cm')
 

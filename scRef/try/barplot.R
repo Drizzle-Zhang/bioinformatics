@@ -35,23 +35,27 @@ setwd('/home/drizzle_zhang/scRef/try_data/evaluation_del_cell')
 for (dataset in vec.dataset) {
     rds <- readRDS(paste0('plot_', dataset, '_scRef2.Rdata'))
     df.plot <- rds$plot
+    if (dataset == 'Tasic') {
+        df.plot <- df.plot[df.plot$V3 != 'Oligodendrocyte precursor cell',]
+    }
     # modify plot dataframe
     df.uplimit <- df.plot[df.plot$V3 == 'UpLimit',]
     merge.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron merged', 'V4']
     remove.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron removed', 'V4']
     df.plot.modify <- 
-        df.plot[df.plot$V3 != 'UpLimit' & df.plot$V7 == 'Macro F1',]
+        df.plot[df.plot$V3 != 'UpLimit' & df.plot$V7 == 'weighted macro F1',
+                paste0('V', 1:8)]
     for (cell in unique(df.plot.modify$V3)) {
         df.plot.modify <- rbind(df.plot.modify,
                                 data.frame(V1 = dataset, V2 = 'Neuron merged',
                                            V3 = cell, V4 = merge.uplimit,
                                            V5 = 'Up Limit', V6 = '-1', 
-                                           V7 = 'Macro F1', V8 = 'scRef'))
+                                           V7 = 'weighted macro F1', V8 = 'scRef'))
         df.plot.modify <- rbind(df.plot.modify,
                                 data.frame(V1 = dataset, V2 = 'Neuron removed',
                                            V3 = cell, V4 = remove.uplimit,
                                            V5 = 'Up Limit', V6 = '-1', 
-                                           V7 = 'Macro F1', V8 = 'scRef'))
+                                           V7 = 'weighted macro F1', V8 = 'scRef'))
     }
     for (i in row.names(df.plot.modify)) {
         if (df.plot.modify[i, 'V5'] == 'control') {
@@ -74,7 +78,7 @@ for (dataset in vec.dataset) {
         facet_wrap(~ V2, scales = 'free', ncol = 2) +
         labs(title = dataset, y = 'Weighted Macro F1', 
              x = 'Deleted Cell', fill = 'Method') + 
-        coord_cartesian(ylim = c(0.7, 1)) + 
+        coord_cartesian(ylim = c(0.6, 1)) + 
         theme(axis.text = element_text(size = 10),
               axis.text.x = element_text(angle = 45, hjust = 1))
     ggsave(filename = paste0('./performance_', dataset, '.png'),
@@ -87,7 +91,7 @@ for (dataset in vec.dataset) {
         facet_wrap(~ V2, scales = 'free', ncol = 2) +
         labs(title = dataset, y = 'F1 score', 
              x = 'Deleted Cell', fill = 'Method') + 
-        coord_cartesian(ylim = c(0.7, 1)) + 
+        coord_cartesian(ylim = c(0.3, 1)) + 
         theme(axis.text = element_text(size = 10),
               axis.text.x = element_text(angle = 45, hjust = 1))
     ggsave(filename = paste0('./correction_', dataset, '.png'),
@@ -120,3 +124,111 @@ for (dataset in vec.dataset) {
     
 }
 
+setwd('/home/drizzle_zhang/scRef/try_data/')
+dataset <- 'Tasic'
+rds <- readRDS(paste0('./evaluation_del_cell/plot_', dataset, '_scRef2.Rdata'))
+df.plot <- rds$plot
+if (dataset == 'Tasic') {
+    df.plot <- df.plot[df.plot$V3 != 'Oligodendrocyte precursor cell',]
+}
+# modify plot dataframe
+df.uplimit <- df.plot[df.plot$V3 == 'UpLimit',]
+merge.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron merged', 'V4']
+remove.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron removed', 'V4']
+df.plot.modify <- 
+    df.plot[df.plot$V3 != 'UpLimit' & df.plot$V7 == 'weighted macro F1',
+            paste0('V', 1:8)]
+for (cell in unique(df.plot.modify$V3)) {
+    df.plot.modify <- rbind(df.plot.modify,
+                            data.frame(V1 = dataset, V2 = 'Neuron merged',
+                                       V3 = cell, V4 = merge.uplimit,
+                                       V5 = 'Up Limit', V6 = '-1', 
+                                       V7 = 'weighted macro F1', V8 = 'scRef'))
+    df.plot.modify <- rbind(df.plot.modify,
+                            data.frame(V1 = dataset, V2 = 'Neuron removed',
+                                       V3 = cell, V4 = remove.uplimit,
+                                       V5 = 'Up Limit', V6 = '-1', 
+                                       V7 = 'weighted macro F1', V8 = 'scRef'))
+}
+for (i in row.names(df.plot.modify)) {
+    if (df.plot.modify[i, 'V5'] == 'control') {
+        df.plot.modify[i, 'V9'] <- 'scRef'
+    }
+    if (df.plot.modify[i, 'V5'] == 'Up Limit') {
+        df.plot.modify[i, 'V9'] <- 'Upper limit'
+    }
+    if (df.plot.modify[i, 'V5'] == 'best cutoff') {
+        df.plot.modify[i, 'V9'] <- 'scRef.v2'
+    }
+    if (df.plot.modify[i, 'V5'] == 'default cutoff') {
+        df.plot.modify[i, 'V9'] <- 'scRef plus(default cutoff)'
+    }
+}
+df.plot.modify.scRef2 <- df.plot.modify[df.plot.modify$V5 != 'default cutoff',]
+
+# scRef v3
+rds <- readRDS(paste0('./evaluation_del_cell_scRef3/plot_', dataset, '_scRef2.Rdata'))
+df.plot <- rds$plot
+if (dataset == 'Tasic') {
+    df.plot <- df.plot[df.plot$V3 != 'Oligodendrocyte precursor cell',]
+}
+# modify plot dataframe
+df.uplimit <- df.plot[df.plot$V3 == 'UpLimit',]
+merge.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron merged', 'V4']
+remove.uplimit <- df.uplimit[df.uplimit$V2 == 'Neuron removed', 'V4']
+df.plot.modify <- 
+    df.plot[df.plot$V3 != 'UpLimit' & df.plot$V7 == 'weighted macro F1',
+            paste0('V', 1:8)]
+for (cell in unique(df.plot.modify$V3)) {
+    df.plot.modify <- rbind(df.plot.modify,
+                            data.frame(V1 = dataset, V2 = 'Neuron merged',
+                                       V3 = cell, V4 = merge.uplimit,
+                                       V5 = 'Up Limit', V6 = '-1', 
+                                       V7 = 'weighted macro F1', V8 = 'scRef'))
+    df.plot.modify <- rbind(df.plot.modify,
+                            data.frame(V1 = dataset, V2 = 'Neuron removed',
+                                       V3 = cell, V4 = remove.uplimit,
+                                       V5 = 'Up Limit', V6 = '-1', 
+                                       V7 = 'weighted macro F1', V8 = 'scRef'))
+}
+for (i in row.names(df.plot.modify)) {
+    if (df.plot.modify[i, 'V5'] == 'control') {
+        df.plot.modify[i, 'V9'] <- 'scRef'
+    }
+    if (df.plot.modify[i, 'V5'] == 'Up Limit') {
+        df.plot.modify[i, 'V9'] <- 'Upper limit'
+    }
+    if (df.plot.modify[i, 'V5'] == 'best cutoff') {
+        df.plot.modify[i, 'V9'] <- 'scRef.v3'
+    }
+    if (df.plot.modify[i, 'V5'] == 'default cutoff') {
+        df.plot.modify[i, 'V9'] <- 'scRef plus(default cutoff)'
+    }
+}
+df.plot.modify.scRef3 <- df.plot.modify[df.plot.modify$V5 == 'best cutoff',]
+df.plot.modify <- rbind(df.plot.modify.scRef2, df.plot.modify.scRef3)
+
+plot.f1 <- ggplot(df.plot.modify,
+                  aes(x = V3, y = V4, fill = V9)) +
+    geom_bar(position = 'dodge', stat = 'identity') +
+    facet_wrap(~ V2, scales = 'free', ncol = 2) +
+    labs(title = dataset, y = 'Weighted Macro F1', 
+         x = 'Deleted Cell', fill = 'Method') + 
+    coord_cartesian(ylim = c(0.6, 1)) + 
+    theme(axis.text = element_text(size = 10),
+          axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(filename = paste0('./performance_', dataset, '.png'),
+       plot = plot.f1)
+
+df.correct <- df.plot[df.plot$V7 == 'Rate of error correction',]
+plot.correct <- ggplot(df.correct,
+                       aes(x = V3, y = V4, fill = V5)) +
+    geom_bar(position = 'dodge', stat = 'identity') +
+    facet_wrap(~ V2, scales = 'free', ncol = 2) +
+    labs(title = dataset, y = 'F1 score', 
+         x = 'Deleted Cell', fill = 'Method') + 
+    coord_cartesian(ylim = c(0.3, 1)) + 
+    theme(axis.text = element_text(size = 10),
+          axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave(filename = paste0('./correction_', dataset, '.png'),
+       plot = plot.correct)
