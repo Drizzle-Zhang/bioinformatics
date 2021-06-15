@@ -6,13 +6,16 @@ seurat.first <- readRDS(file.seurat)
 
 cluster_0.8 <- seurat.first$RNA_snn_res.0.8
 vec.cluster <- rep('_', length(cluster_0.8))
-vec.cluster[cluster_0.8 %in% c(0, 1, 2, 3, 14)] <- '1'
-vec.cluster[cluster_0.8 %in% c(6, 9)] <- '2'
-vec.cluster[cluster_0.8 %in% c(4, 5, 10)] <- '3'
-vec.cluster[cluster_0.8 %in% c(7, 11, 12)] <- '4'
-vec.cluster[cluster_0.8 %in% c(8, 15)] <- '5'
-vec.cluster[cluster_0.8 %in% c(13, 17)] <- '6'
-vec.cluster[cluster_0.8 %in% c(16)] <- '7'
+vec.cluster[cluster_0.8 %in% c(4, 5, 10)] <- '1'
+vec.cluster[cluster_0.8 %in% c(9)] <- '2'
+vec.cluster[cluster_0.8 %in% c(6)] <- '3'
+vec.cluster[cluster_0.8 %in% c(0, 1)] <- '4'
+vec.cluster[cluster_0.8 %in% c(2, 3)] <- '5'
+vec.cluster[cluster_0.8 %in% c(14)] <- '6'
+vec.cluster[cluster_0.8 %in% c(7, 11, 12)] <- '7'
+vec.cluster[cluster_0.8 %in% c(8, 15)] <- '8'
+vec.cluster[cluster_0.8 %in% c(13, 17)] <- '9'
+vec.cluster[cluster_0.8 %in% c(16)] <- '10'
 table(seurat.first$sample, vec.cluster)/as.vector(table(seurat.first$sample))
 
 seurat.first$vec.cluster <- vec.cluster
@@ -25,7 +28,7 @@ for (cluster in clusters) {
     list.marker[[cluster]] <- sub.markers
 }
 
-file.marker.first <- '/home/disk/drizzle/wgk/data/seurat_first_marker_0.8.Rdata'
+file.marker.first <- '/home/disk/drizzle/wgk/data/seurat_first_marker.Rdata'
 saveRDS(list.marker, file = file.marker.first)
 list.marker <- readRDS(file.marker.first)
 

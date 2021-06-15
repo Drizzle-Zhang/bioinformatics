@@ -62,11 +62,11 @@ result.scref.4 <- SCREF(exp_sc_mat, df.atlas,
 pred.scRef.4 <- result.scref.4$final.out
 file.4 <- '/home/disk/drizzle/wgk/data/scMAGIC.4.Rdata'
 saveRDS(result.scref.4, file.4)
-df.tags <- result.scref.2$combine.out
+df.tags <- result.scref.4$combine.out
 df.tags$scRef.tag <- df.tags$scRef.tag.12
 df.tags[df.tags$log10Pval < 20, 'scRef.tag'] <- 'Unassigned'
 
-seurat.first$scref <- pred.scRef.4[colnames(seurat.first@assays$RNA@counts),'scRef.tag']
+seurat.first$scref <- df.tags[colnames(seurat.first@assays$RNA@counts),'scRef.tag']
 DimPlot(seurat.first, group.by = c("scref"), label = T)
 
 

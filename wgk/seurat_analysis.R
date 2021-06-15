@@ -52,10 +52,10 @@ seurat.first <- subset(seurat.ear, subset = sample %in% c('C1', 'C2', 'C3', 'M1'
 seurat.first <- NormalizeData(seurat.first)
 seurat.first <- FindVariableFeatures(seurat.first, nfeatures = 5000)
 seurat.first <- ScaleData(seurat.first, split.by = "sample")
-seurat.first <- RunPCA(seurat.first, verbose = F, npcs = 100)
+seurat.first <- RunPCA(seurat.first, verbose = F, npcs = 200)
 seurat.first <- RunUMAP(seurat.first, dims = 1:100, n.neighbors = 50)
 seurat.first <- FindNeighbors(seurat.first, reduction = "pca", dims = 1:100)
-seurat.first <- FindClusters(seurat.first, resolution = 0.15)
+seurat.first <- FindClusters(seurat.first, resolution = 1.2)
 
 file.seurat <- '/home/disk/drizzle/wgk/data/ear.seurat.first.Rdata'
 saveRDS(seurat.first, file = file.seurat)

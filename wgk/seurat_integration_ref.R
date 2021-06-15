@@ -2,9 +2,28 @@ library(Seurat)
 library(ggplot2)
 library(patchwork)
 options(future.globals.maxSize = 7000 * 1024^2)
+library(future)
+plan("multiprocess", workers = 6)
 
-file.ear <- '/home/disk/drizzle/wgk/data/ear.filtered.Rdata'
+file.ear <- '/home/disk/drizzle/wgk/data/seurat_all_filtered.Rdata'
 seurat.ear <- readRDS(file.ear)
+
+
+# all
+list.sample <- SplitObject(seurat.ear, split.by = 'sample')
+for (i in 1:length(list.sample)) {
+    list.sample[[i]] <- SCTransform(list.sample[[i]], verbose = FALSE)
+}
+sel.features <- SelectIntegrationFeatures(object.list = list.sample, nfeatures = 5000)
+
+list.sct <- list()
+list.sct$list.sample <- list.sample
+list.sct$sel.features <- sel.features
+file.sct <- '/home/disk/drizzle/wgk/data/SCT_all.Rdata'
+saveRDS(list.sct, file = file.sct)
+list.sct <- readRDS(file.sct)
+list.sample <- list.sct$list.sample
+sel.features <- list.sct$sel.features
 
 # first
 list.sample <- SplitObject(seurat.ear, split.by = 'sample')

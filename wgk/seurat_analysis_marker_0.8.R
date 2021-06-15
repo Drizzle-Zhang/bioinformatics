@@ -56,7 +56,7 @@ list.kegg <- readRDS(file.marker.first.kegg)
 
 
 view.gene <- unlist(strsplit((list.kegg$`1`)['hsa05022', 'geneID'], '/'))
-
+df.geneid2symbol[unlist(strsplit((list.kegg$`9`)['hsa04350', 'geneID'], '/')),]
 
 # GSEA
 library(dplyr)
@@ -73,7 +73,7 @@ for (cluster in clusters) {
     list.marker.gsea[[cluster]] <- sub.markers
 }
 
-file.marker.first.gsea <- '/home/disk/drizzle/wgk/data/seurat_first_marker_GSEA.Rdata'
+file.marker.first.gsea <- '/home/disk/drizzle/wgk/data/seurat_first_marker_GSEA_0.8.Rdata'
 saveRDS(list.marker.gsea, file = file.marker.first.gsea)
 list.marker.gsea <- readRDS(file.marker.first.gsea)
 
@@ -81,15 +81,15 @@ library(clusterProfiler)
 library(org.Hs.eg.db)
 list.gsea <- list()
 list.gsea.kegg <- list()
-clusters <- unique(seurat.first$vec.cluster)
+clusters <- unique(seurat.first$RNA_snn_res.0.8)
 for (cluster in clusters) {
     sub.markers <- list.marker.gsea[[cluster]]
     geneList <- sub.markers[, 'avg_logFC']
     names(geneList) <- row.names(sub.markers)
     geneList <- geneList[order(geneList, decreasing = T)]
-    # egmt <- gseGO(geneList = geneList, OrgDb = org.Hs.eg.db, keyType = "SYMBOL", pvalueCutoff = 0.7)
-    # res.egmt <- egmt@result
-    # list.gsea[[cluster]] <- res.egmt
+    egmt <- gseGO(geneList = geneList, OrgDb = org.Hs.eg.db, keyType = "SYMBOL", pvalueCutoff = 0.7)
+    res.egmt <- egmt@result
+    list.gsea[[cluster]] <- res.egmt
     # KEGG
     names(geneList) <- df.symbol2geneid[row.names(sub.markers), 'Gene_id']
     res.kegg <- gseKEGG(geneList = geneList, 
@@ -97,9 +97,12 @@ for (cluster in clusters) {
     list.gsea.kegg[[cluster]] <- res.kegg@result
 }
 
-file.res.gsea <- '/home/disk/drizzle/wgk/data/GSEA_first.Rdata'
-saveRDS(list.gsea, file = file.res.gsea)
-list.gsea <- readRDS(file.res.gsea)
+file.gsea.first.go <- '/home/disk/drizzle/wgk/data/GSEA_first_go_0.8.Rdata'
+saveRDS(list.gsea, file = file.gsea.first.go)
+list.gsea.go <- readRDS(file.gsea.first.go)
+file.gsea.first.kegg <- '/home/disk/drizzle/wgk/data/GSEA_first_kegg_0.8.Rdata'
+saveRDS(list.gsea.kegg, file = file.gsea.first.kegg)
+list.gsea.kegg <- readRDS(file.gsea.first.kegg)
 
 view.gene <- df.geneid2symbol[unlist(strsplit((list.gsea.kegg$`2`)['hsa04380', 'core_enrichment'], '/')),]
 
@@ -145,6 +148,29 @@ FeaturePlot(seurat.first,
             features = c('ACTA2', 'ACTG2'), 
             ncol = 2)
 
+##### extracellular matrix
+# Fibulin
+FeaturePlot(seurat.first, features = c('FBLN1', 'FBLN2', 'FBLN3', 'FBLN4', 'FBLN5', 'FBLN6', 'FBLN7'))
+# Fibronectin
+
+# Laminin
+FeaturePlot(seurat.first, features = c('LAMA1', 'LAMA2', 'LAMA3', 'LAMA4', 'LAMA5', 
+                                       'LAMB1', 'LAMB2', 'LAMB3', 'LAMB4',
+                                       'LAMC1', 'LAMC2', 'LAMC3'))
+
+
+# Thrombospondin
+FeaturePlot(seurat.first, features = c('THBS1', 'THBS2', 'THBS3', 'THBS4'))
+
+
+##### growth factor binding
+# IGF
+FeaturePlot(seurat.first, features = c('IGFBP1', 'IGFBP2', 'IGFBP3', 'IGFBP4', 'IGFBP5', 'IGFBP6', 'IGFBP7'))
+
+
+##### genes in cluster
+# 9
+unlist(strsplit((list.kegg$`1`)['hsa05022', 'geneID'], '/'))
 
 # findmarker <- function(seurat.first, cluster) {
 #     sub.markers <- FindMarkers(seurat.first, ident.1 = cluster, group.by = 'vec.cluster',
