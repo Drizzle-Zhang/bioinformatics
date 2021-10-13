@@ -1,6 +1,33 @@
 library(ggplot2)
 
-file.SNP <- '/mdshare/node9/zy/Reg_brain/SNP_aceDHS/results_snp.txt'
+file.SNP <- '/mdshare/node9/zy/Reg_brain/SNP_aceDHS/results_snp_1kb.txt'
+df.SNP <- read.delim(file.SNP)
+df.SNP <- df.SNP[order(df.SNP$pvalue),]
+sel.disease <- c('Spastic Paraplegia, Hereditary', 'Bardet-Biedl syndrome 4 (disorder)',
+                 'Mental Retardation And Microcephaly With Pontine And Cerebellar Hypoplasia',
+                 'Hypoplasia of corpus callosum', 'Huntington Disease', 'HUNTINGTON DISEASE-LIKE 2',
+                 'Microcephaly-capillary malformation syndrome', 
+                 'SPINOCEREBELLAR ATAXIA, AUTOSOMAL RECESSIVE 9')
+df.SNP$logp <- -log10(df.SNP$pvalue)
+df.SNP <- df.SNP[df.SNP$disease_name %in% sel.disease,]
+df.SNP$disease_name <- factor(df.SNP$disease_name, levels = rev(sel.disease))
+
+plot_bar <- 
+    ggplot(df.SNP, aes(x = disease_name, y = logp)) + 
+    geom_bar(stat = 'identity', color = 'dimgray', fill = 'dimgray', 
+             position=position_dodge(0.8)) + 
+    coord_flip() + 
+    labs(x = 'Disease', y = expression(paste("-log"[10], "(", italic("P"), "-value)"))) +
+    theme_bw() +
+    theme(panel.background = element_rect(color = 'black', size = 1,
+                                          fill = 'transparent'),
+          panel.grid = element_blank(),
+          axis.text.x = element_text(size = 11, color = 'black', family = 'Arial'),
+          axis.text.y = element_text(size = 8, color = 'black', family = 'Arial'),
+          axis.title = element_text(size = 12, family = 'Arial'))
+ggsave(filename = 'SNP_plot.png',
+       path = '/mdshare/node9/zy/Reg_brain/plot', plot = plot_bar,
+       units = 'cm', height = 7, width = 18)
 
 
 file.Gene <- '/mdshare/node9/zy/Reg_brain/gene_bed/results_disease_gene.txt'
@@ -37,3 +64,4 @@ plot_bar <-
 ggsave(filename = 'Gene_plot.png',
        path = '/mdshare/node9/zy/Reg_brain/plot', plot = plot_bar,
        units = 'cm', height = 14, width = 18)
+

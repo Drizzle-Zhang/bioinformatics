@@ -1,38 +1,80 @@
 library(Seurat)
 library(ggplot2)
 
-path.data <- '/homeold/yzj/JingMA_ORI/data/'
+file.chon <- '/mdshare/node9/zy/wgk/RDS/seurat_celltype.Rdata'
+seurat.chon <- readRDS(file.chon)
 
-# male C2 24
-C2 <- Read10X(paste0(path.data, 'C2'))
-dimnames(C2)[[2]] <- paste('C2', dimnames(C2)[[2]], sep = '_')
-seurat.C2 <- CreateSeuratObject(counts = C2)
-seurat.C2@meta.data$sample <- rep('C2', dim(C2)[2])
-seurat.C2[["percent.mt"]] <- PercentageFeatureSet(seurat.C2, pattern = "^MT-")
-seurat.C2@meta.data$gender <- rep('Male', dim(C2)[2])
+VlnPlot(seurat.chon, features = 'SOX8', group.by = 'batch', split.by = 'celltype')
+VlnPlot(seurat.chon, features = 'EGR1', group.by = 'batch', split.by = 'celltype')
 
-# female C3 35
-C3 <- Read10X(paste0(path.data, 'C3'))
-dimnames(C3)[[2]] <- paste('C3', dimnames(C3)[[2]], sep = '_')
-seurat.C3 <- CreateSeuratObject(counts = C3)
-seurat.C3@meta.data$sample <- rep('C3', dim(C3)[2])
-seurat.C3[["percent.mt"]] <- PercentageFeatureSet(seurat.C3, pattern = "^MT-")
-seurat.C3@meta.data$gender <- rep('Female', dim(C3)[2])
+# C2 vs C3
+seurat.C2.C3 <- subset(seurat.chon, subset = batch %in% c('C2', 'C3'))
+# marker gene
+fc.cutoff <- 0.4
+pct.cutoof <- 0
+celltypes <- unique(seurat.C2.C3$celltype)
+list.marker.gender <- list()
+for (cell in celltypes) {
+    sub.seurat <- subset(seurat.C2.C3, subset = celltype == cell)
+    sub.markers <- FindMarkers(sub.seurat, ident.1 = 'C2', group.by = 'batch',
+                               logfc.threshold = fc.cutoff, min.diff.pct = pct.cutoof)
+    sub.markers <- sub.markers[sub.markers$p_val_adj < 0.05,]
+    list.marker.gender[[as.character(cell)]] <- sub.markers
+}
 
-# merge
-seurat.merge <- merge(seurat.C2, seurat.C3)
-# filter  
-seurat.all_filter <- 
-    subset(seurat.merge, 
-           subset = nFeature_RNA > 800 & nFeature_RNA < 6000 & nCount_RNA > 2000 & nCount_RNA < 50000 & percent.mt < 10)
+# microtia vs NC
+seurat.child <- subset(seurat.chon, subset = batch %in% c('C4', 'C6', 'M1', 'M2', 'M3'))
+list.marker.microtia <- list()
+for (cell in celltypes) {
+    sub.seurat <- subset(seurat.child, subset = celltype == cell)
+    sub.markers <- FindMarkers(sub.seurat, ident.1 = 'Microtia', group.by = 'type',
+                               logfc.threshold = fc.cutoff, min.diff.pct = pct.cutoof)
+    sub.markers <- sub.markers[sub.markers$p_val_adj < 0.05,]
+    list.marker.microtia[[as.character(cell)]] <- sub.markers
+}
 
-# file.all <- '/homeold/yzj/JingMA_NEW/res/Harmony/ALL/RDS/PBMC_harmony.RDS'
-# seurat.all <- readRDS(file.all)
-# DimPlot(seurat.all, group.by = "batch")
-status <- rep('0', length(seurat.all$batch))
-status[seurat.all$batch %in% c('C1', 'C2', 'C3', 'C4', 'C5')] <- 'Normal'
-status[seurat.all$batch %in% c('M1', 'M2', 'M3')] <- 'Microtia'
-seurat.all$status <- status
-DimPlot(seurat.all, group.by = "status")
+# test
+df_test <- data.frame(stringsAsFactors = F)
+for (cell in celltypes) {
+    sub.seurat.C2.C3 <- subset(seurat.C2.C3, subset = celltype == cell)
+    gene.gender <- rownames(sub.seurat.C2.C3@assays$RNA@counts)[rowSums(as.matrix(sub.seurat.C2.C3@assays$RNA@counts)) > 0]
+    sub.seurat.child <- subset(seurat.child, subset = celltype == cell)
+    gene.microtia <- rownames(sub.seurat.child@assays$RNA@counts)[rowSums(as.matrix(sub.seurat.child@assays$RNA@counts)) > 0]
+    gene.background <- union(gene.gender, gene.microtia)
+    marker.gender <- list.marker.gender[[cell]]
+    merker.microtia <- list.marker.microtia[[cell]]
+    # up
+    marker.gender.up <- rownames(marker.gender[marker.gender$avg_logFC > 0,])
+    merker.microtia.up <- rownames(merker.microtia[merker.microtia$avg_logFC > 0,])
+    df_up <- data.frame(gender = (gene.background %in% marker.gender.up),
+                        microtia = (gene.background %in% merker.microtia.up),
+                        row.names = gene.background)
+    table_up <- xtabs(~ gender + microtia, data = df_up)
+    fisher.test(table_up)
+}
+
+
+path_C2M <- '/mdshare/node9/zy/wgk/C2M/'
+# C2 vs M1M2M3
+seurat.C2.M <- subset(seurat.chon, subset = batch %in% c('C2', 'M1', 'M2', 'M3'))
+# marker gene
+fc.cutoff <- 0
+pct.cutoof <- 0
+celltypes <- unique(seurat.C2.M$celltype)
+list.marker.go.C2.M <- list()
+for (cell in celltypes) {
+    sub.seurat <- subset(seurat.C2.M, subset = celltype == cell)
+    sub.markers <- FindMarkers(sub.seurat, ident.1 = 'Microtia', group.by = 'type',
+                               logfc.threshold = fc.cutoff, min.diff.pct = pct.cutoof)
+    list.marker.go.C2.M[[as.character(cell)]] <- sub.markers
+}
+
+list.all.diff <- list.marker.go
+file.all.diff <- paste0(path_C2M, 'diff_genes.Rdata')
+saveRDS(list.all.diff, file = file.all.diff)
+
+# C3 vs M1M2M3
+seurat.C3.M <- subset(seurat.chon, subset = batch %in% c('C3', 'M1', 'M2', 'M3'))
+
 
 
