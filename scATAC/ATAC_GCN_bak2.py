@@ -15,15 +15,13 @@ import anndata as ad
 from collections import defaultdict
 from multiprocessing import Pool
 from functools import partial
-import pickle
 import torch
 from torch_geometric.datasets import TUDataset
 from torch_geometric.data import InMemoryDataset, Data, DataLoader
 import torch.nn as nn
 import torch.nn.functional as nn_func
 import torch_geometric.nn as geo_nn
-from captum.attr import Saliency, IntegratedGradients
-import random
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 
 class ATACDataset(object):
@@ -93,7 +91,7 @@ class ATACDataset(object):
         df_sum.name = gene
         return df_sum
 
-    def add_promoter(self, file_promoter, num_threads=3):
+    def add_promoter(self, file_promoter, num_threads=20):
         if not os.path.exists(self.file_peaks_sort):
             self.generate_peaks_file()
         file_peaks_promoter = os.path.join(self.path_process, 'peaks_promoter.txt')
@@ -184,7 +182,6 @@ def one_test(all_genes, adata_ATAC, adata_merge_peak, array_peak, array_celltype
         list_df.append(df_corr)
 
     df_corr_cell = pd.concat(list_df).fillna(0)
-    print(cell)
     array_region1 = df_corr_cell['gene'].apply(lambda x: np.argwhere(array_peak == x)[0, 0])
     array_region2 = df_corr_cell['distal'].apply(lambda x: np.argwhere(array_peak == x)[0, 0])
     df_graph_index = torch.tensor([np.array(array_region1), np.array(array_region2)],
@@ -194,6 +191,8 @@ def one_test(all_genes, adata_ATAC, adata_merge_peak, array_peak, array_celltype
                      edge_attr=torch.reshape(torch.Tensor(df_corr_cell['corr'].tolist()),
                                              (df_corr_cell.shape[0], 1)),
                      y=label_idx)
+    print(cell)
+
     return cell_data
 
 
@@ -208,8 +207,7 @@ def generate_data_list(graph_data, dataset_atac, num_threads):
     array_peak = np.array(adata_merge_peak.var.index)
     array_celltype = np.unique(np.array(adata_ATAC.obs['celltype']))
 
-    list_idx = range(0, adata_ATAC.n_obs)
-    # list_idx = range(0, 10)
+    list_idx = list(range(0, adata_ATAC.n_obs))
     pool = Pool(num_threads)
     func_test = partial(one_test, all_genes, adata_ATAC, adata_merge_peak,
                         array_peak, array_celltype)
@@ -220,7 +218,7 @@ def generate_data_list(graph_data, dataset_atac, num_threads):
 
 
 class ATACGraphDataset(InMemoryDataset):
-    def __init__(self, root, data_list=None):
+    def __init__(self, root, data_list):
         self.data_list = data_list
         super(ATACGraphDataset, self).__init__(root)
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -244,40 +242,28 @@ class ATACGraphDataset(InMemoryDataset):
 
 
 class GCN(torch.nn.Module):
-    def __init__(self, input_channels, output_channels, hidden_channels):
+    def __init__(self, hidden_channels):
         super(GCN, self).__init__()
         torch.manual_seed(12345)
-        self.lin1 = nn.Linear(input_channels, 8)
-        self.conv1 = geo_nn.GraphConv(8, hidden_channels)
-        self.conv2 = geo_nn.GraphConv(hidden_channels, hidden_channels)
-        self.conv3 = geo_nn.GraphConv(hidden_channels, hidden_channels)
-        # self.conv4 = geo_nn.GraphConv(hidden_channels, hidden_channels)
-        self.lin2 = nn.Sequential(
-            nn.Linear(hidden_channels, hidden_channels//2),
-            nn.ReLU(),
-            nn.Linear(hidden_channels//2, output_channels)
-        )
-        # self.softmax = nn.Softmax(dim=0)
+        self.conv1 = geo_nn.GCNConv(dataset.num_node_features, hidden_channels)
+        self.conv2 = geo_nn.GCNConv(hidden_channels, hidden_channels)
+        self.conv3 = geo_nn.GCNConv(hidden_channels, hidden_channels)
+        self.lin = nn.Linear(hidden_channels, dataset.num_classes)
 
-    def forward(self, x, edge_index, edge_weight, batch):
+    def forward(self, x, edge_index, batch):
         # 1. Obtain node embeddings
-        x = self.lin1(x)
+        x = self.conv1(x, edge_index)
         x = x.relu()
-        x = self.conv1(x, edge_index, edge_weight)
+        x = self.conv2(x, edge_index)
         x = x.relu()
-        x = self.conv2(x, edge_index, edge_weight)
-        x = x.relu()
-        x = self.conv3(x, edge_index, edge_weight)
-        # x = x.relu()
-        # x = self.conv4(x, edge_index, edge_weight)
+        x = self.conv3(x, edge_index)
 
         # 2. Readout layer
         x = geo_nn.global_mean_pool(x, batch)  # [batch_size, hidden_channels]
 
         # 3. Apply a final classifier
         x = nn_func.dropout(x, p=0.5, training=self.training)
-        x = self.lin2(x)
-        # x = self.softmax(x)
+        x = self.lin(x)
 
         return x
 
@@ -286,8 +272,7 @@ def train(loader):
     model.train()
     for data in loader:  # Iterate in batches over the training dataset.
         data = data.to(device)
-        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
-        # out = model(data.x, data.edge_index, data.batch)
+        out = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
         loss = criterion(out, data.y)  # Compute the loss.
         loss.backward()  # Derive gradients.
         optimizer.step()  # Update parameters based on gradients.
@@ -299,47 +284,10 @@ def test(loader):
     correct = 0
     for data in loader:  # Iterate in batches over the training/test dataset.c
         data = data.to(device)
-        # out = model(data.x, data.edge_index, data.batch)
-        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+        out = model(data.x, data.edge_index, data.batch)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         correct += int((pred == data.y).sum())  # Check against ground-truth labels.
     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
-
-
-def model_forward(edge_mask, data):
-    batch = torch.zeros(data.x.shape[0], dtype=int).to(device)
-    out = model(data.x, data.edge_index, edge_mask, batch)
-    return out
-
-
-def explain(method, data, target=0):
-    input_mask = torch.ones(data.edge_index.shape[1]).requires_grad_(True).to(device)
-    if method == 'ig':
-        ig = IntegratedGradients(model_forward)
-        mask = ig.attribute(input_mask, target=target,
-                            additional_forward_args=(data,),
-                            internal_batch_size=data.edge_index.shape[1])
-    elif method == 'saliency':
-        saliency = Saliency(model_forward)
-        mask = saliency.attribute(input_mask, target=target,
-                                  additional_forward_args=(data,))
-    else:
-        raise Exception('Unknown explanation method')
-
-    edge_mask = np.abs(mask.cpu().detach().numpy())
-    if edge_mask.max() > 0:  # avoid division by zero
-        edge_mask = edge_mask / edge_mask.max()
-    return edge_mask
-
-
-def aggregate_edge_directions(edge_mask, data):
-    edge_mask_dict = defaultdict(float)
-    for val, u, v in list(zip(edge_mask, *data.edge_index)):
-        u, v = u.item(), v.item()
-        if u > v:
-            u, v = v, u
-        edge_mask_dict[(u, v)] += val
-    return edge_mask_dict
 
 
 if __name__ == '__main__':
@@ -350,219 +298,44 @@ if __name__ == '__main__':
     df_meta = pd.read_csv(file_meta_tsv, sep='\t', index_col=0)
     dataset_ATAC.adata.obs['celltype'] = df_meta.loc[dataset_ATAC.adata.obs.index, 'celltype']
 
-    dataset_ATAC.quality_control(min_features=3000)
-    file_gene_hg38 = '/root/scATAC/Gene_anno/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
-    dataset_ATAC.add_promoter(file_gene_hg38)
+    dataset_ATAC.quality_control()
     dataset_ATAC.find_neighbors()
-    dataset_ATAC.plot_umap()
+    # adata_ATAC.plot_umap()
+    file_gene_hg38 = '/root/scATAC/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
+    dataset_ATAC.add_promoter(file_gene_hg38)
 
+    path_hic = '/root/scATAC/pcHi-C/Interactions_by_tissue/Dorsolateral_Prefrontal_Cortex'
+    df_graph = dataset_ATAC.build_graph(path_hic)
     time_end = time()
     print(time_end - time_start)
 
-    # save data
-    file_atac_test = os.path.join(path_data_root, 'dataset_atac.pkl')
-    with open(file_atac_test, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(dataset_ATAC)
-        w_pkl.write(str_pkl)
-
-    # read data
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_atac_test = os.path.join(path_data_root, 'dataset_atac.pkl')
-    with open(file_atac_test, 'rb') as r_pkl:
-        dataset_ATAC = pickle.loads(r_pkl.read())
-
     time_start = time()
-    path_hic = '/root/scATAC/pcHi-C/Interactions_by_tissue/Dorsolateral_Prefrontal_Cortex'
-    df_graph = dataset_ATAC.build_graph(path_hic)
-    torch.multiprocessing.set_sharing_strategy('file_system')
-    list_graph_data, peaks, celltypes = generate_data_list(df_graph, dataset_ATAC, 20)
+    list_graph_data, peaks, celltypes = generate_data_list(df_graph, dataset_ATAC, 30)
     path_graph_input = os.path.join(path_data_root, 'input_graph')
     dataset_atac_graph = ATACGraphDataset(path_graph_input, list_graph_data)
     time_end = time()
     print(time_end - time_start)
 
-    path_graph_input = os.path.join(path_data_root, 'input_graph')
-    dataset_atac_graph = ATACGraphDataset(path_graph_input)
-
     # train model
-    time_start = time()
-    device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(12345)
     dataset = dataset_atac_graph.shuffle()
-    train_dataset = dataset[:1600]
-    test_dataset = dataset[1600:]
+    train_dataset = dataset[:800]
+    test_dataset = dataset[800:]
 
-    model = GCN(input_channels=dataset.num_node_features,
-                output_channels=dataset.num_classes, hidden_channels=32)
+    model = GCN(hidden_channels=64).to(device)
     print(model)
-    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.CrossEntropyLoss()
 
-    train_loader = DataLoader(train_dataset, batch_size=40, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=800, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=200, shuffle=False)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    for epoch in range(1, 101):
-        train(train_loader)
-        train_acc = test(train_loader)
-        test_acc = test(test_loader)
-        print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-    for epoch in range(1, 101):
-        train(train_loader)
-        train_acc = test(train_loader)
-        test_acc = test(test_loader)
-        print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0025)
     for epoch in range(1, 201):
         train(train_loader)
         train_acc = test(train_loader)
         test_acc = test(test_loader)
         print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    for epoch in range(1, 201):
-        train(train_loader)
-        train_acc = test(train_loader)
-        test_acc = test(test_loader)
-        print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
-
-    time_end = time()
-    print(time_end - time_start)
-
-    # save model
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(model)
-        w_pkl.write(str_pkl)
-
-    # read model
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'rb') as r_pkl:
-        model = pickle.loads(r_pkl.read())
-
-    model.eval()
-    correct = 0
-    list_pred = []
-    list_true = []
-    for data in test_loader:  # Iterate in batches over the training/test dataset.c
-        data = data.to(device)
-        # out = model(data.x, data.edge_index, data.batch)
-        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
-        pred = out.argmax(dim=1)  # Use the class with highest probability.
-        list_pred.extend(pred.cpu().numpy())
-        list_true.extend(data.y.cpu().numpy())
-    df_res = pd.DataFrame(dict(pred=list_pred, ture=list_true))
-    pd.crosstab(index=df_res['pred'], columns=df_res['ture'])
-
-    data = random.choice([t for t in test_dataset if not t.y.item()]).to(device)
-    method = 'ig'
-    # method = 'saliency'
-    edge_mask = explain(method, data, target=0)
-    edge_mask_dict = aggregate_edge_directions(edge_mask, data)
-
-    train_loader = DataLoader(dataset_atac_graph, batch_size=40, shuffle=True)
-    model.eval()
-    list_data = []
-    list_bool = []
-    for data in train_loader:  # Iterate in batches over the training/test dataset.c
-        data = data.to(device)
-        # out = model(data.x, data.edge_index, data.batch)
-        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
-        pred = out.argmax(dim=1)  # Use the class with highest probability.
-        df_res = pd.DataFrame(dict(pred=pred.cpu().numpy(), true=data.y.cpu().numpy()))
-        list_data.extend(data[list(df_res.index)])
-        list_bool.extend(list(df_res.apply(lambda x: x['pred'] == x['true'], axis=1)))
-
-    list_dict = []
-    list_labels = []
-    method = 'ig'
-    # i = 0
-    for data in list_data:
-        data = data.to(device)
-        edge_mask = explain(method, data, target=data.y.to(device))
-        edge_mask_dict = aggregate_edge_directions(edge_mask, data)
-        list_dict.append(edge_mask_dict)
-        list_labels.extend(data.y.cpu().numpy())
-        # i = i + 1
-        # if i > 10:
-        #     break
-    df_weight = pd.DataFrame(list_dict)
-
-    adata_edge = ad.AnnData(X=df_weight,
-                            obs=pd.DataFrame(dict(celltype=[celltypes[label] for label in list_labels],
-                                                  correct_bool=list_bool)))
-    # adata_edge.obs['correct_bool'] = list_bool
-
-    # save weight
-    file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    with open(file_weight, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(adata_edge)
-        w_pkl.write(str_pkl)
-
-    # read weight
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    with open(file_weight, 'rb') as r_pkl:
-        adata_edge = pickle.loads(r_pkl.read())
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['celltype', 'correct_bool'])
-
-    # read model
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'rb') as r_pkl:
-        model = pickle.loads(r_pkl.read())
-
-    list_dict = []
-    list_labels = []
-    method = 'saliency'
-    # i = 0
-    for data in dataset_atac_graph:
-        data = data.to(device)
-        edge_mask = explain(method, data, target=data.y.to(device))
-        edge_mask_dict = aggregate_edge_directions(edge_mask, data)
-        list_dict.append(edge_mask_dict)
-        list_labels.extend(data.y.cpu().numpy())
-        # i = i + 1
-        # if i > 10:
-        #     break
-    df_weight = pd.DataFrame(list_dict)
-    adata_edge = ad.AnnData(X=df_weight, obs=dataset_ATAC.adata.obs)
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['nb_features', 'celltype'])
-
-    # build edge matrix
-    list_edgr_attr = [pd.Series(one_data.edge_attr.numpy().reshape(-1))
-                      for one_data in dataset_atac_graph]
-    df_edge = pd.concat(list_edgr_attr, axis=1)
-    df_edge = df_edge.applymap(lambda x: np.abs(x))
-    adata_edge = ad.AnnData(X=df_edge.T, obs=dataset_ATAC.adata.obs)
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['nb_features', 'celltype'])
 
 

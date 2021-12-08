@@ -1,6 +1,4 @@
-#!/usr/bin/env python
 # _*_ coding: utf-8 _*_
-
 # @author: Drizzle_Zhang
 # @file: ATAC_GCN.py
 # @time: 2021/8/24 14:39
@@ -24,6 +22,7 @@ import torch.nn.functional as nn_func
 import torch_geometric.nn as geo_nn
 from captum.attr import Saliency, IntegratedGradients
 import random
+from scipy.stats import kstest
 
 
 class ATACDataset(object):
@@ -184,7 +183,6 @@ def one_test(all_genes, adata_ATAC, adata_merge_peak, array_peak, array_celltype
         list_df.append(df_corr)
 
     df_corr_cell = pd.concat(list_df).fillna(0)
-    print(cell)
     array_region1 = df_corr_cell['gene'].apply(lambda x: np.argwhere(array_peak == x)[0, 0])
     array_region2 = df_corr_cell['distal'].apply(lambda x: np.argwhere(array_peak == x)[0, 0])
     df_graph_index = torch.tensor([np.array(array_region1), np.array(array_region2)],
@@ -194,6 +192,7 @@ def one_test(all_genes, adata_ATAC, adata_merge_peak, array_peak, array_celltype
                      edge_attr=torch.reshape(torch.Tensor(df_corr_cell['corr'].tolist()),
                                              (df_corr_cell.shape[0], 1)),
                      y=label_idx)
+    print(i)
     return cell_data
 
 
@@ -209,7 +208,7 @@ def generate_data_list(graph_data, dataset_atac, num_threads):
     array_celltype = np.unique(np.array(adata_ATAC.obs['celltype']))
 
     list_idx = range(0, adata_ATAC.n_obs)
-    # list_idx = range(0, 10)
+    # list_idx = range(1550, 1967)
     pool = Pool(num_threads)
     func_test = partial(one_test, all_genes, adata_ATAC, adata_merge_peak,
                         array_peak, array_celltype)
@@ -251,7 +250,6 @@ class GCN(torch.nn.Module):
         self.conv1 = geo_nn.GraphConv(8, hidden_channels)
         self.conv2 = geo_nn.GraphConv(hidden_channels, hidden_channels)
         self.conv3 = geo_nn.GraphConv(hidden_channels, hidden_channels)
-        # self.conv4 = geo_nn.GraphConv(hidden_channels, hidden_channels)
         self.lin2 = nn.Sequential(
             nn.Linear(hidden_channels, hidden_channels//2),
             nn.ReLU(),
@@ -268,8 +266,6 @@ class GCN(torch.nn.Module):
         x = self.conv2(x, edge_index, edge_weight)
         x = x.relu()
         x = self.conv3(x, edge_index, edge_weight)
-        # x = x.relu()
-        # x = self.conv4(x, edge_index, edge_weight)
 
         # 2. Readout layer
         x = geo_nn.global_mean_pool(x, batch)  # [batch_size, hidden_channels]
@@ -344,7 +340,7 @@ def aggregate_edge_directions(edge_mask, data):
 
 if __name__ == '__main__':
     time_start = time()
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_PLAC'
     dataset_ATAC = ATACDataset(data_root=path_data_root, raw_filename='counts.tsv')
     file_meta_tsv = os.path.join(path_data_root, 'metadata.tsv')
     df_meta = pd.read_csv(file_meta_tsv, sep='\t', index_col=0)
@@ -353,9 +349,9 @@ if __name__ == '__main__':
     dataset_ATAC.quality_control(min_features=3000)
     file_gene_hg38 = '/root/scATAC/Gene_anno/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
     dataset_ATAC.add_promoter(file_gene_hg38)
-    dataset_ATAC.find_neighbors()
-    dataset_ATAC.plot_umap()
 
+    dataset_ATAC.find_neighbors()
+    # dataset_ATAC.plot_umap()
     time_end = time()
     print(time_end - time_start)
 
@@ -366,23 +362,24 @@ if __name__ == '__main__':
         w_pkl.write(str_pkl)
 
     # read data
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_PLAC'
     file_atac_test = os.path.join(path_data_root, 'dataset_atac.pkl')
     with open(file_atac_test, 'rb') as r_pkl:
         dataset_ATAC = pickle.loads(r_pkl.read())
 
     time_start = time()
-    path_hic = '/root/scATAC/pcHi-C/Interactions_by_tissue/Dorsolateral_Prefrontal_Cortex'
+    path_hic = '/root/scATAC/pcHi-C/Cortex_PLACSeq/hg38'
     df_graph = dataset_ATAC.build_graph(path_hic)
+    df_graph = df_graph.drop_duplicates()
     torch.multiprocessing.set_sharing_strategy('file_system')
-    list_graph_data, peaks, celltypes = generate_data_list(df_graph, dataset_ATAC, 20)
+    list_graph_data, peaks, celltypes = generate_data_list(df_graph, dataset_ATAC, 25)
     path_graph_input = os.path.join(path_data_root, 'input_graph')
     dataset_atac_graph = ATACGraphDataset(path_graph_input, list_graph_data)
+    # dataset_atac_graph = ATACGraphDataset(path_graph_input)
+    file_peaks_celltypes = os.path.join(path_graph_input, 'peaks_celltypes')
+    np.savez(file_peaks_celltypes, peaks=peaks, celltypes=celltypes)
     time_end = time()
     print(time_end - time_start)
-
-    path_graph_input = os.path.join(path_data_root, 'input_graph')
-    dataset_atac_graph = ATACGraphDataset(path_graph_input)
 
     # train model
     time_start = time()
@@ -398,8 +395,8 @@ if __name__ == '__main__':
     model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
 
-    train_loader = DataLoader(train_dataset, batch_size=40, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     for epoch in range(1, 101):
@@ -428,21 +425,8 @@ if __name__ == '__main__':
         train_acc = test(train_loader)
         test_acc = test(test_loader)
         print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
-
     time_end = time()
     print(time_end - time_start)
-
-    # save model
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(model)
-        w_pkl.write(str_pkl)
-
-    # read model
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'rb') as r_pkl:
-        model = pickle.loads(r_pkl.read())
 
     model.eval()
     correct = 0
@@ -465,23 +449,23 @@ if __name__ == '__main__':
     edge_mask_dict = aggregate_edge_directions(edge_mask, data)
 
     train_loader = DataLoader(dataset_atac_graph, batch_size=40, shuffle=True)
+    train(train_loader)
     model.eval()
-    list_data = []
-    list_bool = []
+    correct_data = []
     for data in train_loader:  # Iterate in batches over the training/test dataset.c
         data = data.to(device)
         # out = model(data.x, data.edge_index, data.batch)
         out = model(data.x, data.edge_index, data.edge_attr, data.batch)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         df_res = pd.DataFrame(dict(pred=pred.cpu().numpy(), true=data.y.cpu().numpy()))
-        list_data.extend(data[list(df_res.index)])
-        list_bool.extend(list(df_res.apply(lambda x: x['pred'] == x['true'], axis=1)))
+        correct_data.extend(
+            data[list(df_res.index[df_res.apply(lambda x: x['pred'] == x['true'], axis=1)])])
 
     list_dict = []
     list_labels = []
-    method = 'ig'
+    method = 'saliency'
     # i = 0
-    for data in list_data:
+    for data in correct_data:
         data = data.to(device)
         edge_mask = explain(method, data, target=data.y.to(device))
         edge_mask_dict = aggregate_edge_directions(edge_mask, data)
@@ -493,21 +477,7 @@ if __name__ == '__main__':
     df_weight = pd.DataFrame(list_dict)
 
     adata_edge = ad.AnnData(X=df_weight,
-                            obs=pd.DataFrame(dict(celltype=[celltypes[label] for label in list_labels],
-                                                  correct_bool=list_bool)))
-    # adata_edge.obs['correct_bool'] = list_bool
-
-    # save weight
-    file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    with open(file_weight, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(adata_edge)
-        w_pkl.write(str_pkl)
-
-    # read weight
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    with open(file_weight, 'rb') as r_pkl:
-        adata_edge = pickle.loads(r_pkl.read())
+                            obs=pd.DataFrame(dict(celltype=[str(label) for label in list_labels])))
     # sc.pp.normalize_total(adata)
     # sc.pp.log1p(adata)
     sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
@@ -516,53 +486,100 @@ if __name__ == '__main__':
     sc.tl.pca(adata, svd_solver='arpack')
     sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
     sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['celltype', 'correct_bool'])
-
-    # read model
-    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain'
-    file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
-    with open(file_atac_model, 'rb') as r_pkl:
-        model = pickle.loads(r_pkl.read())
-
-    list_dict = []
-    list_labels = []
-    method = 'saliency'
-    # i = 0
-    for data in dataset_atac_graph:
-        data = data.to(device)
-        edge_mask = explain(method, data, target=data.y.to(device))
-        edge_mask_dict = aggregate_edge_directions(edge_mask, data)
-        list_dict.append(edge_mask_dict)
-        list_labels.extend(data.y.cpu().numpy())
-        # i = i + 1
-        # if i > 10:
-        #     break
-    df_weight = pd.DataFrame(list_dict)
-    adata_edge = ad.AnnData(X=df_weight, obs=dataset_ATAC.adata.obs)
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['nb_features', 'celltype'])
+    sc.pl.umap(adata, color=['celltype'])
 
     # build edge matrix
-    list_edgr_attr = [pd.Series(one_data.edge_attr.numpy().reshape(-1))
+    list_edgr_attr = [pd.Series(one_data.edge_attr.numpy().reshape(-1),
+                                index=[(one_data.edge_index.numpy()[0, i],
+                                        one_data.edge_index.numpy()[1, i])
+                                       for i in range(one_data.edge_index.numpy().shape[1])])
                       for one_data in dataset_atac_graph]
     df_edge = pd.concat(list_edgr_attr, axis=1)
-    df_edge = df_edge.applymap(lambda x: np.abs(x))
+    # df_edge = df_edge.applymap(lambda x: np.abs(x))
     adata_edge = ad.AnnData(X=df_edge.T, obs=dataset_ATAC.adata.obs)
+    adata_edge.raw = adata_edge.copy()
     # sc.pp.normalize_total(adata)
     # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
-    sc.pl.umap(adata, color=['nb_features', 'celltype'])
+    # sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
+    # adata_edge = adata_edge[:, adata_edge.var.highly_variable]
+    sc.pp.scale(adata_edge, max_value=10)
+    sc.tl.pca(adata_edge, svd_solver='arpack')
+    sc.pp.neighbors(adata_edge, n_neighbors=15, n_pcs=50)
+    sc.tl.umap(adata_edge)
+    sc.pl.umap(adata_edge, color=['nb_features', 'celltype'])
 
+    # rank edge
+    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True)
+    array_names = adata_edge.uns['rank_genes_groups']['names']
+    array_scores = adata_edge.uns['rank_genes_groups']['scores']
 
+    file_peaks_celltypes = os.path.join(path_graph_input, 'peaks_celltypes.npz')
+    filenpz = np.load(file_peaks_celltypes, allow_pickle=True)
+    peaks = filenpz['peaks']
+    celltypes = filenpz['celltypes']
+    dict_cell_scores = {}
+    for idx_cell in range(len(celltypes)):
+        cell_name = celltypes[idx_cell]
+        list_edge_names = []
+        list_edge_scores = []
+        for idx_edge in range(array_names.shape[0]):
+            edge_name = array_names[idx_edge][idx_cell]
+            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
+            list_edge_scores.append(array_scores[idx_edge][idx_cell])
+        dict_cell_scores[cell_name] = pd.Series(list_edge_scores, index=list_edge_names)
+
+    # cell type specific interactome
+    df_graph_pp = df_graph.loc[df_graph['region2'].apply(lambda x: x[:3] != 'chr'), :]
+    list_pp = df_graph_pp.apply(lambda x: (x['region1'], x['region2']), axis=1).tolist()
+    df_graph_po = df_graph.loc[df_graph['region2'].apply(lambda x: x[:3] == 'chr'), :]
+    list_po = df_graph_po.apply(lambda x: (x['region1'], x['region2']), axis=1).tolist()
+    path_cell_interatome = os.path.join(path_data_root, 'cell_interatome')
+    file_po = os.path.join(path_cell_interatome, 'PO.bed')
+    with open(file_po, 'w') as w_po:
+        for pair in list_po:
+            pair_1 = pair[0]
+            pair_2 = pair[1]
+            chrom = pair_2.split(':')[0]
+            start = pair_2.split(':')[1].split('-')[0]
+            end = pair_2.split(':')[1].split('-')[1]
+            w_po.write(f"{chrom}\t{start}\t{end}\t{pair_1}\t{pair_2}\n")
+
+    list_cell = ['Microglia', 'Neuron', 'Oligo']
+    path_hic = '/root/scATAC/pcHi-C/Cortex_PLACSeq/hg38'
+    list_df_pp = []
+    list_df_po = []
+    for cell in list_cell:
+        path_cell_hg38 = os.path.join(path_hic, cell)
+        file_pp_cell = os.path.join(path_cell_hg38, 'PP.txt')
+        file_po_cell = os.path.join(path_cell_hg38, 'PO.txt')
+        path_cell = os.path.join(path_cell_interatome, cell)
+        if not os.path.exists(path_cell):
+            os.mkdir(path_cell)
+        file_intersect = os.path.join(path_cell, 'PO_intersect.txt')
+        os.system(f"bedtools intersect -a {file_po} -b {file_po_cell} -wao > {file_intersect}")
+        df_intersect = pd.read_csv(file_intersect, sep='\t', header=None)
+        df_po_cell = df_intersect.loc[df_intersect.iloc[:, 5] != '.', [3, 4]]
+        df_po_cell = df_po_cell.drop_duplicates()
+        df_po_cell.columns = ['region1', 'region2']
+        df_pp_cell = pd.read_csv(file_pp_cell, sep='\t', header=None)
+        df_pp_cell.columns = ['region1', 'region2']
+        set_pp_cell = set(df_pp_cell.apply(lambda x: (x['region1'], x['region2']), axis=1).tolist())
+        list_df_pp.append(pd.Series([pair in set_pp_cell for pair in list_pp], index=list_pp))
+        set_po_cell = set(df_po_cell.apply(lambda x: (x['region1'], x['region2']), axis=1).tolist())
+        list_df_po.append(pd.Series([pair in set_po_cell for pair in list_po], index=list_po))
+
+    df_pp = pd.concat(list_df_pp, axis=1)
+    df_po = pd.concat(list_df_po, axis=1)
+    df_cell = pd.concat([df_pp, df_po], axis=0)
+    df_cell.columns = list_cell
+
+    # ks test
+    df_pval = pd.DataFrame(np.full(shape=(len(list_cell), len(celltypes)), fill_value=1),
+                           index=list_cell, columns=celltypes)
+    for cell in list_cell:
+        cell_pair = df_cell.index[df_cell[cell]]
+        for celltype in celltypes:
+            all_score = dict_cell_scores[celltype]
+            cell_score = all_score[cell_pair]
+            df_pval.loc[cell, celltype] = \
+                kstest(np.array(cell_score), np.array(all_score), alternative='less')[1]

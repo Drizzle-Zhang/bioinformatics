@@ -90,9 +90,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 criterion = torch.nn.CrossEntropyLoss()
 
 
-def train():
+def train(loader):
     model.train()
-    for data in train_loader:  # Iterate in batches over the training dataset.
+    for data in loader:  # Iterate in batches over the training dataset.
         data = data.to(device)
         out = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
         loss = criterion(out, data.y)  # Compute the loss.
@@ -103,7 +103,6 @@ def train():
 
 def test(loader):
     model.eval()
-
     correct = 0
     for data in loader:  # Iterate in batches over the training/test dataset.c
         data = data.to(device)
@@ -114,7 +113,7 @@ def test(loader):
 
 
 for epoch in range(1, 201):
-    train()
+    train(train_loader)
     train_acc = test(train_loader)
     test_acc = test(test_loader)
     print(f'Epoch: {epoch:03d}, Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
