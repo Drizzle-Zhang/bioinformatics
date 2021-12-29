@@ -1,38 +1,18 @@
-# if (!requireNamespace("devtools", quietly=TRUE))    
-#     install.packages("devtools")
-# library(devtools)
-# if (!requireNamespace("amplicon", quietly=TRUE))    
-#     install_github("microbiota/amplicon")
-# suppressWarnings(suppressMessages(library(amplicon)))
-
 library(ggplot2)
 library(gg3D)
 library(amplicon)
 
 # input file 
-file_unweighted_unifrac <- 
-    '/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/PCoA/pcoa_unweighted_unifrac_otu_table_even.txt'
 file_bray_curtis <- 
     '/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/PCoA/pcoa_bray_curtis_otu_table_even.txt'
 
-# mtx_unweighted_unifrac <- read.table(file_unweighted_unifrac, header = T, 
-#                                      row.names = 1, sep = '\t')
-# mtx_bray_curtis <- read.table(file_bray_curtis, header = T, 
-#                               row.names = 1, sep = '\t')
-
 # meta file
-meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
+meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.txt'
 df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
 df.meta$Dose <- as.factor(df.meta$Dose)
 
-series.time <- c(-1, 1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
-sel.meta <- df.meta[df.meta$Time %in% series.time,]
-# sel.meta <- df.meta[df.meta$Time == 'A',]
-# sel.meta <- df.meta[df.meta$Dose %in% c(1, 2, 3),]
-
 # decomposition from distance matrix
 type.distance <- 'bray_curtis'
-# type.distance <- 'unweighted_unifrac'
 file.distance <- 
     paste0('/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/Distance/', 
            type.distance, '_otu_table_even.txt')
@@ -44,14 +24,12 @@ mtx_bray_curtis <- points
 
 mtx.in <- mtx_bray_curtis
 use.pc <- 10
-# col.name <- paste0('X', 1:use.pc)
 col.name <- paste0('V', 1:use.pc)
-mat.plot <- mtx.in[sel.meta$SampleName, col.name]
+mat.plot <- mtx.in[df.meta$SampleName, col.name]
 names(mat.plot) <- paste0('PCo', 1:use.pc)
-mat.plot <- cbind(mat.plot, sel.meta)
+mat.plot <- cbind(mat.plot, df.meta)
 mat.plot.dose <- mat.plot[mat.plot$Dose %in% c(1, 2, 3),]
-### 2D plot
-# plot.unweighted_unifrac <- 
+plot.unweighted_unifrac <-
 ggplot(mat.plot, aes(x = PCo1, y = PCo4, color = Group)) + 
     geom_point(size = 2)
 ggplot(mat.plot, aes(x = PCo4, y = PCo6, color = Group)) + 
@@ -171,16 +149,16 @@ ggsave(path = '/home/drizzle_zhang/microbiome/result/5.Beta_Diversity/PCoA',
 sub.time = '1'
 vec.dose <- c(0, 3)
 gender <- 'male'
-sel.meta <- df.meta
-sel.meta <- df.meta[df.meta$Time == sub.time,]
-sel.meta <- sel.meta[sel.meta$Dose %in% vec.dose,]
-sel.meta <- sel.meta[sel.meta$Gender == gender,]
-row.names(sel.meta) <- sel.meta$SampleName
+df.meta <- df.meta
+df.meta <- df.meta[df.meta$Time == sub.time,]
+df.meta <- df.meta[df.meta$Dose %in% vec.dose,]
+df.meta <- df.meta[df.meta$Gender == gender,]
+row.names(df.meta) <- df.meta$SampleName
 # select sample
-use.sample <- sel.meta$SampleName
+use.sample <- df.meta$SampleName
 mat.select <- mat.distance[use.sample, use.sample]
 plot.beta <- 
-    beta_pcoa(mat.select, sel.meta, groupID = 'Group') + 
+    beta_pcoa(mat.select, df.meta, groupID = 'Group') + 
     theme_bw() + 
     theme(panel.background = element_rect(color = 'black', size = 1,
                                           fill = 'transparent'),
@@ -193,10 +171,3 @@ ggsave(path = path.plot,
        filename = paste0('example_Group.png'),
        plot = plot.beta, height = 9, width = 8, units = 'cm')
 
-
-# theta=60
-# phi=30
-# # plot.unweighted_unifrac <- 
-# ggplot(mat.plot, aes(x = PC1, y = PC2, z = PC3, color = Group)) + 
-#     axes_3D(theta=theta, phi=phi) + stat_3D(theta=theta, phi=phi) + 
-#     labs_3D(theta=theta, phi=phi)

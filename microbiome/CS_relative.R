@@ -1,6 +1,7 @@
 library(tidyverse)
 library(RColorBrewer)
 library(stringr)
+library(ggplot2)
 
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
@@ -21,7 +22,7 @@ class <- read.table(file = file, header = TRUE, row.names = 1,
                     sep = '\t', stringsAsFactors = FALSE,
                     check.names = FALSE)
 row.names(class) <- str_replace_all(row.names(class), '-', '_')
-
+    
 # time series
 path.plot <- paste0('/home/drizzle_zhang/microbiome/result/3.Community_Structure/barplot_',
                     level)

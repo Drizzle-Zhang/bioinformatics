@@ -2,7 +2,8 @@
 library(amplicon)
 
 file.in <- '/home/drizzle_zhang/microbiome/result/4.Alpha_Diversity/alpha_index_table/alpha_estimator_summary.csv'
-mat.alpha <- read.table(file.in, sep = ',', header = T, row.names = 1)
+mat.alpha <- read.table(file.in, sep = '\t', header = T, row.names = 1)
+type.dose <- c(0, 1, 2, 3)
 
 # meta file
 meta.file <- '/home/drizzle_zhang/microbiome/result/meta_sample.out.txt'
@@ -17,12 +18,13 @@ df.meta <- df.meta[df.meta$Gender == gender,]
 sample.male <- df.meta[, 'Sample']
 mat.alpha.male <- mat.alpha[sample.male,]
 # normalization
-mat.combine <- cbind(mat.alpha.male, df.meta)
+mat.combine <- merge(mat.alpha, df.meta, by = 'row.names')
+row.names(mat.combine) <- mat.combine$Row.names
 type.dose <- unique(mat.combine$Dose)
 mat.alpha.norm <- data.frame()
 for (dose in type.dose) {
     baseline.alpha <- mat.combine[
-        ((mat.combine$Dose == dose) & (mat.combine$Time == 'A')), 
+        ((mat.combine$Dose == dose) & (mat.combine$Time == -1)), 
         c("observed_species", "shannon", "simpson")]
     baseline.alpha <- apply(baseline.alpha, 2, median)
     sub.mat.alpha <- mat.combine[
@@ -36,21 +38,22 @@ for (dose in type.dose) {
 # time series
 path.plot <- '/home/drizzle_zhang/microbiome/result/4.Alpha_Diversity/alpha_boxplot_gender'
 series.time <- unique(df.meta$Time)
+series.time <- c(-1, 1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
 df.plot.fit <- data.frame()
 i = 1
 for (sub.time in series.time) {
     # select meta
-    sel.meta <- df.meta
-    sel.meta <- df.meta[df.meta$Time == sub.time,]
+    sel.meta <- df.meta[df.meta$Gender == gender,]
+    sel.meta <- sel.meta[sel.meta$Time == sub.time,]
     # sel.meta <- sel.meta[sel.meta$Dose %in% c(0, 3),]
     row.names(sel.meta) <- sel.meta$Sample
     
     # select sample
-    use.sample <- sel.meta$Sample
+    use.sample <- sel.meta$SampleName
     mat.plot.in <- data.frame()
     for (alpha_index in c("observed_species", "shannon", "simpson")) {
         sub.mat <- data.frame(
-            value = mat.alpha.norm[use.sample, alpha_index],
+            value = mat.alpha[use.sample, alpha_index],
             type.alpha = rep(alpha_index, length(use.sample)),
             row.names = use.sample)
         sub.mat <- cbind(sub.mat, sel.meta)
@@ -92,6 +95,7 @@ for (sub.time in series.time) {
 #     ggplot(data = df.plot.fit, aes(x = Time, y = Shannon, color = Dose)) + 
 #     geom_line() + 
 #     geom_point()
+df.plot.fit$Dose <- as.factor(df.plot.fit$Dose)
 ggplot(data = df.plot.fit, aes(x = Time, y = Shannon, color = Dose)) + 
     geom_line() + 
     geom_point()
