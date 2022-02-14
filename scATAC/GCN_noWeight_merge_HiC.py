@@ -1,8 +1,7 @@
 # _*_ coding: utf-8 _*_
 # @author: Drizzle_Zhang
-# @file: ATAC_GCN.py
-# @time: 2021/8/24 14:39
-
+# @file: GraphConv.py
+# @time: 2021/9/9 11:58
 
 from time import time
 import os
@@ -14,6 +13,8 @@ import torch.nn.functional as F
 from torch_geometric.nn import GraphConv, TopKPooling
 from captum.attr import Saliency, IntegratedGradients
 from collections import defaultdict
+from multiprocessing import Pool
+from functools import partial
 from scipy.stats import kstest
 import episcanpy.api as epi
 import scanpy as sc
@@ -21,7 +22,6 @@ import pandas as pd
 import anndata as ad
 import pickle
 import captum.attr as attr
-import random
 
 
 class ATACDataset(object):
@@ -42,14 +42,9 @@ class ATACDataset(object):
         self.array_celltype = None
 
     def load_matrix(self):
-        if self.raw_filename[-5:] == '.h5ad':
-            adata = sc.read_h5ad(os.path.join(self.data_root, self.raw_filename))
-        elif self.raw_filename[-4:] == '.tsv':
-            adata = ad.read_text(
-                os.path.join(self.data_root, self.raw_filename),
-                delimiter='\t', first_column_names=True, dtype='int')
-        else:
-            raise ImportError("Input format error!")
+        adata = ad.read_text(
+            os.path.join(self.data_root, self.raw_filename),
+            delimiter='\t', first_column_names=True, dtype='int')
         return adata
 
     def generate_peaks_file(self):
@@ -146,11 +141,11 @@ class ATACDataset(object):
                 list_genes_2.extend([gene for _ in range(len(sub_peaks))])
                 list_peaks_2.extend(sub_peaks)
         adata_gene_1 = self.adata[:, list_peaks_1]
-        df_gene_peak_1 = pd.DataFrame(adata_gene_1.X.toarray(), index=adata_gene_1.obs.index,
+        df_gene_peak_1 = pd.DataFrame(adata_gene_1.X, index=adata_gene_1.obs.index,
                                       columns=list_genes_1)
         adata_gene_2 = self.adata[:, list_peaks_2]
         df_gene_peak_2 = pd.DataFrame(
-            adata_gene_2.X.toarray(),
+            adata_gene_2.X,
             index=adata_gene_2.obs.index,
             columns=pd.MultiIndex.from_arrays([list_genes_2, list_peaks_2], names=['gene', 'peak']))
         df_gene_peak_2_t = df_gene_peak_2.T
@@ -168,7 +163,7 @@ class ATACDataset(object):
             ad.AnnData(X=df_gene,
                        var=pd.DataFrame(data={'cRE_type': np.full(df_gene.shape[1], 'Promoter')},
                                         index=df_gene.columns),
-                       obs=self.adata.obs.loc[df_gene.index, :])
+                       obs=pd.DataFrame(index=df_gene.index))
         self.all_genes = set(df_gene.columns)
         adata_merge = ad.concat([adata_promoter, adata_other], axis=1)
         self.adata_merge = adata_merge
@@ -318,58 +313,57 @@ def model_forward(edge_mask, data, model):
 
 
 if __name__ == '__main__':
-    # AD
     time_start = time()
-    path_AD_Control = '/root/scATAC/ATAC_data/Alzheimer_Morabito/AD_Control'
-    dataset_AD_Control = ATACDataset(data_root=path_AD_Control, raw_filename='AD_Control.h5ad')
-    file_meta_tsv = os.path.join(path_AD_Control, 'metadata.csv')
-    df_meta = pd.read_csv(file_meta_tsv)
-    df_meta.index = df_meta['Barcode']
-    df_meta['celltype'] = df_meta.apply(lambda x: f"{x['Diagnosis']}_{x['Cell.Type']}", axis=1)
-    dataset_AD_Control.adata = dataset_AD_Control.adata[df_meta.index, :]
-    dataset_AD_Control.adata.obs = df_meta.loc[dataset_AD_Control.adata.obs.index, :]
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC'
+    dataset_ATAC = ATACDataset(data_root=path_data_root, raw_filename='counts.tsv')
+    file_meta_tsv = os.path.join(path_data_root, 'metadata.tsv')
+    df_meta = pd.read_csv(file_meta_tsv, sep='\t', index_col=0)
+    dataset_ATAC.adata.obs['celltype'] = df_meta.loc[dataset_ATAC.adata.obs.index, 'celltype']
 
-    dataset_AD_Control.quality_control(min_features=300, min_cells=30)
-    dataset_AD_Control.select_genes(num_peak=120000)
+    # dataset_ATAC.quality_control(min_features=3000, min_percent=0.05)
+    dataset_ATAC.quality_control(min_features=3000, min_cells=5)
+    dataset_ATAC.select_genes(num_peak=120000)
     file_gene_hg38 = '/root/scATAC/Gene_anno/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
-    dataset_AD_Control.add_promoter(file_gene_hg38)
-
+    dataset_ATAC.add_promoter(file_gene_hg38)
     # PLAC
     path_hic = '/root/scATAC/pcHi-C/Cortex_PLACSeq/hg38'
-    dataset_AD_Control.build_graph(path_hic)
-    df_graph_PLAC = dataset_AD_Control.df_graph
+    dataset_ATAC.build_graph(path_hic)
+    df_graph_PLAC = dataset_ATAC.df_graph
+    # pcHi-C
+    # path_hic = '/root/scATAC/pcHi-C/Interactions_by_tissue/Dorsolateral_Prefrontal_Cortex'
+    # dataset_ATAC.build_graph(path_hic)
+    # df_graph_pchic = dataset_ATAC.df_graph
+    # psych
 
-    dataset_AD_Control.generate_data_list()
-    list_graph_data = dataset_AD_Control.list_graph
-    path_graph_input = os.path.join(path_AD_Control, 'input_graph')
-    os.system(f"rm -rf {path_graph_input}")
-    os.mkdir(path_graph_input)
+    dataset_ATAC.generate_data_list()
+    list_graph_data = dataset_ATAC.list_graph
+    path_graph_input = os.path.join(path_data_root, 'input_graph')
+    os.system(f"rm -rf {path_graph_input}/*")
     dataset_atac_graph = ATACGraphDataset(path_graph_input, list_graph_data)
-
-    dataset_AD_Control.find_neighbors()
-    dataset_AD_Control.plot_umap()
+    # dataset_ATAC.find_neighbors()
+    # dataset_ATAC.plot_umap()
     time_end = time()
     print(time_end - time_start)
 
     # save data
-    file_atac_AD_Control = os.path.join(path_AD_Control, 'dataset_atac.pkl')
-    with open(file_atac_AD_Control, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(dataset_AD_Control)
+    file_atac_test = os.path.join(path_data_root, 'dataset_atac.pkl')
+    with open(file_atac_test, 'wb') as w_pkl:
+        str_pkl = pickle.dumps(dataset_ATAC)
         w_pkl.write(str_pkl)
 
     # read data
-    path_AD_Control = '/root/scATAC/ATAC_data/Alzheimer_Morabito/AD_Control'
-    file_atac_AD_Control = os.path.join(path_AD_Control, 'dataset_atac.pkl')
-    with open(file_atac_AD_Control, 'rb') as r_pkl:
-        dataset_AD_Control = pickle.loads(r_pkl.read())
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC'
+    file_atac_test = os.path.join(path_data_root, 'dataset_atac.pkl')
+    with open(file_atac_test, 'rb') as r_pkl:
+        dataset_ATAC = pickle.loads(r_pkl.read())
 
-    path_AD_Control = '/root/scATAC/ATAC_data/Alzheimer_Morabito/AD_Control'
-    path_graph_input = os.path.join(path_AD_Control, 'input_graph')
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC'
+    path_graph_input = os.path.join(path_data_root, 'input_graph')
     dataset_atac_graph = ATACGraphDataset(path_graph_input)
     torch.manual_seed(12345)
     dataset = dataset_atac_graph.shuffle()
-    train_dataset = dataset[:100000]
-    test_dataset = dataset[100000:]
+    train_dataset = dataset[:1700]
+    test_dataset = dataset[1700:]
 
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     model = GCN(input_channels=dataset.num_node_features,
@@ -393,6 +387,18 @@ if __name__ == '__main__':
             break
     time_end = time()
     print(time_end - time_start)
+
+    # # save model
+    # file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
+    # with open(file_atac_model, 'wb') as w_pkl:
+    #     str_pkl = pickle.dumps(model)
+    #     w_pkl.write(str_pkl)
+    #
+    # # read model
+    # path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC'
+    # file_atac_model = os.path.join(path_data_root, 'model_atac.pkl')
+    # with open(file_atac_model, 'rb') as r_pkl:
+    #     model = pickle.loads(r_pkl.read())
 
     # explain model
     all_loader = DataLoader(dataset_atac_graph, batch_size=32, shuffle=True)
@@ -450,272 +456,21 @@ if __name__ == '__main__':
     sc.tl.umap(adata, min_dist=0.2)
     sc.pl.umap(adata, color=['nb_features', 'celltype'])
 
-    # sample
-    time_start = time()
-    path_sample_110 = '/root/scATAC/ATAC_data/Alzheimer_Morabito/AD_Control_110'
-    dataset_AD_Control = ATACDataset(data_root=path_sample_110, raw_filename='AD_Control.h5ad')
-    file_meta_tsv = os.path.join(path_sample_110, 'metadata.csv')
-    df_meta = pd.read_csv(file_meta_tsv)
-    df_meta.index = df_meta['Barcode']
-    df_meta['celltype'] = df_meta.apply(lambda x: f"{x['Diagnosis']}_{x['Cell.Type']}", axis=1)
-    sel_cells = random.sample(list(df_meta.index), len(df_meta.index)//10)
-    dataset_AD_Control.adata = dataset_AD_Control.adata[sel_cells, :]
-    dataset_AD_Control.adata.obs = df_meta.loc[sel_cells, :]
-
-    dataset_AD_Control.quality_control(min_features=300, min_cells=10)
-    dataset_AD_Control.select_genes(num_peak=120000)
-    file_gene_hg38 = '/root/scATAC/Gene_anno/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
-    dataset_AD_Control.add_promoter(file_gene_hg38)
-
-    # PLAC
-    path_hic = '/root/scATAC/pcHi-C/Cortex_PLACSeq/hg38'
-    dataset_AD_Control.build_graph(path_hic)
-    df_graph_PLAC = dataset_AD_Control.df_graph
-
-    dataset_AD_Control.generate_data_list()
-    list_graph_data = dataset_AD_Control.list_graph
-    path_graph_input = os.path.join(path_sample_110, 'input_graph')
-    os.system(f"rm -rf {path_graph_input}")
-    os.mkdir(path_graph_input)
-    dataset_atac_graph = ATACGraphDataset(path_graph_input, list_graph_data)
-
-    dataset_AD_Control.find_neighbors()
-    dataset_AD_Control.plot_umap()
-    time_end = time()
-    print(time_end - time_start)
-
-    path_sample_110 = '/root/scATAC/ATAC_data/Alzheimer_Morabito/AD_Control_110'
-    path_graph_input = os.path.join(path_sample_110, 'input_graph')
-    dataset_atac_graph = ATACGraphDataset(path_graph_input)
-    torch.manual_seed(12345)
-    dataset = dataset_atac_graph.shuffle()
-    train_dataset = dataset[:10000]
-    test_dataset = dataset[10000:]
-
-    device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
-    model = GCN(input_channels=dataset.num_node_features,
-                output_channels=dataset.num_classes, hidden_channels=8,
-                num_nodes=dataset_atac_graph[0].num_nodes).to(device)
-    criterion = torch.nn.CrossEntropyLoss()
-
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-
-    # train model
-    time_start = time()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005)
-    for epoch in range(1, 50):
-        train(train_loader)
-        train_acc = test(train_loader)
-        test_acc = test(test_loader)
-        print(f'Epoch: {epoch:03d}, '
-              f'Train Acc: {train_acc:.4f}, Test Acc: {test_acc:.4f}')
-        if test_acc > 0.97:
-            break
-    time_end = time()
-    print(time_end - time_start)
-
-    # explain model
-    all_loader = DataLoader(dataset_atac_graph, batch_size=32, shuffle=True)
-    list_dict = []
-    method = 'ig'
-    # i = 0
-    for data in all_loader:
-        data = data.to(device)
-        target = data.y
-        input_mask = torch.ones(data.edge_index.shape[1]).requires_grad_(True).to(device)
-        # dl = attr.DeepLift(model_forward)
-        # mask = dl.attribute(input_mask, target=target,
-        #                     additional_forward_args=(data, model))
-        ig = IntegratedGradients(model_forward)
-        mask = ig.attribute(
-            input_mask, target=target, n_steps=50,
-            additional_forward_args=(data, model),
-            internal_batch_size=data.edge_index.shape[1])
-        batch_size = len(torch.unique(data.batch))
-        num_col = mask.shape[0]//batch_size
-        mask = mask.view(batch_size, num_col)
-        edge_mask = np.abs(mask.cpu().detach().numpy())
-        edge_mask = edge_mask / np.max(edge_mask, axis=1)[:, np.newaxis]
-        sub_edge_index = data.edge_index.cpu().numpy()
-        col_edge = [(sub_edge_index[0, i], sub_edge_index[1, i]) for i in range(num_col)]
-        list_dict.append(pd.DataFrame(edge_mask, columns=col_edge, index=data.cell))
-        # i = i + 1
-        # if i >= 10:
-        #     break
-    df_weight = pd.concat(list_dict)
-    # df_weight = df_weight.dropna()
-    # df_weight.index = dataset_ATAC.adata.obs.index
-
-    # # save weight
-    # file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    # with open(file_weight, 'wb') as w_pkl:
-    #     str_pkl = pickle.dumps(df_weight)
-    #     w_pkl.write(str_pkl)
-    #
-    # # read weight
-    # path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC'
-    # file_weight = os.path.join(path_data_root, 'weight_atac.pkl')
-    # with open(file_weight, 'rb') as r_pkl:
-    #     df_weight = pickle.loads(r_pkl.read())
-
-    adata_edge = ad.AnnData(X=df_weight, obs=dataset_AD_Control.adata.obs.loc[df_weight.index, :])
-    adata_edge.raw = adata_edge.copy()
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    adata = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack', n_comps=100)
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata, min_dist=0.2)
-    sc.pl.umap(adata, color=['nb_features', 'celltype'])
-    sc.pl.umap(adata, color=['Diagnosis', 'Cell.Type'])
-
     # rank edge
-    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True,
+    adata_edge.obs['celltype_merge'] = adata_edge.obs['celltype']
+    adata_edge.obs.loc[
+        adata_edge.obs['celltype'] == 'excitatory_neuron', 'celltype_merge'] = 'neuron'
+    adata_edge.obs.loc[
+        adata_edge.obs['celltype'] == 'inhibitory_neuron', 'celltype_merge'] = 'neuron'
+    sc.tl.rank_genes_groups(adata_edge, groupby='celltype_merge', method='wilcoxon', use_raw=True,
                             pts=True, tie_correct=True)
     array_names = adata_edge.uns['rank_genes_groups']['names']
     array_scores = adata_edge.uns['rank_genes_groups']['scores']
     array_pval = adata_edge.uns['rank_genes_groups']['pvals_adj']
 
-    df_graph = dataset_AD_Control.df_graph
-    peaks = dataset_AD_Control.array_peak
-    celltypes = dataset_AD_Control.array_celltype
-    dict_cell_scores = {}
-    for idx_cell in range(len(celltypes)):
-        cell_name = celltypes[idx_cell]
-        list_edge_names = []
-        list_edge_scores = []
-        for idx_edge in range(array_names.shape[0]):
-            edge_name = array_names[idx_edge][idx_cell]
-            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
-            list_edge_scores.append(array_scores[idx_edge][idx_cell])
-        dict_cell_scores[cell_name] = pd.Series(list_edge_scores, index=list_edge_names)
-
-    # cell type
-    sc.tl.rank_genes_groups(adata_edge, groupby='Cell.Type', method='wilcoxon', use_raw=True,
-                            pts=True, tie_correct=True)
-    array_names = adata_edge.uns['rank_genes_groups']['names']
-    array_scores = adata_edge.uns['rank_genes_groups']['scores']
-    array_pval = adata_edge.uns['rank_genes_groups']['pvals_adj']
-    array_logfoldchanges = adata_edge.uns['rank_genes_groups']['logfoldchanges']
-    peaks = dataset_AD_Control.array_peak
-    celltypes = ['ASC', 'EX', 'INH', 'MG', 'ODC', 'OPC', 'PER.END']
-    dict_cell_genes = {}
-    dict_cell_genes_idx = {}
-    for idx_cell in range(len(celltypes)):
-        cell_name = celltypes[idx_cell]
-        list_edge_idx = []
-        list_edge_names = []
-        list_edge_logfoldchanges = []
-        list_edge_pval = []
-        for idx_edge in range(array_names.shape[0]):
-            edge_name = array_names[idx_edge][idx_cell]
-            list_edge_idx.append(edge_name)
-            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
-            list_edge_logfoldchanges.append(array_logfoldchanges[idx_edge][idx_cell])
-            list_edge_pval.append(array_pval[idx_edge][idx_cell])
-        dict_cell_genes[cell_name] = \
-            [list_edge_names[i] for i in range(len(list_edge_names))
-             if list_edge_logfoldchanges[i] > 1 and list_edge_pval[i] < 0.01]
-        dict_cell_genes_idx[cell_name] = \
-            [list_edge_idx[i] for i in range(len(list_edge_idx))
-             if list_edge_logfoldchanges[i] > 1 and list_edge_pval[i] < 0.01]
-
-    cell_genes = dict_cell_genes_idx['MG']
-    cell_barcodes = adata_edge.obs.index[adata_edge.obs['Cell.Type'] == 'MG']
-    adata_edge_cell = adata_edge[cell_barcodes, pd.Index(cell_genes)]
-    sc.tl.rank_genes_groups(adata_edge_cell, groupby='Diagnosis', method='wilcoxon', use_raw=True,
-                            pts=True, tie_correct=True)
-    array_names = adata_edge_cell.uns['rank_genes_groups']['names']
-    array_scores = adata_edge_cell.uns['rank_genes_groups']['scores']
-    peaks = dataset_AD_Control.array_peak
-    status = ['AD', 'Control']
-    dict_cell_scores = {}
-    for idx_status in range(len(status)):
-        cell_name = status[idx_status]
-        list_edge_names = []
-        list_edge_scores = []
-        for idx_edge in range(array_names.shape[0]):
-            edge_name = array_names[idx_edge][idx_status]
-            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
-            list_edge_scores.append(array_scores[idx_edge][idx_status])
-        dict_cell_scores[cell_name] = pd.Series(list_edge_scores, index=list_edge_names)
-
-    time_start = time()
-    path_Control_3000 = '/root/scATAC/ATAC_data/Alzheimer_Morabito/Control_3000'
-    dataset_Control_3000 = ATACDataset(data_root=path_Control_3000, raw_filename='counts.tsv')
-    file_meta_tsv = os.path.join(path_Control_3000, 'metadata.tsv')
-    df_meta = pd.read_csv(file_meta_tsv, sep='\t', index_col=0)
-    df_meta.index = df_meta['Barcode']
-    dataset_Control_3000.adata.obs['celltype'] = df_meta.loc[dataset_Control_3000.adata.obs.index, 'Cell.Type']
-
-    # dataset_Control_3000.quality_control(min_features=3000)
-    file_gene_hg38 = '/root/scATAC/Gene_anno/Gene_hg38/promoters.up2k.protein.gencode.v38.bed'
-    dataset_Control_3000.add_promoter(file_gene_hg38)
-
-    dataset_Control_3000.find_neighbors()
-    # dataset_Control_3000.plot_umap()
-    time_end = time()
-    print(time_end - time_start)
-
-    # save data
-    file_atac_Control_3000 = os.path.join(path_Control_3000, 'dataset_atac.pkl')
-    with open(file_atac_Control_3000, 'wb') as w_pkl:
-        str_pkl = pickle.dumps(dataset_Control_3000)
-        w_pkl.write(str_pkl)
-
-    # read data
-    path_Control_3000 = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_PLAC'
-    file_atac_Control_3000 = os.path.join(path_Control_3000, 'dataset_atac.pkl')
-    with open(file_atac_Control_3000, 'rb') as r_pkl:
-        dataset_Control_3000 = pickle.loads(r_pkl.read())
-
-    time_start = time()
-    path_hic = '/root/scATAC/pcHi-C/Cortex_PLACSeq/hg38'
-    df_graph_Control_3000 = dataset_Control_3000.build_graph(path_hic)
-    df_graph_Control_3000 = df_graph_Control_3000.drop_duplicates()
-    torch.multiprocessing.set_sharing_strategy('file_system')
-    list_graph_data_Control_3000, peaks_Control_3000, celltypes_Control_3000 = \
-        generate_data_list(df_graph_Control_3000, dataset_Control_3000, 20)
-    path_graph_input_Control_3000 = os.path.join(path_Control_3000, 'input_graph')
-    dataset_atac_graph_Control_3000 = ATACGraphDataset(path_graph_input_Control_3000, list_graph_data_Control_3000)
-    # dataset_atac_graph = ATACGraphDataset(path_graph_input)
-    file_peaks_celltypes_Control_3000 = os.path.join(path_graph_input_Control_3000, 'peaks_celltypes')
-    np.savez(file_peaks_celltypes_Control_3000, peaks=peaks_Control_3000, celltypes=celltypes_Control_3000)
-    time_end = time()
-    print(time_end - time_start)
-
-    # build edge matrix
-    list_edgr_attr = [pd.Series(one_data.edge_attr.numpy().reshape(-1),
-                                index=[(one_data.edge_index.numpy()[0, i],
-                                        one_data.edge_index.numpy()[1, i])
-                                       for i in range(one_data.edge_index.numpy().shape[1])])
-                      for one_data in dataset_atac_graph_Control_3000]
-    df_edge = pd.concat(list_edgr_attr, axis=1)
-    # df_edge = df_edge.applymap(lambda x: np.abs(x))
-    adata_edge = ad.AnnData(X=df_edge.T, obs=dataset_Control_3000.adata.obs)
-    adata_edge.raw = adata_edge.copy()
-    # sc.pp.normalize_total(adata)
-    # sc.pp.log1p(adata)
-    # sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
-    # adata_edge = adata_edge[:, adata_edge.var.highly_variable]
-    sc.pp.scale(adata_edge, max_value=10)
-    sc.tl.pca(adata_edge, svd_solver='arpack')
-    sc.pp.neighbors(adata_edge, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata_edge)
-    sc.pl.umap(adata_edge, color=['nb_features', 'celltype'])
-
-    # rank edge
-    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True)
-    array_names = adata_edge.uns['rank_genes_groups']['names']
-    array_scores = adata_edge.uns['rank_genes_groups']['scores']
-
-    file_peaks_celltypes = os.path.join(path_graph_input_Control_3000, 'peaks_celltypes.npz')
-    filenpz = np.load(file_peaks_celltypes, allow_pickle=True)
-    peaks = filenpz['peaks']
-    celltypes = filenpz['celltypes']
+    df_graph = dataset_ATAC.df_graph
+    peaks = dataset_ATAC.array_peak
+    celltypes = ['astrocyte', 'microglia', 'neuron', 'oligodendrocytes', 'polydendrocytes']
     dict_cell_scores = {}
     for idx_cell in range(len(celltypes)):
         cell_name = celltypes[idx_cell]
@@ -782,3 +537,149 @@ if __name__ == '__main__':
             cell_score = all_score[cell_pair]
             df_pval.loc[cell, celltype] = \
                 kstest(np.array(cell_score), np.array(all_score), alternative='less')[1]
+    file_pvals = os.path.join(path_cell_interatome, 'interactome_pvals.txt')
+    df_pval.to_csv(file_pvals, sep='\t')
+
+    for cell in list_cell:
+        cell_pair = df_cell.index[df_cell[cell]]
+        df_scores = pd.DataFrame(np.full(shape=(len(cell_pair), len(celltypes)), fill_value=0.0),
+                                 index=cell_pair, columns=celltypes)
+        for celltype in celltypes:
+            all_score = dict_cell_scores[celltype]
+            for sub_inter in cell_pair:
+                df_scores.loc[df_scores.index == sub_inter, celltype] = \
+                    all_score.loc[all_score.index == sub_inter]
+        file_scores = os.path.join(path_cell_interatome,
+                                   f'{cell}/interactome_celltypes_scores.txt')
+        df_scores.to_csv(file_scores, sep='\t')
+
+    # cell type scores
+    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True,
+                            pts=True, tie_correct=True)
+    array_names = adata_edge.uns['rank_genes_groups']['names']
+    array_scores = adata_edge.uns['rank_genes_groups']['scores']
+    array_pval = adata_edge.uns['rank_genes_groups']['pvals_adj']
+
+    df_graph = dataset_ATAC.df_graph
+    peaks = dataset_ATAC.array_peak
+    celltypes = dataset_ATAC.array_celltype
+    dict_cell_scores = {}
+    for idx_cell in range(len(celltypes)):
+        cell_name = celltypes[idx_cell]
+        list_edge_names = []
+        list_edge_scores = []
+        for idx_edge in range(array_names.shape[0]):
+            edge_name = array_names[idx_edge][idx_cell]
+            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
+            list_edge_scores.append(array_scores[idx_edge][idx_cell])
+        dict_cell_scores[cell_name] = pd.Series(list_edge_scores, index=list_edge_names)
+
+    # dict promoter
+    dict_promoter = {}
+    file_peak_promoter = \
+        '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_merge_HiC/processed_files/peaks_promoter.txt'
+    with open(file_peak_promoter, 'r') as w_pro:
+        for line in w_pro:
+            list_line = line.strip().split('\t')
+            peak = list_line[3]
+            gene = list_line[7].split('<-')[0]
+            if gene != '.':
+                dict_promoter[peak] = gene
+
+    file_peaks = dataset_ATAC.file_peaks_sort
+    # AD sites
+    path_AD = '/root/scATAC/GWAS/Jansen_NG_2019/'
+    path_AD_process = os.path.join(path_AD, 'process')
+    file_AD_hg38 = os.path.join(path_AD_process, 'hg38.bed')
+    path_ATAC_AD = os.path.join(path_data_root, 'AD')
+    file_intersect = os.path.join(path_ATAC_AD, 'peaks_AD.txt')
+    os.system(f"bedtools intersect -a {file_peaks} -b {file_AD_hg38} -wao > {file_intersect}")
+    df_peaks_AD = pd.read_csv(file_intersect, sep='\t', header=None)
+    peaks_AD = df_peaks_AD.loc[df_peaks_AD.iloc[:, 4] != '.', 3].tolist()
+    # file_AD_scores = os.path.join(path_ATAC_AD, 'peaks_celltypes_scores.txt')
+    # df_AD_peak = pd.read_csv(file_AD_scores, sep='\t', index_col=0)
+    # AD interactome
+    list_AD_merge_peaks = []
+    for peak in peaks_AD:
+        if peak in dict_promoter.keys():
+            list_AD_merge_peaks.append(dict_promoter[peak])
+            continue
+        list_AD_merge_peaks.append(peak)
+    list_interatome = []
+    for pair in df_cell.index:
+        pair_1 = pair[0]
+        pair_2 = pair[1]
+        if pair_2[0:3] == 'chr':
+            if pair_2 in list_AD_merge_peaks:
+                list_interatome.append(pair)
+        else:
+            if (pair_1 in list_AD_merge_peaks) | (pair_2 in list_AD_merge_peaks):
+                list_interatome.append(pair)
+    df_AD_interactome = pd.DataFrame(np.full(shape=(len(list_interatome), len(celltypes)),
+                                             fill_value=0.0),
+                                     index=list_interatome, columns=celltypes)
+    df_AD_pval = pd.Series(np.full(shape=(len(celltypes)), fill_value=1.0), index=list(celltypes))
+    for celltype in celltypes:
+        all_score = dict_cell_scores[celltype]
+        for sub_inter in set(list_interatome):
+            df_AD_interactome.loc[df_AD_interactome.index == sub_inter, celltype] = \
+                all_score.loc[all_score.index == sub_inter]
+        df_AD_pval.loc[celltype] = \
+            kstest(np.array(df_AD_interactome[celltype]),
+                   np.array(all_score), alternative='less')[1]
+    file_interactome_AD_scores = os.path.join(path_ATAC_AD, 'interactome_celltype_scores.txt')
+    df_AD_interactome.to_csv(file_interactome_AD_scores, sep='\t')
+    file_interactome_AD_pvals = os.path.join(path_ATAC_AD, 'interactome_celltype_pvals.txt')
+    df_AD_pval.to_csv(file_interactome_AD_pvals, sep='\t')
+
+    # SCZ
+    path_SCZ = '/root/scATAC/GWAS/SCZ_DisGeNET'
+    file_SCZ_sites = os.path.join(path_SCZ, 'SCZ_DisGeNET.txt')
+    df_raw_SCZ = pd.read_csv(file_SCZ_sites, sep='\t')
+    df_out_SCZ = df_raw_SCZ.loc[:, ['chromosome', 'position']]
+    df_out_SCZ['chromosome'] = df_out_SCZ['chromosome'].apply(lambda x: f"chr{x}")
+    df_out_SCZ['position1'] = df_out_SCZ['position'].apply(lambda x: x - 1)
+    df_out_SCZ['position2'] = df_out_SCZ['position'].apply(lambda x: x + 1)
+    df_out_SCZ['snpId'] = df_raw_SCZ['snpId']
+    df_out_SCZ = df_out_SCZ.loc[:, ['chromosome', 'position1', 'position2', 'snpId']]
+    file_SCZ_hg38 = os.path.join(path_SCZ, 'SCZ_hg38.bed')
+    df_out_SCZ.to_csv(file_SCZ_hg38, sep='\t', index=False, header=False)
+    file_peaks = dataset_ATAC.file_peaks_sort
+    path_ATAC_SCZ = os.path.join(path_data_root, 'SCZ')
+    file_intersect = os.path.join(path_ATAC_SCZ, 'peaks_SCZ.txt')
+    os.system(f"bedtools intersect -a {file_peaks} -b {file_SCZ_hg38} -wao > {file_intersect}")
+    df_peaks_SCZ = pd.read_csv(file_intersect, sep='\t', header=None)
+    peaks_SCZ = df_peaks_SCZ.loc[df_peaks_SCZ.iloc[:, 4] != '.', 3].tolist()
+    # SCZ interactome
+    list_SCZ_merge_peaks = []
+    for peak in peaks_SCZ:
+        if peak in dict_promoter.keys():
+            list_SCZ_merge_peaks.append(dict_promoter[peak])
+            continue
+        list_SCZ_merge_peaks.append(peak)
+    list_interatome = []
+    for pair in df_cell.index:
+        pair_1 = pair[0]
+        pair_2 = pair[1]
+        if pair_2[0:3] == 'chr':
+            if pair_2 in list_SCZ_merge_peaks:
+                list_interatome.append(pair)
+        else:
+            if (pair_1 in list_SCZ_merge_peaks) | (pair_2 in list_SCZ_merge_peaks):
+                list_interatome.append(pair)
+    df_SCZ_interactome = pd.DataFrame(np.full(shape=(len(list_interatome), len(celltypes)),
+                                              fill_value=0.0),
+                                      index=list_interatome, columns=celltypes)
+    df_SCZ_pval = pd.Series(np.full(shape=(len(celltypes)), fill_value=1.0), index=list(celltypes))
+    for celltype in celltypes:
+        all_score = dict_cell_scores[celltype]
+        for sub_inter in set(list_interatome):
+            df_SCZ_interactome.loc[df_SCZ_interactome.index == sub_inter, celltype] = \
+                all_score.loc[all_score.index == sub_inter]
+        df_SCZ_pval.loc[celltype] = \
+            kstest(np.array(df_SCZ_interactome[celltype]),
+                   np.array(all_score), alternative='less')[1]
+    file_interactome_SCZ_scores = os.path.join(path_ATAC_SCZ, 'interactome_celltype_scores.txt')
+    df_SCZ_interactome.to_csv(file_interactome_SCZ_scores, sep='\t')
+    file_interactome_SCZ_pvals = os.path.join(path_ATAC_SCZ, 'interactome_celltype_pvals.txt')
+    df_SCZ_pval.to_csv(file_interactome_SCZ_pvals, sep='\t')

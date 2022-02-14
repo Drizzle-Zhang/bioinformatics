@@ -526,7 +526,7 @@ if __name__ == '__main__':
 
     list_dict = []
     list_labels = []
-    method = 'saliency'
+    method = 'ig'
     # i = 0
     for data in dataset_atac_graph:
         data = data.to(device)
@@ -539,14 +539,14 @@ if __name__ == '__main__':
         #     break
     df_weight = pd.DataFrame(list_dict)
     adata_edge = ad.AnnData(X=df_weight, obs=dataset_ATAC.adata.obs)
-    # sc.pp.normalize_total(adata)
+    # sc.pp.normalize_total(adata_edge)
     # sc.pp.log1p(adata)
-    sc.pp.highly_variable_genes(adata_edge, n_top_genes=10000, flavor='seurat')
+    sc.pp.highly_variable_genes(adata_edge, n_top_genes=15000, flavor='seurat')
     adata = adata_edge[:, adata_edge.var.highly_variable]
     sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, svd_solver='arpack')
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-    sc.tl.umap(adata)
+    sc.tl.pca(adata, svd_solver='arpack', n_comps=100)
+    sc.pp.neighbors(adata, n_neighbors=30, n_pcs=100)
+    sc.tl.umap(adata, min_dist=0.2)
     sc.pl.umap(adata, color=['nb_features', 'celltype'])
 
     # build edge matrix

@@ -49,12 +49,12 @@ class GCN(torch.nn.Module):
 
         # self.lin0 = nn.Linear(input_channels, hidden_channels//4)
         self.conv1 = geo_nn.GATConv(input_channels, hidden_channels,
-                                    heads=8, dropout=0.6)
+                                    heads=4, dropout=0.6)
         # self.conv2 = geo_nn.GATConv(1*hidden_channels, 1*hidden_channels,
         #                             heads=1, dropout=0.7)
         # self.conv3 = geo_nn.GATConv(hidden_channels, hidden_channels)
         # self.conv4 = GraphConv(hidden_channels, hidden_channels)
-        self.conv5 = geo_nn.GATConv(8*hidden_channels, output_channels, concat=False,
+        self.conv5 = geo_nn.GATConv(4*hidden_channels, output_channels, concat=False,
                                     heads=1, dropout=0.6)
 
         # self.lin1 = nn.Linear(hidden_channels, hidden_channels)
@@ -154,7 +154,7 @@ if __name__ == '__main__':
 
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     model = GCN(input_channels=dataset.num_node_features,
-                output_channels=dataset.num_classes, hidden_channels=8).to(device)
+                output_channels=dataset.num_classes, hidden_channels=16).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.CrossEntropyLoss()
 

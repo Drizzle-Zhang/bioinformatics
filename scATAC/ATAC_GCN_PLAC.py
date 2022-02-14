@@ -464,16 +464,16 @@ if __name__ == '__main__':
     list_dict = []
     list_labels = []
     method = 'saliency'
-    # i = 0
+    i = 0
     for data in correct_data:
         data = data.to(device)
         edge_mask = explain(method, data, target=data.y.to(device))
         edge_mask_dict = aggregate_edge_directions(edge_mask, data)
         list_dict.append(edge_mask_dict)
         list_labels.extend(data.y.cpu().numpy())
-        # i = i + 1
-        # if i > 10:
-        #     break
+        i = i + 1
+        if i > 10:
+            break
     df_weight = pd.DataFrame(list_dict)
 
     adata_edge = ad.AnnData(X=df_weight,
@@ -509,9 +509,11 @@ if __name__ == '__main__':
     sc.pl.umap(adata_edge, color=['nb_features', 'celltype'])
 
     # rank edge
-    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True)
+    sc.tl.rank_genes_groups(adata_edge, groupby='celltype', method='wilcoxon', use_raw=True,
+                            pts=True, tie_correct=True)
     array_names = adata_edge.uns['rank_genes_groups']['names']
     array_scores = adata_edge.uns['rank_genes_groups']['scores']
+    array_pval = adata_edge.uns['rank_genes_groups']['pvals_adj']
 
     file_peaks_celltypes = os.path.join(path_graph_input, 'peaks_celltypes.npz')
     filenpz = np.load(file_peaks_celltypes, allow_pickle=True)
@@ -527,6 +529,21 @@ if __name__ == '__main__':
             list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
             list_edge_scores.append(array_scores[idx_edge][idx_cell])
         dict_cell_scores[cell_name] = pd.Series(list_edge_scores, index=list_edge_names)
+
+    # significant interaction
+    dict_cell_scores = {}
+    for idx_cell in range(len(celltypes)):
+        cell_name = celltypes[idx_cell]
+        list_edge_names = []
+        list_edge_scores = []
+        list_edge_pval = []
+        for idx_edge in range(array_names.shape[0]):
+            edge_name = array_names[idx_edge][idx_cell]
+            list_edge_names.append((peaks[edge_name[0]], peaks[edge_name[1]]))
+            list_edge_scores.append(array_scores[idx_edge][idx_cell])
+            list_edge_pval.append(array_pval[idx_edge][idx_cell])
+        dict_cell_scores[cell_name] = \
+            pd.DataFrame({'scores':list_edge_scores, 'pval':list_edge_pval}, index=list_edge_names)
 
     # cell type specific interactome
     df_graph_pp = df_graph.loc[df_graph['region2'].apply(lambda x: x[:3] != 'chr'), :]
@@ -583,3 +600,199 @@ if __name__ == '__main__':
             cell_score = all_score[cell_pair]
             df_pval.loc[cell, celltype] = \
                 kstest(np.array(cell_score), np.array(all_score), alternative='less')[1]
+    file_pvals = os.path.join(path_cell_interatome, 'interactome_pvals.txt')
+    df_pval.to_csv(file_pvals, sep='\t')
+
+    for cell in list_cell:
+        cell_pair = df_cell.index[df_cell[cell]]
+        df_scores = pd.DataFrame(np.full(shape=(len(cell_pair), len(celltypes)), fill_value=0.0),
+                                         index=cell_pair, columns=celltypes)
+        for celltype in celltypes:
+            all_score = dict_cell_scores[celltype]
+            for sub_inter in cell_pair:
+                df_scores.loc[df_scores.index == sub_inter, celltype] = \
+                    all_score.loc[all_score.index == sub_inter, 'scores']
+        file_scores = os.path.join(path_cell_interatome,
+                                   f'{cell}/interactome_celltypes_scores.txt')
+        df_scores.to_csv(file_scores, sep='\t')
+
+    # peaks specificity
+    path_data_root = '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_PLAC'
+    dataset_ATAC = ATACDataset(data_root=path_data_root, raw_filename='counts.tsv')
+    file_meta_tsv = os.path.join(path_data_root, 'metadata.tsv')
+    df_meta = pd.read_csv(file_meta_tsv, sep='\t', index_col=0)
+    dataset_ATAC.adata.obs['celltype'] = df_meta.loc[dataset_ATAC.adata.obs.index, 'celltype']
+    sc.pp.normalize_total(dataset_ATAC.adata)
+    sc.pp.log1p(dataset_ATAC.adata)
+    dataset_ATAC.adata.raw = dataset_ATAC.adata.copy()
+    adata_peaks = dataset_ATAC.adata
+    sc.tl.rank_genes_groups(adata_peaks, groupby='celltype', method='wilcoxon', use_raw=True,
+                            pts=True, tie_correct=True)
+    array_names = adata_peaks.uns['rank_genes_groups']['names']
+    array_scores = adata_peaks.uns['rank_genes_groups']['scores']
+    file_peaks = dataset_ATAC.file_peaks_sort
+    list_peak_names = []
+    list_peak_scores = []
+    dict_peak_cell_scores = {}
+    for idx_cell in range(len(celltypes)):
+        cell_name = celltypes[idx_cell]
+        list_peak_names = []
+        list_peak_scores = []
+        for idx_peak in range(array_names.shape[0]):
+            list_peak_names.append(array_names[idx_peak][idx_cell])
+            list_peak_scores.append(array_scores[idx_peak][idx_cell])
+        dict_peak_cell_scores[cell_name] = pd.Series(list_peak_scores, index=list_peak_names)
+
+    # dict promoter
+    dict_promoter = {}
+    file_peak_promoter = \
+        '/root/scATAC/ATAC_data/Forebrain/Mulqueen_human_brain_PLAC/processed_files/peaks_promoter.txt'
+    with open(file_peak_promoter, 'r') as w_pro:
+        for line in w_pro:
+            list_line = line.strip().split('\t')
+            peak = list_line[3]
+            gene = list_line[7].split('<-')[0]
+            if gene != '.':
+                dict_promoter[peak] = gene
+
+    # AD sites
+    path_AD = '/root/scATAC/GWAS/Jansen_NG_2019/'
+    file_AD_sites = os.path.join(path_AD, 'AD_sumstats_Jansenetal_2019sept.txt')
+    df_AD_sites = pd.read_csv(file_AD_sites, sep='\t')
+    df_AD_signif = df_AD_sites.loc[df_AD_sites['P'] < 1*10**-5, :]
+    path_AD_process = os.path.join(path_AD, 'process')
+    if not os.path.exists(path_AD_process):
+        os.mkdir(path_AD_process)
+    file_AD_hg19 = os.path.join(path_AD_process, 'hg19.bed')
+    with open(file_AD_hg19, 'w') as w_hg19:
+        for i in df_AD_signif.index:
+            w_hg19.write(f"chr{df_AD_signif.loc[i, 'CHR']}\t{df_AD_signif.loc[i, 'BP'] - 1}\t"
+                         f"{df_AD_signif.loc[i, 'BP'] + 1}\t{df_AD_signif.loc[i, 'uniqID.a1a2']}\n")
+    file_chain = '/root/tools/files_liftOver/hg19ToHg38.over.chain.gz'
+    liftover = '/root/tools/liftOver'
+    file_AD_hg38 = os.path.join(path_AD_process, 'hg38.bed')
+    file_ummap = os.path.join(path_AD_process, 'unmap.bed')
+    os.system(f"{liftover} {file_AD_hg19} {file_chain} {file_AD_hg38} {file_ummap}")
+    # df_old = pd.read_csv(file_AD_hg38, sep='\t', header=None)
+    # length_old = df_old.iloc[:, 2] - df_old.iloc[:, 1]
+    # df_old['length'] = length_old
+    path_ATAC_AD = os.path.join(path_data_root, 'AD')
+    if not os.path.exists(path_ATAC_AD):
+        os.mkdir(path_ATAC_AD)
+    file_intersect = os.path.join(path_ATAC_AD, 'peaks_AD.txt')
+    os.system(f"bedtools intersect -a {file_peaks} -b {file_AD_hg38} -wao > {file_intersect}")
+    df_peaks_AD = pd.read_csv(file_intersect, sep='\t', header=None)
+    peaks_AD = df_peaks_AD.loc[df_peaks_AD.iloc[:, 4] != '.', 3].tolist()
+    df_AD_peak = pd.DataFrame(np.full(shape=(len(peaks_AD), len(celltypes)), fill_value=0.0),
+                              index=peaks_AD, columns=celltypes)
+    for celltype in celltypes:
+        for sub_peak in peaks_AD:
+            all_score = dict_peak_cell_scores[celltype]
+            df_AD_peak.loc[sub_peak, celltype] = all_score.loc[sub_peak]
+    file_AD_scores = os.path.join(path_ATAC_AD, 'peaks_celltypes_scores.txt')
+    df_AD_peak.to_csv(file_AD_scores, sep='\t')
+    # AD interactome
+    list_AD_merge_peaks = []
+    for peak in peaks_AD:
+        if peak in dict_promoter.keys():
+            list_AD_merge_peaks.append(dict_promoter[peak])
+            continue
+        list_AD_merge_peaks.append(peak)
+    list_interatome = []
+    for pair in df_cell.index:
+        pair_1 = pair[0]
+        pair_2 = pair[1]
+        if pair_2[0:3] == 'chr':
+            if pair_2 in list_AD_merge_peaks:
+                list_interatome.append(pair)
+        else:
+            if (pair_1 in list_AD_merge_peaks) | (pair_2 in list_AD_merge_peaks):
+                list_interatome.append(pair)
+    df_AD_interactome = pd.DataFrame(np.full(shape=(len(list_interatome), len(celltypes)),
+                                             fill_value=0.0),
+                                     index=list_interatome, columns=celltypes)
+    for celltype in celltypes:
+        all_score = dict_cell_scores[celltype]
+        for sub_inter in set(list_interatome):
+            df_AD_interactome.loc[df_AD_interactome.index == sub_inter, celltype] = \
+                all_score.loc[all_score.index == sub_inter, 'scores']
+    file_interactome_AD_scores = os.path.join(path_ATAC_AD, 'interactome_celltype_scores.txt')
+    df_AD_interactome.to_csv(file_interactome_AD_scores, sep='\t')
+
+    # SCZ
+    path_SCZ = '/root/scATAC/GWAS/Antonio_NG_2018/'
+    file_SCZ_sites = os.path.join(path_SCZ, 'clozuk_pgc2.meta.sumstats.txt')
+    df_SCZ_sites = pd.read_csv(file_SCZ_sites, sep='\t')
+    df_SCZ_signif = df_SCZ_sites.loc[df_SCZ_sites['P'] < 1*10**-5, :]
+    path_SCZ_process = os.path.join(path_SCZ, 'process')
+    if not os.path.exists(path_SCZ_process):
+        os.mkdir(path_SCZ_process)
+    file_SCZ_hg19 = os.path.join(path_SCZ_process, 'hg19.bed')
+    with open(file_SCZ_hg19, 'w') as w_hg19:
+        for i in df_SCZ_signif.index:
+            w_hg19.write(f"chr{df_SCZ_signif.loc[i, 'CHR']}\t{df_SCZ_signif.loc[i, 'BP'] - 1}\t"
+                         f"{df_SCZ_signif.loc[i, 'BP'] + 1}\t{df_SCZ_signif.loc[i, 'SNP']}\n")
+    file_chain = '/root/tools/files_liftOver/hg19ToHg38.over.chain.gz'
+    liftover = '/root/tools/liftOver'
+    file_SCZ_hg38 = os.path.join(path_SCZ_process, 'hg38.bed')
+    file_ummap = os.path.join(path_SCZ_process, 'unmap.bed')
+    os.system(f"{liftover} {file_SCZ_hg19} {file_chain} {file_SCZ_hg38} {file_ummap}")
+    # df_old = pd.read_csv(file_SCZ_hg38, sep='\t', header=None)
+    # length_old = df_old.iloc[:, 2] - df_old.iloc[:, 1]
+    # df_old['length'] = length_old
+    path_ATAC_SCZ = os.path.join(path_data_root, 'SCZ')
+    if not os.path.exists(path_ATAC_SCZ):
+        os.mkdir(path_ATAC_SCZ)
+    file_intersect = os.path.join(path_ATAC_SCZ, 'peaks_SCZ.txt')
+    os.system(f"bedtools intersect -a {file_peaks} -b {file_SCZ_hg38} -wao > {file_intersect}")
+    df_peaks_SCZ = pd.read_csv(file_intersect, sep='\t', header=None)
+    peaks_SCZ = df_peaks_SCZ.loc[df_peaks_SCZ.iloc[:, 4] != '.', 3].tolist()
+    df_SCZ_peak = pd.DataFrame(np.full(shape=(len(peaks_SCZ), len(celltypes)), fill_value=0.0),
+                               index=peaks_SCZ, columns=celltypes)
+    for celltype in celltypes:
+        for sub_peak in peaks_SCZ:
+            all_score = dict_peak_cell_scores[celltype]
+            df_SCZ_peak.loc[sub_peak, celltype] = all_score.loc[sub_peak]
+    file_SCZ_scores = os.path.join(path_ATAC_SCZ, 'peaks_celltypes_scores.txt')
+    df_SCZ_peak.to_csv(file_SCZ_scores, sep='\t')
+    # SCZ interactome
+    list_SCZ_merge_peaks = []
+    for peak in peaks_SCZ:
+        if peak in dict_promoter.keys():
+            list_SCZ_merge_peaks.append(dict_promoter[peak])
+            continue
+        list_SCZ_merge_peaks.append(peak)
+    list_interatome = []
+    for pair in df_cell.index:
+        pair_1 = pair[0]
+        pair_2 = pair[1]
+        if pair_2[0:3] == 'chr':
+            if pair_2 in list_SCZ_merge_peaks:
+                list_interatome.append(pair)
+        # else:
+        #     if (pair_1 in list_SCZ_merge_peaks) | (pair_2 in list_SCZ_merge_peaks):
+        #         list_interatome.append(pair)
+    df_SCZ_interactome = pd.DataFrame(np.full(shape=(len(list_interatome), len(celltypes)),
+                                             fill_value=0.0),
+                                     index=list_interatome, columns=celltypes)
+    for celltype in celltypes:
+        all_score = dict_cell_scores[celltype]
+        for sub_inter in set(list_interatome):
+            df_SCZ_interactome.loc[df_SCZ_interactome.index == sub_inter, celltype] = \
+                all_score.loc[all_score.index == sub_inter, 'scores']
+    file_interactome_SCZ_scores = os.path.join(path_ATAC_SCZ, 'interactome_celltype_scores.txt')
+    df_SCZ_interactome.to_csv(file_interactome_SCZ_scores, sep='\t')
+
+    # ks test
+    # dict_peaks_disease = {'AD': peaks_AD, 'SCZ': peaks_SCZ}
+    # list_disease = ['AD', 'SCZ']
+    # df_pval_disease = pd.DataFrame(np.full(shape=(len(list_disease), len(celltypes)), fill_value=1),
+    #                                index=list_disease, columns=celltypes)
+    # for disease in list_disease:
+    #     peaks_disease = dict_peaks_disease[disease]
+    #     for celltype in celltypes:
+    #         all_score = dict_peak_cell_scores[celltype]
+    #         cell_score = all_score[peaks_disease]
+    #         df_pval_disease.loc[disease, celltype] = \
+    #             kstest(np.array(cell_score), np.array(all_score), alternative='less')[1]
+
