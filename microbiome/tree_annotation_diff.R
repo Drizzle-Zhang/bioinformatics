@@ -7,7 +7,7 @@ registerDoParallel(4)
 # filter by abundance
 abundance <- 0.0001
 # filter by top num
-topN <- 500
+topN <- 60
 
 # read OTUs matrix
 file.OTUs <- '/home/drizzle_zhang/microbiome/result/2.OTUs/OTUs_stat/OTUs_tax_even.txt'
@@ -42,7 +42,7 @@ saveRDS(filtered_otutab, file = paste0('OTUs_filtered_', abundance, '.Rdata'))
 saveRDS(filtered_taxonomy, file = paste0('taxonomy_filtered_', abundance, '.Rdata'))
 
 # read Rdata
-topN <- 500
+# topN <- 500
 abundance <- 0.0001
 setwd('/home/drizzle_zhang/microbiome/result/6.Phylogenetic/graphlan')
 df.OTUs <- readRDS(paste0('OTUs_filtered_', abundance, '.Rdata'))
@@ -67,8 +67,8 @@ sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41, 49, 60, 68, 84)
 # sel.time <- c(1,  5,  9, 17, 21, 25, 29, 33, 41)
 df.meta.gender <- df.meta[df.meta$Gender == gender, ]
 # dose
-# vec.dose <- c(0, 1, 2, 3)
-vec.dose <- c(0, 3)
+vec.dose <- c(0, 1, 2, 3)
+# vec.dose <- c(0, 3)
 # cutoff
 type.cutoff <- 'diff'
 
@@ -167,12 +167,14 @@ df.combine$absSum <- abs(df.combine$Sum)
 
 # OTUs.diff <- df.combine[(df.combine$Sum > 1) | (df.combine$Sum < -1), 'OTU_id']
 df.combine <- df.combine[order(df.combine$absSum, decreasing = T),]
-OTUs.diff <- df.combine[1:100, 'OTU_id']
+OTUs.diff <- df.combine[1:topN, 'OTU_id']
+
+
 
 # output tree file
 df.tree <- df.tax.filter[as.character(OTUs.diff), c('phylum', 'class', 'order', 'family', 'genus')]
 df.tree$OTU_ID <- row.names(df.tree)
-write.table(df.tree, file = 'tree_backbone.txt', sep = '.', 
+write.table(df.tree, file = paste0('tree_backbone_', topN, '.txt'), sep = '.', 
             col.names = F, row.names = F, quote = F)
 
 # set color for each phylum
@@ -302,14 +304,14 @@ write.table(df.ring, paste0(path.diff, '/tree_ring_', topN, '.txt'),
 # shell 
 system(paste0('cd /home/drizzle_zhang/microbiome/result/8.Phylogenetic/graphlan'))
 
-cd /home/drizzle_zhang/microbiome/result/6.Phylogenetic/graphlan/female_fdr_500
-cd /home/drizzle_zhang/microbiome/result/6.Phylogenetic/graphlan/male_fdr_500
+cd /home/drizzle_zhang/microbiome/result/6.Phylogenetic/graphlan/female_diff_1e-04
+cd /home/drizzle_zhang/microbiome/result/6.Phylogenetic/graphlan/male_diff_1e-04
 rm -rf track*
-cat ../cfg/global.cfg ../tree_label_color_500.txt > track0
-cat tree_ring_global_500.txt tree_ring_500.txt > track1
+cat ../cfg/global.cfg ../tree_label_color_60.txt > track0
+cat tree_ring_global_60.txt tree_ring_60.txt > track1
 cat track* > graphlan_annotate.txt
-graphlan_annotate.py --annot graphlan_annotate.txt ../tree_backbone.txt graphlan.xml
+graphlan_annotate.py --annot graphlan_annotate.txt ../tree_backbone_60.txt graphlan.xml
 # 绘图，size决定图片大小，越大字越小
-graphlan.py graphlan.xml graphlan500_tree.pdf --size 8
+graphlan.py graphlan.xml graphlan60_tree.pdf --size 8
 
 

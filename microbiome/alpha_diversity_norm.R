@@ -10,20 +10,24 @@ df.meta <- read.delim(meta.file, stringsAsFactors = FALSE)
 df.meta$Dose <- as.factor(df.meta$Dose)
 row.names(df.meta) <- df.meta$Sample
 
-# male
-gender <- 'female'
-df.meta <- df.meta[df.meta$Gender == gender,]
-
+# normalization
 mat.combine <- merge(mat.alpha, df.meta, by = 'row.names')
-row.names(mat.combine) <- mat.combine$Row.names
+type.dose <- unique(mat.combine$Dose)
+mat.alpha.norm <- data.frame()
+for (dose in type.dose) {
+    baseline.alpha <- mat.combine[
+        ((mat.combine$Dose == dose) & (mat.combine$Time == -1)), 
+        c("observed_species", "shannon", "simpson")]
+    baseline.alpha <- apply(baseline.alpha, 2, median)
+    sub.mat.alpha <- mat.combine[
+        mat.combine$Dose == dose, c("observed_species", "shannon", "simpson")]
+    sub.alpha.norm <- t(apply(sub.mat.alpha, 1, function(x) {x / baseline.alpha}))
+    mat.alpha.norm <- rbind(mat.alpha.norm, sub.alpha.norm)
+}
 
 
 # time series
-path.plot <- 
-    paste0('/home/drizzle_zhang/microbiome/result/4.Alpha_Diversity/alpha_boxplot_', gender)
-if (!file.exists(path.plot)) {
-    dir.create(path.plot)
-}
+path.plot <- '/home/drizzle_zhang/microbiome/result/4.Alpha_Diversity/alpha_boxplot'
 series.time <- unique(df.meta$Time)
 df.plot.fit <- data.frame()
 i = 1
@@ -39,7 +43,7 @@ for (sub.time in series.time) {
     mat.plot.in <- data.frame()
     for (alpha_index in c("observed_species", "shannon", "simpson")) {
         sub.mat <- data.frame(
-            value = mat.combine[use.sample, alpha_index],
+            value = mat.alpha.norm[use.sample, alpha_index],
             type.alpha = rep(alpha_index, length(use.sample)),
             row.names = use.sample)
         sub.mat <- cbind(sub.mat, sel.meta)
@@ -57,7 +61,7 @@ for (sub.time in series.time) {
                                               fill = 'transparent'))
     
     ggsave(plot = plot.alpha, path = path.plot, 
-           filename = paste0('alpha', sub.time, '_0123.png'))
+           filename = paste0(sub.time, '_0123_norm.png'))
 
     # diff of alpha
     mat.shannon <- mat.plot.in[
@@ -79,8 +83,4 @@ plot.fit <-
     ggplot(data = df.plot.fit, aes(x = Time, y = Shannon, color = Dose)) + 
     geom_line() + 
     geom_point()
-
-
-##################################
-
 
